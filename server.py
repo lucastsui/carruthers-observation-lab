@@ -21,10 +21,12 @@ from matplotlib import colormaps
 from PIL import Image
 from science import Catalogue, METHOD_VERSION, measure_frame, validate_roi, frame_baseline, radiance_contours
 from space_weather import SpaceWeather
+from circularity import CIRCULARITY_METHOD
 
 BASE = Path(__file__).resolve().parent
 DEFAULT_DATA = BASE.parent / 'code and data' / 'L1C'
 METHOD = {
+    'circularity': CIRCULARITY_METHOD,
     'version': METHOD_VERSION, 'input': 'L1C calibrated numeric arrays',
     'units': 'kR = stored Rayleighs / 1000; no additional 4π conversion',
     'geometry': 'Registered camera quaternion projection; no image translation; near-nadir focal length / spacecraft distance',
@@ -90,7 +92,7 @@ class JobManager:
                     if job['cancel']:
                         job['status'] = 'cancelled'
                         return
-                row = measure_frame(self.catalogue, fid, recipe['roi'], recipe['exclude_interpolated'])
+                row = measure_frame(self.catalogue, fid, recipe['roi'], recipe['exclude_interpolated'], include_circularity=True)
                 with self.lock:
                     job['rows'].append(row)
                     job['completed'] += 1

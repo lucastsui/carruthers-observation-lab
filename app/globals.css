@@ -1253,8 +1253,13 @@ h2 {
 
 /* All plots share one independently scrolling card, with room to read each trace. */
 .results-layout > .chart-panel { flex:none; overflow:visible; }
-.results-layout > .profile-chart { border-top:1px solid var(--border); }
+.results-layout > .chart-panel + .chart-panel { border-top:1px solid var(--border); }
 .results-layout > .chart-panel > .plot-root { flex:none; height:210px; min-height:210px; }
 .results-layout > .chart-panel > .paired-plot { height:235px; min-height:235px; }
 .results-layout .context-chart { flex:none; height:140px; min-height:140px; }
 .results-layout .chart-empty { min-height:150px; }
+
+.circularity-definition { font-size:12px; color:var(--muted-foreground); line-height:1.4; margin-top:5px; }
+.circularity-definition summary { cursor:pointer; color:#b9ccdf; }
+.circularity-definition p { margin:7px 0 0; }
+.circularity-chart .chart-readout { min-height:42px; }

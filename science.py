@@ -18,7 +18,7 @@ from netCDF4 import Dataset
 from PIL import Image
 
 RE_KM = 6370.0
-METHOD_VERSION = 'carruthers-local-1.1'
+METHOD_VERSION = 'carruthers-local-1.2'
 SCALES = {'WFI': [1.0, math.log10(270000)], 'NFI': [3.0, math.log10(270000)]}  # log10(R); 270 kR display ceiling.
 NETCDF_LOCK = threading.RLock()  # netCDF/HDF5 libraries are not thread-safe.
 GEOMETRY_NAMES = ['spacecraft_position', 'spacecraft_attitude', 'cam_attitude',
@@ -336,7 +336,7 @@ def radiance_contours(catalogue, fid, exclude_interpolated=True):
     return dict(frame_id=fid, contours=contours, units='kR', exclude_interpolated=exclude_interpolated)
 
 
-def measure_frame(catalogue, fid, roi, exclude_interpolated=True, profile=False):
+def measure_frame(catalogue, fid, roi, exclude_interpolated=True, profile=False, include_circularity=False):
     frame = catalogue.get(fid)
     raw, fov, interp = catalogue.read(fid)
     result = dict(frame_id=fid, timestamp=frame['timestamp'], epoch_ms=frame['epoch_ms'],
@@ -346,6 +346,9 @@ def measure_frame(catalogue, fid, roi, exclude_interpolated=True, profile=False)
                   exposure_s=frame['exposure_s'], flags=frame['flags'],
                   method_version=METHOD_VERSION, exclude_interpolated=exclude_interpolated,
                   **measure_arrays(raw, fov, interp, frame, roi, exclude_interpolated))
+    if include_circularity:
+        from circularity import circularity_arrays
+        result['circularity'] = circularity_arrays(raw, fov, interp, frame, exclude_interpolated)
     if profile:
         result['profile'] = radial_profile(raw, fov, interp, frame, exclude_interpolated)
     return result

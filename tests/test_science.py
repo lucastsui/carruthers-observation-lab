@@ -142,6 +142,19 @@ class RealDataRegressionTests(unittest.TestCase):
             for row in rows:
                 self.assertEqual(float(row['mean_kR']), pair['regions'][row['region']]['mean_kR'])
 
+    def test_circularity_uses_full_contours_and_preserves_radiance(self):
+        frame = next(f for f in self.catalogue.frames if f['channel']=='WFI')
+        first = measure_frame(self.catalogue, frame['id'], dict(kind='annulus', inner=4.5, outer=5.5), include_circularity=True)
+        paired = measure_frame(self.catalogue, frame['id'], dict(kind='paired_sectors', angle_width=45), include_circularity=True)
+        fast = measure_frame(self.catalogue, frame['id'], dict(kind='annulus', inner=4.5, outer=5.5))
+        self.assertEqual(first['circularity'], paired['circularity'])
+        self.assertEqual(first['mean_kR'], fast['mean_kR'])
+        self.assertNotIn('circularity', fast)
+        for value in first['circularity'].values():
+            self.assertEqual(value['status'], 'ok')
+            self.assertLessEqual(value['sensitivity_low_pct'], value['departure_pct'])
+            self.assertGreaterEqual(value['sensitivity_high_pct'], value['departure_pct'])
+
     def test_both_cameras_render_and_display_scale_does_not_change_measurement(self):
         for channel, size, scale in [('WFI', 512, [1, 5.4]), ('NFI', 1024, [3, 5.2])]:
             frame = next(f for f in self.catalogue.frames if f['channel'] == channel and f['timestamp'].startswith('2026-03-15'))

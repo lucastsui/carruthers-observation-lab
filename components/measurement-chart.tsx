@@ -1,11 +1,15 @@
 'use client';
 /* eslint-disable jsx-a11y/prefer-tag-over-role -- This keyboard-operable SVG is a data selection control; an input cannot render the plot. */
 import { useEffect, useRef, useState, useId } from 'react';
+import { splitBandRuns } from '@/lib/plot-bands';
 export type Datum = {
   x: number;
   y: number | null;
   id?: string;
   coverage?: number;
+  low?: number | null;
+  high?: number | null;
+  note?: string;
 };
 const valueLabel = (v: number) =>
   Number(v.toPrecision(4)).toLocaleString('en-US', {
@@ -26,6 +30,8 @@ export function MeasurementChart({
   compact = false,
   daily = false,
   maxGap,
+  zeroBased = false,
+  seriesLabel = 'Radiance series',
 }: {
   data: Datum[];
   series?: { label: string; color: string; data: Datum[] }[];
@@ -41,6 +47,8 @@ export function MeasurementChart({
   compact?: boolean;
   daily?: boolean;
   maxGap?: number;
+  zeroBased?: boolean;
+  seriesLabel?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const valid = (d: Datum) =>
@@ -84,6 +92,15 @@ export function MeasurementChart({
     Number.isFinite(baseline) &&
     (!logarithmic || baseline > 0);
   const ys = points.map((d) => transform(d.y!));
+  for (const point of points) {
+    for (const bound of [point.low, point.high])
+      if (
+        bound != null &&
+        Number.isFinite(bound) &&
+        (!logarithmic || bound > 0)
+      )
+        ys.push(transform(bound));
+  }
   if (validBaseline) ys.push(transform(baseline!));
   const rawMin = Math.min(...ys),
     rawMax = Math.max(...ys);
@@ -92,7 +109,7 @@ export function MeasurementChart({
     logarithmic ? 0.035 : Math.abs(rawMax) * 0.005,
     0.0001,
   );
-  const ymin = rawMin - padding,
+  const ymin = zeroBased && !logarithmic ? 0 : rawMin - padding,
     ymax = rawMax + padding;
   const x = (v: number) => l + ((v - xmin) / (xmax - xmin || 1)) * (w - l - r);
   const y = (v: number) =>
@@ -139,7 +156,7 @@ export function MeasurementChart({
     datasets
       .map((s) => {
         const point = s.data[i];
-        return `${series ? s.label + ': ' : ''}${point?.y == null ? 'Missing' : valueLabel(point.y)} ${units}${point?.coverage !== undefined ? ` · ${(point.coverage * 100).toFixed(1)}% valid` : ''}`;
+        return `${series ? s.label + ': ' : ''}${point?.y == null ? 'Missing' : `${valueLabel(point.y)} ${units}`}${point?.low != null && point.high != null ? ` (range ${valueLabel(point.low)}–${valueLabel(point.high)} ${units})` : ''}${point?.note ? ` · ${point.note}` : ''}${point?.coverage !== undefined ? ` · ${(point.coverage * 100).toFixed(1)}% valid` : ''}`;
       })
       .join(' · ');
   const ticks: number[] = [];
@@ -165,7 +182,7 @@ export function MeasurementChart({
       className={`plot-root ${compact ? 'compact-plot' : ''} ${series ? 'paired-plot' : ''}`}
     >
       {series && (
-        <div className="series-legend" aria-label="Radiance series">
+        <div className="series-legend" aria-label={seriesLabel}>
           {series.map((s) => (
             <span key={s.label} style={{ color: s.color }}>
               <i style={{ background: s.color }} />
@@ -269,6 +286,33 @@ export function MeasurementChart({
             )}
             {datasets.map((seriesData) => (
               <g key={seriesData.label}>
+                {splitBandRuns(seriesData.data, maxGap).map((run, index) =>
+                  run.length === 1 ? (
+                    <line
+                      key={`band-${index}`}
+                      x1={x(run[0].x)}
+                      x2={x(run[0].x)}
+                      y1={y(run[0].low!)}
+                      y2={y(run[0].high!)}
+                      stroke={seriesData.color}
+                      strokeOpacity={0.35}
+                      strokeWidth={3}
+                    />
+                  ) : (
+                    <path
+                      key={`band-${index}`}
+                      d={`M ${run.map((p) => `${x(p.x)} ${y(p.high!)}`).join(' L ')} L ${[
+                        ...run,
+                      ]
+                        .reverse()
+                        .map((p) => `${x(p.x)} ${y(p.low!)}`)
+                        .join(' L ')} Z`}
+                      fill={seriesData.color}
+                      fillOpacity={0.18}
+                      stroke="none"
+                    />
+                  ),
+                )}
                 <path
                   d={makePath(seriesData.data)}
                   fill="none"

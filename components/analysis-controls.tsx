@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { MeasurementChart } from '@/components/measurement-chart';
+import { CircularityChart } from '@/components/circularity-chart';
 import {
   fmt,
   roiError,
@@ -630,6 +631,13 @@ export function AnalysisResults({
           </div>
         )}
       </section>
+      <CircularityChart
+        result={result}
+        busy={a.busy}
+        selected={frame?.epoch_ms}
+        onSelect={onSelect}
+        onAnalyze={a.retry}
+      />
       <section
         className="chart-panel profile-chart"
         aria-label="Radial brightness profile"

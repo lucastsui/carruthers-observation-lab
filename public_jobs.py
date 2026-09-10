@@ -24,7 +24,7 @@ def calculate(root, recipe, pipe):
         baseline = frame_baseline(catalogue, recipe['frame_ids'][0], recipe['exclude_interpolated'])
         pipe.send(('baseline', baseline))
         for fid in recipe['frame_ids']:
-            pipe.send(('row', measure_frame(catalogue, fid, recipe['roi'], recipe['exclude_interpolated'])))
+            pipe.send(('row', measure_frame(catalogue, fid, recipe['roi'], recipe['exclude_interpolated'], include_circularity=True)))
         pipe.send(('done', None))
     except Exception:
         pipe.send(('error', 'Calculation failed. Please retry or select a smaller interval.'))

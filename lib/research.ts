@@ -76,6 +76,21 @@ export type Profile = {
   selected_pixels: number;
   coverage: number;
 };
+export type ContourFit = {
+  threshold_kR: number;
+  status: 'ok' | 'open_or_missing' | 'ambiguous' | 'unresolved' | 'fit_failed';
+  departure_pct: number | null;
+  radius_re?: number;
+  center_x_re?: number;
+  center_y_re?: number;
+  center_offset_re?: number;
+  rms_re?: number;
+};
+export type CircularityMeasurement = ContourFit & {
+  sensitivity_low_pct: number | null;
+  sensitivity_high_pct: number | null;
+  variants: ContourFit[];
+};
 export type Measurement = {
   frame_id: string;
   source: string;
@@ -96,6 +111,7 @@ export type Measurement = {
   profile?: Profile[];
   flags: Record<string, number | null>;
   regions?: Record<'dawn' | 'dusk', RegionMeasurement>;
+  circularity?: Record<'1' | '3', CircularityMeasurement>;
 };
 export type RegionMeasurement = Pick<
   Measurement,
