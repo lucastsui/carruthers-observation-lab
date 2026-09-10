@@ -1,0 +1,17 @@
+[Unit]
+Description=Carruthers independent health watchdog
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/carruthers/monitor.env
+ExecStart=/usr/bin/python3 /opt/carruthers/app/deploy/monitor.py
+StateDirectory=carruthers-monitor
+UMask=0077
+TimeoutStartSec=90
+MemoryMax=128M
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+LogNamespace=carruthers

@@ -103,6 +103,8 @@ export type Recipe = {
   end: string;
 };
 export type Job = {
+  queue_position?: number;
+  method?: Record<string, unknown>;
   baseline?: Baseline;
   id: string;
   status:
@@ -145,7 +147,7 @@ export async function api<T>(
         }),
   });
   if (!response.ok) {
-    let message = `Local service returned ${response.status}`;
+    let message = `Service returned ${response.status}`;
     try {
       message =
         ((await response.json()) as { error?: string }).error || message;

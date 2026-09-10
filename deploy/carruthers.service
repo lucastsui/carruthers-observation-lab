@@ -1,0 +1,46 @@
+[Unit]
+Description=Carruthers Observation Lab
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=carruthers
+Group=carruthers
+WorkingDirectory=/opt/carruthers/app
+ExecStart=/opt/carruthers/venv/bin/python public_server.py --data /srv/carruthers/L1C
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+MemoryMax=8G
+CPUQuota=400%
+TasksMax=64
+LimitNOFILE=512
+Environment=PYTHONUNBUFFERED=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+Environment=MPLCONFIGDIR=/var/cache/carruthers/matplotlib
+Environment=XDG_CACHE_HOME=/var/cache/carruthers
+StateDirectory=carruthers
+CacheDirectory=carruthers
+TemporaryFileSystem=/var/cache/carruthers:size=1G,mode=1777
+Environment=CARRUTHERS_WEATHER_CACHE=/var/cache/carruthers/space-weather
+UMask=0077
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+TemporaryFileSystem=/tmp:size=2G,mode=1777
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+LogNamespace=carruthers
+
+[Install]
+WantedBy=multi-user.target

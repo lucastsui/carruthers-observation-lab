@@ -1,4 +1,6 @@
-# Observation Lab — Carruthers local science app
+# Observation Lab — Carruthers research app
+
+For the public DGX Spark installation, resource limits, monitoring and recovery, see [deploy/README.md](deploy/README.md). The local launcher remains available.
 
 Double-click **Launch Observation Lab.command** in the Carruthers folder. It opens
 <http://127.0.0.1:8765> in your browser. Keep its Terminal window open; press
@@ -6,12 +8,12 @@ Control+C in that window when finished. Launching it again reuses the running ap
 
 This version reads your existing March 2026 L1C v1.3 collection: 633 WFI frames and
 1,161 NFI frames, in 62 files. Source observations remain in
-`../code and data/L1C`. Nothing is uploaded or hosted externally.
+`../code and data/L1C`. The Spark deployment uses a transferred copy of these same files; observations stay on the Spark and requested results are served through Cloudflare.
 
 ## A short demo for Brian and John
 
 1. The app opens on **WFI, March 15**, with the **4.5–5.5 Earth-radius annulus**.
-   It calculates the initial 22-frame brightness curve automatically. The first
+   Click **Run time-series analysis** to calculate the initial 22-frame brightness curve. The first
    mean is approximately **5.05536 kR** and the last is **5.08641 kR**.
 2. Use the slider or previous/next buttons. Click the image to focus it, then use
    the mouse wheel or left/right arrows. Space or the play button starts and pauses
@@ -27,18 +29,16 @@ This version reads your existing March 2026 L1C v1.3 collection: 633 WFI frames 
    or enter coordinates. Coordinates use Earth radii: x right, y up. An annular
    sector starts at 0° on the right and increases toward the top of the image.
 5. Choose an interval in **UTC**. Region, camera, interval and interpolation-mask
-   changes automatically update the measurements and time curve. A 400 ms pause
-   groups rapid selection edits; older calculations are cancelled before the
-   latest starts. The curve uses actual reported timestamps. Click a point to view
-   that observation. **Cancel** pauses the time calculation until you change the
-   selection or choose **Resume**. Frame scrubbing does not recalculate the time curve.
+   changes cancel outdated time-series work. Click **Run time-series analysis**
+   when the selection is ready. The curve uses actual reported timestamps. Click a point to view
+   that observation. **Cancel** stops the time calculation; click **Run time-series analysis** to submit again. Frame scrubbing does not recalculate the time curve.
 6. Switch to **NFI**. The viewer selects the closest available observation time.
    WFI and NFI use their own geometry and brightness scales.
 7. Inspect the current frame's **radial profile** beside the viewer. It averages
    full annuli around Earth, independently of the selected region. Its CSV includes
    bin bounds, values and valid pixel coverage.
 8. Download **CSV**, or **JSON (data + recipe)** for values and calculation provenance.
-   **Save** stores a local copy. Open **Collection & saved** in the header to
+   **Save** stores a copy in this browser and website origin. Open **Collection & saved** in the header to
    restore the selection and results after restarting the app.
 
 While a changed selection is being measured, the time panel shows its update
@@ -103,11 +103,12 @@ The earlier diagnosis and teaching example remain in
 | `components/analysis-controls.tsx` | Measurement controls, charts and exports |
 | `components/display-controls.tsx` | Zoom, rings and the two-handle logarithmic brightness slider |
 | `hooks/use-analysis.ts` | Current-frame requests, extraction progress and saved results |
-| `lib/auto-analysis.ts` | Debounced automatic calculation, job cancellation and stale-response protection |
+| `lib/auto-analysis.ts` | Explicit submission, job cancellation and stale-response protection |
 | `science.py` | NetCDF frame reads, geometry, masking and numeric measurements |
 | `server.py` | Local API, cancellable extraction jobs and saved analysis files |
 | `launcher.py` | Starts/reuses the local app and opens the browser |
-| `.local/analyses/` | Saved results and recipes; private local output, ignored by Git |
+| `lib/saved.ts` | Browser IndexedDB saves and CSV/JSON downloads |
+| `public_server.py`, `public_jobs.py` | Public request limits, visitor job ownership, bounded queue and process deadline |
 | `.local/app.log` | Local service log |
 | `tests/` | Array science, regression and API integration checks |
 
@@ -130,16 +131,15 @@ without loading a whole day or month. NetCDF access is serialized to protect the
 HDF5 library; rendering and measurements happen outside the read lock. PNG caching
 is bounded to 64 MiB in the service, and the browser preloads the next frame.
 Only one range extraction runs at a time; up to 12 recent jobs remain in memory.
-Save results you want to keep. Saved analyses survive restart as small JSON files.
+Save results you want to keep in your browser, or download CSV/JSON. Public deployment limits are described in `deploy/README.md`.
 
 Only March 2026 v1.3 files are indexed. Later months or processing versions need
-their geometry and metadata checked before enabling them. Server deployment,
-researcher accounts, permissions and shared storage are future work.
+their geometry and metadata checked before enabling them. The Spark hosts public anonymous access. Researcher accounts and shared storage are future work.
 
 Code and local output are separated. `.gitignore` excludes source observation
 formats, local results, videos and scientific raster exports. Do not copy
 confidential observations into `public/`, a source archive or a Git repository.
-No GitHub repository, deployment or cloud resource was created for this demo.
+The deployment directory contains the Spark service configuration and the original data checksum manifest.
 
 ## Development and rebuilding
 

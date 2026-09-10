@@ -1,3 +1,4 @@
+import os
 import csv
 import io
 import sys
@@ -69,11 +70,11 @@ class ArrayScienceTests(unittest.TestCase):
                 validate_roi(roi)
 
 
-@unittest.skipUnless((BASE.parent / 'code and data/L1C').is_dir(), 'Existing confidential dataset is not installed')
+@unittest.skipUnless((Path(os.environ.get('CARRUTHERS_DATA_DIR', BASE.parent / 'code and data/L1C'))).is_dir(), 'Dataset is not installed')
 class RealDataRegressionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.catalogue = Catalogue(BASE.parent / 'code and data/L1C')
+        cls.catalogue = Catalogue(Path(os.environ.get('CARRUTHERS_DATA_DIR', BASE.parent / 'code and data/L1C')))
 
     def test_collection_and_registered_centers(self):
         c = self.catalogue

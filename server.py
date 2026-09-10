@@ -169,7 +169,7 @@ def export_csv(result):
 
 
 def make_handler(catalogue, jobs, static_root):
-    weather = SpaceWeather(jobs.local_dir.parent / 'space-weather')
+    weather = SpaceWeather(Path(os.environ.get('CARRUTHERS_WEATHER_CACHE', jobs.local_dir.parent / 'space-weather')))
     baseline_cached = lru_cache(maxsize=128)(lambda fid, exclude: frame_baseline(catalogue, fid, exclude))
     contours_cached = lru_cache(maxsize=24)(lambda fid, exclude: radiance_contours(catalogue, fid, exclude))
     class Handler(BaseHTTPRequestHandler):
@@ -253,7 +253,7 @@ def make_handler(catalogue, jobs, static_root):
                 mime = mimetypes.guess_type(file)[0] or 'application/octet-stream'
                 return self.send_data(200, file.read_bytes(), mime)
             except (ValueError, TypeError, KeyError) as exc:
-                self.send_json({'error': str(exc)}, 400)
+                self.send_json({'error': str(exc)}, getattr(exc, 'status', 400))
             except Exception:
                 traceback.print_exc()
                 self.send_json({'error': 'The local data service encountered an error. See the terminal log.'}, 500)
@@ -284,7 +284,7 @@ def make_handler(catalogue, jobs, static_root):
                     return self.send_json(jobs.save(body.get('id'), body.get('title')))
                 self.send_json({'error': 'Unknown endpoint'}, 404)
             except (ValueError, TypeError, KeyError) as exc:
-                self.send_json({'error': str(exc)}, 400)
+                self.send_json({'error': str(exc)}, getattr(exc, 'status', 400))
             except Exception:
                 traceback.print_exc()
                 self.send_json({'error': 'The local data service encountered an error. See the terminal log.'}, 500)

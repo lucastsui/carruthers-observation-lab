@@ -27,6 +27,7 @@ export class AutoAnalysis {
   private debounceMs: number;
   private pollMs: number;
   private retryMs: number;
+  private manual: boolean;
   private desired: AnalysisSelection | null = null;
   private key: string | null = null;
   private generation = 0;
@@ -41,10 +42,12 @@ export class AutoAnalysis {
     transport: Transport;
     onState: (state: AnalysisState) => void;
     onResult: (result: Job) => void;
+    manual?: boolean;
     debounceMs?: number;
     pollMs?: number;
     retryMs?: number;
   }) {
+    this.manual = options.manual ?? false;
     this.transport = options.transport;
     this.onState = options.onState;
     this.onResult = options.onResult;
@@ -66,6 +69,8 @@ export class AutoAnalysis {
       this.publish('idle');
     } else if (this.cached && analysisSignature(this.cached.recipe) === key) {
       this.publish('complete', this.cached);
+    } else if (this.manual) {
+      this.publish('idle');
     } else {
       this.publish('waiting');
       this.timer = setTimeout(() => {
@@ -91,6 +96,11 @@ export class AutoAnalysis {
   retry() {
     this.cached = null;
     this.setSelection(this.desired, true);
+    if (this.manual && this.desired) {
+      this.ready = true;
+      this.publish('waiting');
+      this.startLatest();
+    }
   }
 
   dispose() {
@@ -138,8 +148,7 @@ export class AutoAnalysis {
       } catch (error) {
         const status = (error as Error & { status?: number }).status;
         if (
-          status === 400 ||
-          status === 404 ||
+          (status != null && status >= 400 && status < 500 && status !== 429) ||
           (this.disposed && ++failures >= 3)
         )
           throw error;

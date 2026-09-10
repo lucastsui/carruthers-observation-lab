@@ -7,6 +7,7 @@ import {
   regionSignature,
   roiError,
 } from '@/lib/research';
+import { readSaved, storeSaved, loadSaved } from '@/lib/saved';
 import { AutoAnalysis } from '@/lib/auto-analysis';
 import type { AnalysisState } from '@/lib/auto-analysis';
 import type { Frame, ROI, Measurement, Job, Saved } from '@/lib/research';
@@ -53,16 +54,14 @@ export function useAnalysis(
   );
   const selectionKey = selection ? analysisSignature(selection) : null;
   const phase =
-    automatic.key === selectionKey
-      ? automatic.phase
-      : selection
-        ? 'waiting'
-        : 'idle';
+    automatic.key === selectionKey ? automatic.phase : 'idle';
   const job = automatic.key === selectionKey ? automatic.job : null;
   const busy = phase === 'waiting' || phase === 'running';
   useEffect(() => {
     const coordinator = new AutoAnalysis({
       transport: api,
+      manual: true,
+      pollMs: 1000,
       onState: setAutomatic,
       onResult: (value) => {
         setResult(value);
@@ -75,13 +74,9 @@ export function useAnalysis(
     setError('');
     worker.current?.setSelection(selection);
   }, [selectionKey]);
-  const refreshSaved = useCallback(
-    () =>
-      api<Saved[]>('saved')
-        .then(setSaved)
-        .catch((e) => setError(e.message)),
-    [],
-  );
+  const refreshSaved = useCallback(async () => {
+    try { setSaved(await readSaved()); } catch (e) { setError((e as Error).message); }
+  }, []);
   useEffect(() => {
     void refreshSaved();
   }, [refreshSaved]);
@@ -121,17 +116,17 @@ export function useAnalysis(
   const save = async () => {
     if (!result || !resultMatches) return;
     try {
-      await api('save', { id: result.id });
+      await storeSaved(result);
       setSavedResultIds((ids) => new Set(ids).add(result.id));
       await refreshSaved();
-      setNotice('Analysis saved.');
+      setNotice('Saved in this browser. Export a copy to keep it across website address changes.');
     } catch (e) {
       setError((e as Error).message);
     }
   };
   const load = async (id: string) => {
     try {
-      const savedResult = await api<Job>(`saved?id=${id}`);
+      const savedResult = await loadSaved(id);
       worker.current?.adopt(savedResult);
       setResult(savedResult);
       setSavedResultIds((ids) => new Set(ids).add(savedResult.id));

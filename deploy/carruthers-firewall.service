@@ -1,0 +1,11 @@
+[Unit]
+Description=Restrict SSH to private Tailscale and loopback
+After=tailscaled.service
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet carruthers_admin
+ExecStart=/usr/sbin/nft -f /etc/carruthers/firewall.nft
+ExecStop=/usr/sbin/nft delete table inet carruthers_admin
+[Install]
+WantedBy=multi-user.target

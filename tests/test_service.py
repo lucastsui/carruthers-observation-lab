@@ -1,3 +1,4 @@
+import os
 import csv
 import io
 import json
@@ -19,13 +20,13 @@ from science import Catalogue
 from server import JobManager, make_handler, measure_frame
 
 
-@unittest.skipUnless((BASE.parent / 'code and data/L1C').is_dir(), 'Existing confidential dataset is not installed')
+@unittest.skipUnless((Path(os.environ.get('CARRUTHERS_DATA_DIR', BASE.parent / 'code and data/L1C'))).is_dir(), 'Dataset is not installed')
 class LocalServiceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
         root = Path(cls.temp.name)
-        cls.c = Catalogue(BASE.parent / 'code and data/L1C')
+        cls.c = Catalogue(Path(os.environ.get('CARRUTHERS_DATA_DIR', BASE.parent / 'code and data/L1C')))
         cls.jobs = JobManager(cls.c, root / 'analyses')
         static = root / 'static'
         static.mkdir()

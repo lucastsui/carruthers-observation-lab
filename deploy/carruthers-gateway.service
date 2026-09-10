@@ -1,0 +1,29 @@
+[Unit]
+Description=Carruthers bounded loopback HTTP gateway
+After=carruthers.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+[Service]
+User=www-data
+Group=www-data
+ExecStart=/usr/sbin/nginx -c /etc/carruthers/nginx-main.conf -g "daemon off;"
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=carruthers-gateway
+CacheDirectory=carruthers-gateway
+TemporaryFileSystem=/var/cache/carruthers-gateway:size=64M,mode=1777
+MemoryMax=256M
+CPUQuota=100%
+TasksMax=32
+LimitNOFILE=512
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LogNamespace=carruthers
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+# A separate table avoids modifying Docker/Tailscale-owned firewall chains.
+table inet carruthers_admin {
+  chain input {
+    type filter hook input priority -10; policy accept;
+    tcp dport 22 iifname != "tailscale0" iifname != "lo" drop
+  }
+}

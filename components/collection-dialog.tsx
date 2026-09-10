@@ -32,7 +32,7 @@ export function CollectionDialog({
         Collection & saved
       </DialogTrigger>
       <DialogContent className="reference-dialog">
-        <DialogTitle>Local collection</DialogTitle>
+        <DialogTitle>Observation collection</DialogTitle>
         <DialogDescription>March 2026 · L1C v1.3</DialogDescription>
         <Tabs defaultValue="saved">
           <TabsList>
@@ -65,8 +65,8 @@ export function CollectionDialog({
                 ))
               ) : (
                 <p className="muted">
-                  Select a region to calculate its time series automatically,
-                  then choose Save to keep its values and selection.
+                  Select a region and run its time-series analysis,
+                  then choose Save to keep its values and selection in this browser. Export a copy before the website address changes.
                 </p>
               )}
             </div>
@@ -101,7 +101,7 @@ export function CollectionDialog({
               {(catalogue.bytes / 1024 ** 3).toFixed(1)} GiB
             </p>
             <p className="muted">
-              The app reads individual frames from the local observation files.
+              The app reads individual frames from the observation files on the research server.
               Saved analyses contain measured values and the recipe used to
               extract them.
             </p>

@@ -1,4 +1,5 @@
 'use client';
+import { exportAnalysis } from '@/lib/saved';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Download, Activity, Square, Save, Info } from 'lucide-react';
@@ -269,10 +270,10 @@ export function AnalysisControls({
             <div className="progress-actions">
               <span className="small muted">
                 {a.phase === 'waiting'
-                  ? 'Updating selection…'
-                  : `${a.job?.completed ?? 0} / ${a.job?.total ?? count} frames`}
+                  ? 'Submitting analysis…'
+                  : a.job?.status === 'queued' ? `Queued · ${a.job.queue_position ?? 1} in line` : `${a.job?.completed ?? 0} / ${a.job?.total ?? count} frames`}
               </span>
-              <button className="button" onClick={() => void a.cancel()}>
+              <button className="button" onClick={() => a.cancel()}>
                 <Square />
                 Cancel
               </button>
@@ -290,11 +291,11 @@ export function AnalysisControls({
                     ? 'Choose an interval'
                     : invalid
                       ? 'Adjust the selection'
-                      : 'Updates automatically'}
+                      : a.phase === 'complete' ? 'Analysis complete' : 'Ready to analyze'}
             </span>
-            {(a.phase === 'cancelled' || a.phase === 'error') && (
+            {count > 0 && !invalid && a.phase !== 'complete' && (
               <button className="button ghost" onClick={a.retry}>
-                {a.phase === 'cancelled' ? 'Resume' : 'Retry'}
+                Run time-series analysis
               </button>
             )}
           </div>
@@ -414,8 +415,6 @@ export function AnalysisResults({
   const [plotView, setPlotView] = useState('time');
   // Never present or export a curve for a previous region as the current one.
   const result = a.resultMatches ? a.result : null;
-  const exportPath = (format: string) =>
-    `/api/export?id=${result?.id}&format=${format}${a.resultSaved ? '&saved=1' : ''}`;
   function exportProfile() {
     if (!frame || !a.sample?.profile) return;
     const s = a.sample;
@@ -534,20 +533,19 @@ export function AnalysisResults({
               · orange &lt;80% coverage · no error bars
             </p>
             <div className="action-row">
-              <a className="button" href={exportPath('csv')} download>
+              <button className="button" onClick={() => exportAnalysis(result, 'csv')}>
                 <Download />
                 CSV
-              </a>
-              <a
+              </button>
+              <button
                 className="button"
-                href={exportPath('json')}
-                download
+                onClick={() => exportAnalysis(result, 'json')}
                 aria-label="Download data and recipe as JSON"
                 title="Download data and recipe as JSON"
               >
                 <Download />
                 JSON
-              </a>
+              </button>
               <button
                 className="button"
                 onClick={() => void a.save()}
@@ -573,14 +571,14 @@ export function AnalysisResults({
             {a.busy
               ? 'Updating brightness for your selection…'
               : a.phase === 'cancelled'
-                ? 'Time plot paused. Resume or change the selection.'
+                ? 'Time plot paused. Run analysis when ready.'
                 : a.phase === 'error'
                   ? 'Unable to update. Retry from the Region controls.'
                   : 'Choose a valid region and observation interval.'}
             <br />
             {a.busy
               ? 'The time plot will appear automatically.'
-              : 'Measurements update automatically.'}
+              : 'Choose Run time-series analysis in the Region controls.'}
           </div>
         )}
       </section>
