@@ -125,9 +125,6 @@ export function DisplayControls({
             </span>
           ))}
       </div>
-      <p className="small muted scale-help">
-        Image colors only; values unchanged.
-      </p>
     </section>
   );
 }

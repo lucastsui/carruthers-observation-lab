@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Frame, ROI, Contours } from '@/lib/research';
 import {
   api,
@@ -14,6 +14,7 @@ import { radianceTicks, radianceLabel } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
 
 export function ObservationViewer({
+  actions,
   frame,
   scale,
   roi,
@@ -25,6 +26,7 @@ export function ObservationViewer({
   onTogglePlay,
   onReady,
 }: {
+  actions?: ReactNode;
   frame: Frame;
   scale: [number, number];
   roi: ROI;
@@ -470,6 +472,7 @@ export function ObservationViewer({
             </span>
           )}
         </div>
+        {actions && <div className="image-actions">{actions}</div>}
       </div>
       <div className="colorbar">
         <img

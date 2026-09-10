@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Switch } from '@/components/ui/switch';
@@ -94,11 +94,13 @@ function line(points: THREE.Vector3[], color: number, opacity = 1) {
   );
 }
 export function OrbitViewer({
+  actions,
   frame,
   frames,
   scale,
   onReady,
 }: {
+  actions?: ReactNode;
   frame: Frame;
   frames: Frame[];
   scale: [number, number];
@@ -437,6 +439,7 @@ export function OrbitViewer({
         </label>
       </div>
       <div className="orbit-stage" ref={host}>
+        {actions && <div className="orbit-actions">{actions}</div>}
         <div className="orbit-help">
           Drag to rotate · scroll to zoom · right-drag to pan
         </div>

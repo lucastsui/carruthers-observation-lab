@@ -1,6 +1,5 @@
 'use client';
 import { exportAnalysis } from '@/lib/saved';
-import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Download, Activity, Square, Save, Info } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -331,11 +330,6 @@ export function AnalysisControls({
                         ? 'Analysis complete'
                         : 'Ready to analyze'}
             </span>
-            {count > 0 && !invalid && a.phase !== 'complete' && (
-              <button className="button ghost" onClick={a.retry}>
-                Run time-series analysis
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -450,7 +444,6 @@ export function AnalysisResults({
   frame: Frame | undefined;
   onSelect: (id: string) => void;
 }) {
-  const [plotView, setPlotView] = useState('time');
   // Never present or export a curve for a previous region as the current one.
   const result = a.resultMatches ? a.result : null;
   function exportProfile() {
@@ -491,18 +484,14 @@ export function AnalysisResults({
     );
   }
   return (
-    <Tabs
-      value={plotView}
-      onValueChange={(v) => setPlotView(String(v))}
-      className="results-layout"
-      data-plot={plotView}
+    <div
+      className="panel results-layout"
+      role="region"
+      aria-label="Observation plots"
+      tabIndex={0}
     >
-      <TabsList className="plot-tabs" aria-label="Plot">
-        <TabsTrigger value="time">Through time</TabsTrigger>
-        <TabsTrigger value="profile">Radial profile</TabsTrigger>
-      </TabsList>
       <section
-        className="panel chart-panel time-chart"
+        className="chart-panel time-chart"
         aria-label="Brightness through time"
         aria-busy={a.busy}
       >
@@ -632,17 +621,17 @@ export function AnalysisResults({
               : a.phase === 'cancelled'
                 ? 'Time plot paused. Run analysis when ready.'
                 : a.phase === 'error'
-                  ? 'Unable to update. Retry from the Region controls.'
+                  ? 'Unable to update. Choose Analyze to retry.'
                   : 'Choose a valid region and observation interval.'}
             <br />
             {a.busy
               ? 'The time plot will appear automatically.'
-              : 'Choose Run time-series analysis in the Region controls.'}
+              : 'Choose Analyze at the top right of the image.'}
           </div>
         )}
       </section>
       <section
-        className="panel chart-panel profile-chart"
+        className="chart-panel profile-chart"
         aria-label="Radial brightness profile"
       >
         <div className="chart-header">
@@ -681,6 +670,6 @@ export function AnalysisResults({
           </div>
         )}
       </section>
-    </Tabs>
+    </div>
   );
 }

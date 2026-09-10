@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -23,7 +23,7 @@ import type { ContourMode } from '@/lib/display';
 import { useBaseline } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
 import { useWorkspaceTools } from '@/hooks/use-workspace-tools';
-import { api, DEFAULT_ROI, previewURL } from '@/lib/research';
+import { api, DEFAULT_ROI, previewURL, roiError } from '@/lib/research';
 import type { Catalogue, Channel, ROI, Recipe } from '@/lib/research';
 
 export default function Home() {
@@ -158,6 +158,26 @@ export default function Home() {
         }
       : null,
   });
+  const analyzeButton = (
+    <button
+      className="button primary image-analyze-button"
+      onClick={analysis.retry}
+      disabled={
+        !frames.length ||
+        !!roiError(roi) ||
+        analysis.busy ||
+        analysis.phase === 'complete'
+      }
+      title={
+        analysis.phase === 'complete'
+          ? 'This selection has been analyzed.'
+          : 'Analyze the selected region through time'
+      }
+    >
+      <Activity aria-hidden="true" />
+      {analysis.busy ? 'Analyzing…' : 'Analyze'}
+    </button>
+  );
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -322,6 +342,7 @@ export default function Home() {
                     <div className="viewer-body">
                       {viewerMode === 'orbit' ? (
                         <OrbitViewer
+                          actions={analyzeButton}
                           frame={frame}
                           frames={catalogue.frames}
                           scale={scale}
@@ -329,6 +350,7 @@ export default function Home() {
                         />
                       ) : (
                         <ObservationViewer
+                          actions={analyzeButton}
                           frame={frame}
                           scale={scale}
                           roi={roi}
