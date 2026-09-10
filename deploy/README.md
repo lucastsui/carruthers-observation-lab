@@ -40,9 +40,9 @@ The watchdog automatically updates the external monitor when the tunnel address 
 
 ## Verification
 
-`npm run check`, the production build, 17 TypeScript tests and 22 Python tests pass. The Python tests accept `CARRUTHERS_DATA_DIR` for a deployed dataset. Repository-wide lint has pre-existing component/accessibility and hook-dependency findings; the new standalone public-analysis/export TypeScript files pass targeted lint.
+`npm run check`, the production build, 17 TypeScript tests and 22 Python tests pass. The 22 Python tests also pass on the Spark with its full deployed dataset. The Python tests accept `CARRUTHERS_DATA_DIR` for a deployed dataset. Repository-wide lint has pre-existing component/accessibility and hook-dependency findings; the new standalone public-analysis/export TypeScript files pass targeted lint.
 
-Browser testing on the public tunnel produced CSV and JSON for all 22 WFI observations on March 15. The first/last annulus means were 5.055363316796408 / 5.0864138765212 kR, matching the local calculation. Crash recovery, Tailscale SSH after firewall activation, read-only observations and effective 1 GiB cache / 2 GiB temporary mounts were checked on the Spark.
+All 62 deployed files (45,702,685,970 bytes) matched the original SHA-256 manifest. Browser testing on the public tunnel produced CSV and JSON for all 22 WFI observations on March 15, plus a complete March WFI CSV with 633 rows. A full-month NFI analysis of 1,161 frames completed through the deployed API in about 20 seconds with the configured limits. The first/last annulus means were 5.055363316796408 / 5.0864138765212 kR, matching the local calculation. Crash recovery, Tailscale SSH after firewall activation, read-only observations and effective 1 GiB cache / 2 GiB temporary mounts were checked on the Spark.
 
 ## Operations
 
