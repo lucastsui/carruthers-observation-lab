@@ -1,7 +1,14 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { Frame, ROI, Contours } from '@/lib/research';
-import { api, previewURL, roiError, snapPointToPixel } from '@/lib/research';
+import {
+  api,
+  previewURL,
+  roiError,
+  snapPointToPixel,
+  pairedSectors,
+  pairedOpeningAngle,
+} from '@/lib/research';
 
 import { radianceTicks, radianceLabel } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
@@ -11,7 +18,6 @@ export function ObservationViewer({
   scale,
   roi,
   contours,
-  directions,
   exclude,
   zoom,
   onROI,
@@ -23,7 +29,6 @@ export function ObservationViewer({
   scale: [number, number];
   roi: ROI;
   contours: ContourMode;
-  directions: boolean;
   exclude: boolean;
   zoom: number;
   onROI: (r: ROI) => void;
@@ -65,7 +70,9 @@ export function ObservationViewer({
     } | null>(null),
     [error, setError] = useState('');
   const [cursor, setCursor] = useState<[number, number] | null>(null);
-  const drag = useRef<[number, number] | null>(null),
+  const drag = useRef<{ origin: [number, number]; angle: boolean } | null>(
+      null,
+    ),
     lastWheel = useRef(0);
   const url = previewURL(frame, scale),
     loaded = image?.url === url;
@@ -133,6 +140,10 @@ export function ObservationViewer({
     ];
   }
   function update(a: [number, number], b: [number, number]) {
+    if (roi.kind === 'paired_sectors') {
+      onROI({ ...roi, angle_width: pairedOpeningAngle(...b) });
+      return;
+    }
     if (
       roi.kind !== 'point' &&
       Math.hypot(a[0] - b[0], a[1] - b[1]) * p * zoom < 2
@@ -185,27 +196,56 @@ export function ObservationViewer({
       </>
     );
   }
-  if (validROI && (roi.kind === 'annulus' || roi.kind === 'sector')) {
-    const start = roi.kind === 'annulus' ? 0 : roi.angle_start,
-      end = roi.kind === 'annulus' ? 360 : roi.angle_end;
+  function sectorPath(
+    start: number,
+    end: number,
+    innerRadius = roi.inner,
+    outerRadius = roi.outer,
+  ) {
     const segments = Math.max(3, Math.ceil((end - start) / 3));
     const angles = Array.from(
       { length: segments + 1 },
       (_, i) => start + ((end - start) * i) / segments,
     );
-    const outer = angles.map((a) => [
-      vx(roi.outer * Math.cos((a * Math.PI) / 180)),
-      vy(roi.outer * Math.sin((a * Math.PI) / 180)),
-    ]);
-    const inner = [...angles]
-      .reverse()
-      .map((a) => [
-        vx(roi.inner * Math.cos((a * Math.PI) / 180)),
-        vy(roi.inner * Math.sin((a * Math.PI) / 180)),
-      ]);
+    const ring = (radius: number, a: number) => [
+      vx(radius * Math.cos((a * Math.PI) / 180)),
+      vy(radius * Math.sin((a * Math.PI) / 180)),
+    ];
+    return `M ${[...angles.map((a) => ring(outerRadius, a)), ...angles.reverse().map((a) => ring(innerRadius, a))].map((xy) => xy.join(' ')).join(' L ')} Z`;
+  }
+  const fullRadius =
+    (2 *
+      Math.hypot(
+        Math.max(Math.abs(cx + 0.5), Math.abs(frame.shape[1] - cx - 0.5)),
+        Math.max(Math.abs(cy + 0.5), Math.abs(frame.shape[0] - cy - 0.5)),
+      )) /
+    p;
+  const paired =
+    validROI && roi.kind === 'paired_sectors'
+      ? pairedSectors({ ...roi, outer: fullRadius })
+      : [];
+  function edgePoint(degrees: number, inset = 0) {
+    const dx = Math.cos((degrees * Math.PI) / 180),
+      dy = -Math.sin((degrees * Math.PI) / 180);
+    const pad = inset / zoom;
+    const tx =
+      Math.abs(dx) < 1e-10
+        ? Infinity
+        : ((dx > 0 ? left + span - pad : left + pad) - cx - 0.5) / dx;
+    const ty =
+      Math.abs(dy) < 1e-10
+        ? Infinity
+        : ((dy > 0 ? top + span - pad : top + pad) - cy - 0.5) / dy;
+    const distance = Math.max(0, Math.min(tx, ty));
+    return [cx + 0.5 + dx * distance, cy + 0.5 + dy * distance];
+  }
+  if (validROI && (roi.kind === 'annulus' || roi.kind === 'sector')) {
     selection = (
       <path
-        d={`M ${[...outer, ...inner].map((a) => a.join(' ')).join(' L ')} Z`}
+        d={sectorPath(
+          roi.kind === 'annulus' ? 0 : roi.angle_start,
+          roi.kind === 'annulus' ? 360 : roi.angle_end,
+        )}
       />
     );
   }
@@ -232,17 +272,21 @@ export function ObservationViewer({
             if (!loaded) return;
             e.currentTarget.focus();
             e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = position(e);
-            if (roi.kind === 'point') update(drag.current, drag.current);
+            const origin = position(e);
+            drag.current = {
+              origin,
+              angle: roi.kind === 'paired_sectors',
+            };
+            if (roi.kind === 'point') update(origin, origin);
           }}
           onPointerMove={(e) => {
             const xy = position(e);
             setCursor(xy);
-            if (drag.current) update(drag.current, xy);
+            if (drag.current) update(drag.current.origin, xy);
           }}
           onPointerUp={(e) => {
             if (drag.current) {
-              update(drag.current, position(e));
+              update(drag.current.origin, position(e));
               drag.current = null;
             }
             e.currentTarget.releasePointerCapture(e.pointerId);
@@ -335,48 +379,6 @@ export function ObservationViewer({
                   ))}
                 </g>
               )}
-              {directions && (
-                <g
-                  stroke="#bbacd8"
-                  strokeWidth={0.7 / zoom}
-                  fill="#9d83c0"
-                  fillOpacity=".06"
-                >
-                  {[0, 180].map((angle) => {
-                    const radius = span * 0.44;
-                    const a = ((angle - 22.5) * Math.PI) / 180,
-                      b = ((angle + 22.5) * Math.PI) / 180;
-                    return (
-                      <path
-                        key={angle}
-                        d={`M ${cx + 0.5} ${cy + 0.5} L ${cx + 0.5 + radius * Math.cos(a)} ${cy + 0.5 - radius * Math.sin(a)} A ${radius} ${radius} 0 0 0 ${cx + 0.5 + radius * Math.cos(b)} ${cy + 0.5 - radius * Math.sin(b)} Z`}
-                        strokeDasharray={`${4 / zoom} ${3 / zoom}`}
-                      />
-                    );
-                  })}
-                  <text
-                    x={left + 8 / zoom}
-                    y={cy - 8 / zoom}
-                    stroke="none"
-                    fill="#ddc6ff"
-                    fillOpacity="1"
-                    fontSize={11 / zoom}
-                  >
-                    Dawn · 45°
-                  </text>
-                  <text
-                    x={left + span - 8 / zoom}
-                    y={cy - 8 / zoom}
-                    textAnchor="end"
-                    stroke="none"
-                    fill="#ddc6ff"
-                    fillOpacity="1"
-                    fontSize={11 / zoom}
-                  >
-                    Dusk · 45°
-                  </text>
-                </g>
-              )}
               <circle
                 cx={cx + 0.5}
                 cy={cy + 0.5}
@@ -412,6 +414,46 @@ export function ObservationViewer({
               >
                 {selection}
               </g>
+              {paired.map(({ id, label, center, color, roi: sector }) => (
+                <g
+                  key={id}
+                  data-region={id}
+                  stroke={color}
+                  fill={color}
+                  strokeWidth={1.5 / zoom}
+                >
+                  <path
+                    d={sectorPath(
+                      sector.angle_start,
+                      sector.angle_end,
+                      0,
+                      fullRadius,
+                    )}
+                    fillOpacity=".15"
+                  />
+                  {[sector.angle_start, sector.angle_end].map((angle) => (
+                    <circle
+                      key={angle}
+                      cx={edgePoint(angle, 7)[0]}
+                      cy={edgePoint(angle, 7)[1]}
+                      r={5 / zoom}
+                      fill="#101e27"
+                      strokeWidth={2 / zoom}
+                    />
+                  ))}
+                  <text
+                    x={edgePoint(center, 32)[0]}
+                    y={cy + 0.5 - 7 / zoom}
+                    textAnchor="middle"
+                    fontSize={12 / zoom}
+                    stroke="#080e15"
+                    strokeWidth={3 / zoom}
+                    paintOrder="stroke"
+                  >
+                    {label}
+                  </text>
+                </g>
+              ))}
             </svg>
           )}
           <span className="stage-label">

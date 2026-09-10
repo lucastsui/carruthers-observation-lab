@@ -97,5 +97,16 @@ class PublicApiTests(unittest.TestCase):
             with self.subTest(path=path),self.assertRaises(urllib.error.HTTPError):req(path,headers=headers)
         with req('/api/jobs',dict(frame_ids=frames,roi=dict(kind='annulus',inner=4.5,outer=5.5))) as r:
             self.assertTrue(json.load(r)['reused'])
+        with req('/api/jobs',dict(frame_ids=frames[:2],roi=dict(kind='paired_sectors',angle_width=60))) as r:
+            paired=json.load(r)
+        for _ in range(200):
+            with req('/api/jobs?id='+paired['id']+'&rows=1') as r:result=json.load(r)
+            if result['status'] in ('complete','error'):break
+            time.sleep(.1)
+        self.assertEqual(result['status'],'complete',result)
+        self.assertEqual(result['total'],2)
+        self.assertEqual(len(result['rows']),2)
+        self.assertEqual(set(result['rows'][0]['regions']),{'dawn','dusk'})
+        self.assertNotEqual(result['rows'][0]['regions']['dawn']['mean_kR'],result['rows'][0]['regions']['dusk']['mean_kR'])
 
 if __name__=='__main__':unittest.main()

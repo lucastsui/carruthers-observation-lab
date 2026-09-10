@@ -1204,6 +1204,18 @@ h2 {
 .colorbar img { height:10px; }
 .sector-presets { display:flex; gap:5px; margin:6px 0; }
 .sector-presets .button { font-size:12px; padding:4px 8px; min-height:28px; flex:1; }
+.region-controls .control-heading { flex-wrap:wrap; row-gap:6px; }
+.region-controls .region-shapes { flex:1 0 100%; }
+.region-controls .region-shape-button { min-width:0; }
+.shared-angle { margin-top:8px; }
+.paired-means { display:grid; gap:6px; font-size:14px; }
+.paired-means > div { display:grid; grid-template-columns:1fr auto; column-gap:8px; }
+.paired-means strong { font-weight:500; }
+.paired-means small { grid-column:1 / -1; color:var(--muted-foreground); font-size:12px; }
+.series-legend { display:flex; gap:18px; font-size:13px; padding:3px 0; }
+.series-legend span { display:flex; gap:6px; align-items:center; }
+.series-legend i { width:18px; height:2px; }
+.paired-plot .chart-readout { height:auto; min-height:28px; white-space:normal; line-height:1.35; }
 .baseline-label { font-size:12px; color:#e8b867; display:flex; align-items:center; gap:6px; }
 .baseline-label i { display:inline-block; width:18px; border-top:2px dashed #e8b867; }
 .results-layout { grid-template-rows:minmax(380px,1.8fr) minmax(170px,1fr); }
@@ -1237,6 +1249,8 @@ h2 {
   .results-layout { grid-template-rows:minmax(0,2.5fr) minmax(175px,1fr); }
 }
 .time-chart > .plot-root { flex:1 0 114px; }
+.time-chart > * { flex-shrink:0; }
+.time-chart > .paired-plot { flex:1 0 164px; min-height:164px; }
 .context-chart { min-height:99px; flex:1 0 99px; }
 .compact-plot .plot-drawing { min-height:62px; }
 .compact-plot .chart-readout { font-size:12px; height:16px; line-height:16px; }

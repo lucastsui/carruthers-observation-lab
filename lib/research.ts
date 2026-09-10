@@ -40,11 +40,12 @@ export function snapPointToPixel(
   };
 }
 export type ROI = {
-  kind: 'annulus' | 'sector' | 'rectangle' | 'point';
+  kind: 'annulus' | 'sector' | 'paired_sectors' | 'rectangle' | 'point';
   inner: number;
   outer: number;
   angle_start: number;
   angle_end: number;
+  angle_width: number;
   x1: number;
   x2: number;
   y1: number;
@@ -58,6 +59,7 @@ export const DEFAULT_ROI: ROI = {
   outer: 5.5,
   angle_start: 0,
   angle_end: 90,
+  angle_width: 45,
   x1: 3,
   x2: 6,
   y1: -1,
@@ -93,7 +95,44 @@ export type Measurement = {
   nonpositive_pixels: number;
   profile?: Profile[];
   flags: Record<string, number | null>;
+  regions?: Record<'dawn' | 'dusk', RegionMeasurement>;
 };
+export type RegionMeasurement = Pick<
+  Measurement,
+  | 'mean_kR'
+  | 'median_kR'
+  | 'spatial_std_kR'
+  | 'valid_pixels'
+  | 'selected_pixels'
+  | 'coverage'
+  | 'nonpositive_pixels'
+>;
+export const PAIRED_REGIONS = [
+  { id: 'dawn', label: 'Dawn', center: 180, color: '#83dfca' },
+  { id: 'dusk', label: 'Dusk', center: 0, color: '#eea5dd' },
+] as const;
+export function pairedSectors(roi: ROI) {
+  return PAIRED_REGIONS.map((region) => ({
+    ...region,
+    roi: {
+      ...roi,
+      kind: 'sector' as const,
+      inner: 0,
+      angle_start: region.center - roi.angle_width / 2,
+      angle_end: region.center + roi.angle_width / 2,
+    },
+  }));
+}
+// Both wedges stay centered on the image's dawn/dusk axes.
+export function pairedOpeningAngle(x: number, y: number) {
+  return Math.max(
+    1,
+    Math.min(
+      180,
+      Math.round((2 * Math.atan2(Math.abs(y), Math.abs(x)) * 180) / Math.PI),
+    ),
+  );
+}
 export type Recipe = {
   roi: ROI;
   exclude_interpolated: boolean;
@@ -169,6 +208,8 @@ export function fmt(n: number | null | undefined, digits = 3) {
 }
 export function roiLabel(roi: ROI) {
   if (roi.kind === 'annulus') return `${roi.inner}–${roi.outer} Rᴇ annulus`;
+  if (roi.kind === 'paired_sectors')
+    return `Dawn + Dusk · full image · ${roi.angle_width}° each`;
   if (roi.kind === 'sector')
     return `${roi.inner}–${roi.outer} Rᴇ, ${roi.angle_start}–${roi.angle_end}° sector`;
   if (roi.kind === 'point') return `Point (${roi.x}, ${roi.y}) Rᴇ`;
@@ -180,9 +221,11 @@ export function roiError(roi: ROI): string | null {
       ? ['x', 'y']
       : roi.kind === 'rectangle'
         ? ['x1', 'x2', 'y1', 'y2']
-        : roi.kind === 'sector'
-          ? ['inner', 'outer', 'angle_start', 'angle_end']
-          : ['inner', 'outer'];
+        : roi.kind === 'paired_sectors'
+          ? ['angle_width']
+          : roi.kind === 'sector'
+            ? ['inner', 'outer', 'angle_start', 'angle_end']
+            : ['inner', 'outer'];
   if (keys.some((k) => !Number.isFinite(roi[k as keyof ROI])))
     return 'Enter valid numbers for the selection.';
   if (
@@ -197,6 +240,11 @@ export function roiError(roi: ROI): string | null {
     !(roi.angle_end > roi.angle_start && roi.angle_end - roi.angle_start <= 360)
   )
     return 'Sector must span more than 0° and at most 360°.';
+  if (
+    roi.kind === 'paired_sectors' &&
+    !(roi.angle_width >= 1 && roi.angle_width <= 180)
+  )
+    return 'Shared opening angle must be between 1° and 180°.';
   return null;
 }
 export function activeROI(roi: ROI) {
@@ -205,9 +253,11 @@ export function activeROI(roi: ROI) {
       ? ['x', 'y']
       : roi.kind === 'rectangle'
         ? ['x1', 'x2', 'y1', 'y2']
-        : roi.kind === 'sector'
-          ? ['inner', 'outer', 'angle_start', 'angle_end']
-          : ['inner', 'outer'];
+        : roi.kind === 'paired_sectors'
+          ? ['angle_width']
+          : roi.kind === 'sector'
+            ? ['inner', 'outer', 'angle_start', 'angle_end']
+            : ['inner', 'outer'];
   return Object.fromEntries(
     ['kind', ...keys].map((k) => [k, roi[k as keyof ROI]]),
   );

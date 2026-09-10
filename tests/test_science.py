@@ -9,7 +9,7 @@ from PIL import Image
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
-from science import Catalogue, earth_geometry, measure_arrays, measure_frame, selection_mask, validate_roi
+from science import Catalogue, earth_geometry, measure_arrays, measure_frame, selection_mask, validate_roi, paired_sectors
 
 
 class ArrayScienceTests(unittest.TestCase):
@@ -54,6 +54,37 @@ class ArrayScienceTests(unittest.TestCase):
         self.assertIsNone(outside['mean_kR'])
         self.assertEqual(outside['coverage'], 0)
 
+    def test_paired_sectors_keep_opposite_pixels_and_missing_values_separate(self):
+        roi = validate_roi(dict(kind='paired_sectors', angle_width=60))
+        raw = np.full((5, 5), 7000.)
+        raw[:, :2] = -1000.
+        fov, interp = np.ones((5, 5), bool), np.zeros((5, 5), bool)
+        result = measure_arrays(raw, fov, interp, self.frame, roi)
+        self.assertEqual(result['regions']['dawn']['mean_kR'], -1.)
+        self.assertEqual(result['regions']['dusk']['mean_kR'], 7.)
+        self.assertEqual(result['mean_kR'], 31/9)
+        interp[:, 2:] = True
+        result = measure_arrays(raw, fov, interp, self.frame, roi)
+        self.assertIsNone(result['regions']['dusk']['mean_kR'])
+        self.assertEqual(result['regions']['dusk']['coverage'], 0)
+        self.assertEqual(result['regions']['dawn']['mean_kR'], -1.)
+        self.assertEqual(measure_arrays(raw, fov, interp, self.frame, roi, False)['regions']['dusk']['mean_kR'], 7.)
+
+    def test_paired_maximum_angle_partitions_full_raster_without_overlap(self):
+        roi = dict(kind='paired_sectors', angle_width=180)
+        dawn, dusk = [selection_mask(self.frame, part) for part in paired_sectors(roi, self.frame).values()]
+        self.assertFalse((dawn & dusk).any())
+        np.testing.assert_array_equal(dawn | dusk, np.ones(self.frame['shape'], bool))
+        for cx in (2., 2.-2**-51, 2.+2**-50):
+            frame = dict(self.frame, earth_xy=[cx, 2.])
+            np.testing.assert_array_equal(selection_mask(frame, roi), np.ones((5, 5), bool))
+            result = measure_arrays(np.ones((5, 5)), np.ones((5, 5), bool), np.zeros((5, 5), bool), frame, roi)
+            self.assertEqual(result['selected_pixels'], 25)
+            self.assertEqual(sum(r['selected_pixels'] for r in result['regions'].values()), 25)
+        for width in (0, 181, float('nan')):
+            with self.assertRaises(ValueError):
+                validate_roi(dict(roi, angle_width=width))
+
     def test_geometry_signed_axis_and_scale(self):
         g = dict(spacecraft_position=np.array([0., 0., 637000.]),
                  spacecraft_attitude=[0, 0, 0, 1], cam_attitude=[0, 0, 0, 1],
@@ -94,6 +125,22 @@ class RealDataRegressionTests(unittest.TestCase):
             value = measure_frame(self.catalogue, frame['id'], dict(kind='annulus', inner=4.5, outer=5.5))
             self.assertAlmostEqual(value['mean_kR'], float(prior['mean_brightness_kR']), places=12)
             self.assertEqual(value['valid_pixels'], int(prior['valid_pixels']))
+
+    def test_paired_real_data_matches_each_individual_sector_and_csv(self):
+        from server import export_csv, METHOD
+        roi = dict(kind='paired_sectors', angle_width=70)
+        for channel in ('WFI', 'NFI'):
+            frame = next(f for f in self.catalogue.frames if f['channel'] == channel)
+            pair = measure_frame(self.catalogue, frame['id'], roi)
+            for name, sector in paired_sectors(roi, frame).items():
+                individual = measure_frame(self.catalogue, frame['id'], sector)
+                for key, value in pair['regions'][name].items():
+                    self.assertEqual(value, individual[key])
+            result = dict(rows=[pair], recipe=dict(roi=roi, exclude_interpolated=True), method=METHOD)
+            rows = list(csv.DictReader(io.StringIO(export_csv(result).decode())))
+            self.assertEqual([r['region'] for r in rows], ['dawn', 'dusk'])
+            for row in rows:
+                self.assertEqual(float(row['mean_kR']), pair['regions'][row['region']]['mean_kR'])
 
     def test_both_cameras_render_and_display_scale_does_not_change_measurement(self):
         for channel, size, scale in [('WFI', 512, [1, 5.4]), ('NFI', 1024, [3, 5.2])]:

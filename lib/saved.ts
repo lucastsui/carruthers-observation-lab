@@ -1,32 +1,60 @@
 import { downloadText } from './research';
+import { analysisCSV } from './analysis-export';
 import type { Job, Saved } from './research';
 
 // IndexedDB belongs to this browser and origin. Nothing is saved on the server.
 async function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('carruthers-analyses', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('results', { keyPath: 'id' });
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore('results', { keyPath: 'id' });
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(new Error('Browser storage is unavailable. Download CSV or JSON instead.'));
+    request.onerror = () =>
+      reject(
+        new Error(
+          'Browser storage is unavailable. Download CSV or JSON instead.',
+        ),
+      );
   });
 }
-async function transaction<T>(write: boolean, operation: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+async function transaction<T>(
+  write: boolean,
+  operation: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   const db = await database();
   try {
     return await new Promise<T>((resolve, reject) => {
       const tx = db.transaction('results', write ? 'readwrite' : 'readonly');
       const req = operation(tx.objectStore('results'));
       tx.oncomplete = () => resolve(req.result);
-      tx.onabort = tx.onerror = () => reject(new Error('Could not save in this browser. Download a copy instead.'));
+      tx.onabort = tx.onerror = () =>
+        reject(
+          new Error('Could not save in this browser. Download a copy instead.'),
+        );
     });
-  } finally { db.close(); }
+  } finally {
+    db.close();
+  }
 }
 export async function storeSaved(result: Job) {
-  await transaction(true, (s) => s.put({ ...result, title: `${result.recipe.channel} · ${result.recipe.start.slice(0,10)} · ${result.recipe.roi.kind}`, saved_at: new Date().toISOString() }));
+  await transaction(true, (s) =>
+    s.put({
+      ...result,
+      title: `${result.recipe.channel} · ${result.recipe.start.slice(0, 10)} · ${result.recipe.roi.kind}`,
+      saved_at: new Date().toISOString(),
+    }),
+  );
 }
 export async function readSaved(): Promise<Saved[]> {
   const results = await transaction<Job[]>(false, (s) => s.getAll());
-  return results.map((r) => ({ id: r.id, title: r.title || 'Analysis', saved_at: r.saved_at!, recipe: r.recipe })).sort((a,b) => b.saved_at.localeCompare(a.saved_at));
+  return results
+    .map((r) => ({
+      id: r.id,
+      title: r.title || 'Analysis',
+      saved_at: r.saved_at!,
+      recipe: r.recipe,
+    }))
+    .sort((a, b) => b.saved_at.localeCompare(a.saved_at));
 }
 export async function loadSaved(id: string): Promise<Job> {
   const result = await transaction<Job | undefined>(false, (s) => s.get(id));
@@ -34,18 +62,12 @@ export async function loadSaved(id: string): Promise<Job> {
   return result;
 }
 export function exportAnalysis(result: Job, format: 'csv' | 'json') {
-  const name = `carruthers-${result.recipe.channel}-${result.recipe.start.slice(0,10)}`;
-  if (format === 'json') return downloadText(`${name}.json`, JSON.stringify(result, null, 2), 'application/json');
-  const columns = ['timestamp_utc','channel','mean_kR','median_kR','spatial_std_kR','valid_pixels','selected_pixels','coverage','nonpositive_pixels','source','source_fingerprint','frame_index','data_version','earth_x_pixel','earth_y_pixel','pixels_per_re','exposure_s','exclude_interpolated','roi_json','method_version','flags_json','baseline_mean_kR','baseline_frame_id'];
-  const rows = (result.rows || []).map((row) => {
-    const r = row as unknown as Record<string, unknown>;
-    const xy = r.earth_xy as number[];
-    const mapped: Record<string, unknown> = { ...r, timestamp_utc: row.timestamp, data_version: row.version, earth_x_pixel: xy?.[0], earth_y_pixel: xy?.[1], exclude_interpolated: result.recipe.exclude_interpolated, roi_json: JSON.stringify(result.recipe.roi), method_version: result.method?.version ?? row.method_version, flags_json: JSON.stringify(row.flags), baseline_mean_kR: result.baseline?.mean_kR, baseline_frame_id: result.baseline?.frame_id };
-    return columns.map((k) => {
-      const value = mapped[k];
-      const text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : `${value as string | number | boolean}`;
-      return '"' + text.replaceAll('"', '""') + '"';
-    }).join(',');
-  });
-  downloadText(`${name}.csv`, [columns.join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
+  const name = `carruthers-${result.recipe.channel}-${result.recipe.start.slice(0, 10)}${result.recipe.roi.kind === 'paired_sectors' ? '-dawn-dusk' : ''}`;
+  if (format === 'json')
+    return downloadText(
+      `${name}.json`,
+      JSON.stringify(result, null, 2),
+      'application/json',
+    );
+  downloadText(`${name}.csv`, analysisCSV(result), 'text/csv;charset=utf-8');
 }

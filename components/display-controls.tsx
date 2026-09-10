@@ -2,7 +2,6 @@
 import { MAX_LOG_R, radianceLabel, radianceTicks } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectTrigger,
@@ -16,8 +15,6 @@ export function DisplayControls({
   setZoom,
   contours,
   setContours,
-  directions,
-  setDirections,
   scale,
   onScaleChange,
   onScaleCommit,
@@ -27,8 +24,6 @@ export function DisplayControls({
   setZoom: (value: string) => void;
   contours: ContourMode;
   setContours: (value: ContourMode) => void;
-  directions: boolean;
-  setDirections: (value: boolean) => void;
   scale: [number, number];
   onScaleChange: (value: [number, number]) => void;
   onScaleCommit: (value: [number, number]) => void;
@@ -89,14 +84,6 @@ export function DisplayControls({
           </SelectContent>
         </Select>
       </div>
-      <label className="switch-row" htmlFor="directions">
-        Dawn / dusk 45° guides
-        <Switch
-          id="directions"
-          checked={directions}
-          onCheckedChange={setDirections}
-        />
-      </label>
       <div className="scale-heading">
         <span id="brightness-scale-label">Radiance · kR</span>
         <button

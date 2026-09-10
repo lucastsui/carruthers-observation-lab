@@ -38,7 +38,6 @@ export default function Home() {
     [fps, setFPS] = useState('2');
   const [roi, setROI] = useState<ROI>(DEFAULT_ROI),
     [contours, setContours] = useState<ContourMode>('radiance'),
-    [directions, setDirections] = useState(true),
     [viewerMode, setViewerMode] = useState('image'),
     [zoom, setZoom] = useState('1');
   const [scale, setScale] = useState<[number, number]>([1, MAX_LOG_R]),
@@ -266,8 +265,6 @@ export default function Home() {
                     setZoom={setZoom}
                     contours={contours}
                     setContours={setContours}
-                    directions={directions}
-                    setDirections={setDirections}
                     scale={draftScale}
                     onScaleChange={(value) => {
                       setPlaying(false);
@@ -336,7 +333,6 @@ export default function Home() {
                           scale={scale}
                           roi={roi}
                           contours={contours}
-                          directions={directions}
                           exclude={exclude}
                           zoom={Number(zoom)}
                           onROI={changeROI}

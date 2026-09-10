@@ -92,7 +92,7 @@ class LocalServiceTests(unittest.TestCase):
             self.assertIn('attachment', response.headers['Content-Disposition'])
         self.assertEqual(len(rows), 22)
         self.assertAlmostEqual(float(rows[0]['baseline_mean_kR']), result['baseline']['mean_kR'])
-        self.assertEqual(rows[0]['method_version'], 'carruthers-local-1.0')
+        self.assertEqual(rows[0]['method_version'], 'carruthers-local-1.1')
         self.assertEqual(rows[0]['exclude_interpolated'], 'True')
         self.assertEqual(json.loads(rows[0]['roi_json'])['inner'], 4.5)
         self.jrequest('/api/save', {'id': job['id'], 'title': 'Regression analysis'})

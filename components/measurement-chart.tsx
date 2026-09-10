@@ -12,7 +12,8 @@ const valueLabel = (v: number) =>
     maximumFractionDigits: 4,
   });
 export function MeasurementChart({
-  data,
+  data: primaryData,
+  series,
   time = false,
   selected,
   onSelect,
@@ -27,6 +28,7 @@ export function MeasurementChart({
   maxGap,
 }: {
   data: Datum[];
+  series?: { label: string; color: string; data: Datum[] }[];
   time?: boolean;
   selected?: number;
   onSelect?: (id: string) => void;
@@ -43,7 +45,9 @@ export function MeasurementChart({
   const [hover, setHover] = useState<number | null>(null);
   const valid = (d: Datum) =>
     d.y !== null && Number.isFinite(d.y) && (!logarithmic || d.y > 0);
-  const points = data.filter(valid);
+  const datasets = series ?? [{ label: 'Radiance', color, data: primaryData }];
+  const data = datasets[0].data;
+  const points = datasets.flatMap((s) => s.data.filter(valid));
   const drawing = useRef<HTMLDivElement>(null);
   const clipId = useId().replaceAll(':', '');
   const [size, setSize] = useState({ width: 360, height: compact ? 95 : 180 });
@@ -93,22 +97,24 @@ export function MeasurementChart({
   const x = (v: number) => l + ((v - xmin) / (xmax - xmin || 1)) * (w - l - r);
   const y = (v: number) =>
     h - b - ((transform(v) - ymin) / (ymax - ymin)) * (h - b - t);
-  const pathTokens: string[] = [];
-  for (let i = 0; i < data.length; i++) {
-    const d = data[i];
-    if (!valid(d)) continue;
-    if (daily) {
-      pathTokens.push(
-        `M ${x(Math.max(xmin, d.x - 43200000))} ${y(d.y!)} H ${x(Math.min(xmax, d.x + 43200000))}`,
-      );
-      continue;
+  function makePath(data: Datum[]) {
+    const pathTokens: string[] = [];
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      if (!valid(d)) continue;
+      if (daily) {
+        pathTokens.push(
+          `M ${x(Math.max(xmin, d.x - 43200000))} ${y(d.y!)} H ${x(Math.min(xmax, d.x + 43200000))}`,
+        );
+        continue;
+      }
+      const previous = data[i - 1];
+      const connected =
+        previous && valid(previous) && (!maxGap || d.x - previous.x <= maxGap);
+      pathTokens.push(`${connected ? 'L' : 'M'} ${x(d.x)} ${y(d.y!)}`);
     }
-    const previous = data[i - 1];
-    const connected =
-      previous && valid(previous) && (!maxGap || d.x - previous.x <= maxGap);
-    pathTokens.push(`${connected ? 'L' : 'M'} ${x(d.x)} ${y(d.y!)}`);
+    return pathTokens.join(' ');
   }
-  const path = pathTokens.join(' ');
   const nearest = (e: React.PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect(),
       px = ((e.clientX - box.left) / box.width) * w;
@@ -129,6 +135,13 @@ export function MeasurementChart({
       : v.toFixed(1);
   const hoverIndex = hover === null ? null : Math.min(hover, data.length - 1);
   const d = hoverIndex === null ? null : data[hoverIndex];
+  const readValues = (i: number) =>
+    datasets
+      .map((s) => {
+        const point = s.data[i];
+        return `${series ? s.label + ': ' : ''}${point?.y == null ? 'Missing' : valueLabel(point.y)} ${units}${point?.coverage !== undefined ? ` · ${(point.coverage * 100).toFixed(1)}% valid` : ''}`;
+      })
+      .join(' · ');
   const ticks: number[] = [];
   if (logarithmic) {
     for (let e = Math.floor(ymin); e <= Math.ceil(ymax); e++)
@@ -148,7 +161,19 @@ export function MeasurementChart({
     return kept;
   }, []);
   return (
-    <div className={`plot-root ${compact ? 'compact-plot' : ''}`}>
+    <div
+      className={`plot-root ${compact ? 'compact-plot' : ''} ${series ? 'paired-plot' : ''}`}
+    >
+      {series && (
+        <div className="series-legend" aria-label="Radiance series">
+          {series.map((s) => (
+            <span key={s.label} style={{ color: s.color }}>
+              <i style={{ background: s.color }} />
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="plot-drawing" ref={drawing}>
         <svg
           className="chart"
@@ -156,7 +181,7 @@ export function MeasurementChart({
           aria-valuemin={0}
           aria-valuemax={data.length - 1}
           aria-valuenow={hoverIndex ?? 0}
-          aria-valuetext={`${tick(data[hoverIndex ?? 0].x)}: ${data[hoverIndex ?? 0].y ?? 'Missing'} ${units}`}
+          aria-valuetext={`${tick(data[hoverIndex ?? 0].x)}: ${readValues(hoverIndex ?? 0)}`}
           aria-roledescription="interactive chart"
           tabIndex={0}
           aria-label={label}
@@ -242,32 +267,41 @@ export function MeasurementChart({
                 </title>
               </line>
             )}
-            <path
-              d={path}
-              fill="none"
-              stroke={color}
-              strokeWidth={compact ? 1.3 : 1.8}
-            />
-            {points.length < 150 &&
-              points.map((v, i) => (
-                <circle
-                  key={i}
-                  cx={x(v.x)}
-                  cy={y(v.y!)}
-                  r={compact ? 2 : 3}
-                  fill={(v.coverage ?? 1) < 0.8 ? '#f4bd74' : color}
+            {datasets.map((seriesData) => (
+              <g key={seriesData.label}>
+                <path
+                  d={makePath(seriesData.data)}
+                  fill="none"
+                  stroke={seriesData.color}
+                  strokeWidth={compact ? 1.3 : 1.8}
                 >
-                  <title>
-                    {time
-                      ? new Date(v.x).toISOString()
-                      : `${v.x.toFixed(2)} Rᴇ`}
-                    : {v.y?.toFixed(4)} {units}
-                    {v.coverage !== undefined
-                      ? `; ${(v.coverage * 100).toFixed(1)}% valid`
-                      : ''}
-                  </title>
-                </circle>
-              ))}
+                  <title>{seriesData.label}</title>
+                </path>
+                {seriesData.data.filter(valid).length < 150 &&
+                  seriesData.data.filter(valid).map((v, i) => (
+                    <circle
+                      key={i}
+                      cx={x(v.x)}
+                      cy={y(v.y!)}
+                      r={compact ? 2 : 3}
+                      fill={
+                        (v.coverage ?? 1) < 0.8 ? '#f4bd74' : seriesData.color
+                      }
+                    >
+                      <title>
+                        {seriesData.label}:{' '}
+                        {time
+                          ? new Date(v.x).toISOString()
+                          : `${v.x.toFixed(2)} Rᴇ`}
+                        : {v.y?.toFixed(4)} {units}
+                        {v.coverage !== undefined
+                          ? `; ${(v.coverage * 100).toFixed(1)}% valid`
+                          : ''}
+                      </title>
+                    </circle>
+                  ))}
+              </g>
+            ))}
             {selected !== undefined && selected >= xmin && selected <= xmax && (
               <line
                 x1={x(selected)}
@@ -294,7 +328,7 @@ export function MeasurementChart({
       </div>
       <div className="chart-readout mono">
         {d
-          ? `${time ? new Date(d.x).toISOString().slice(5, 16).replace('T', ' ') : `${d.x.toFixed(2)} Rᴇ`} · ${d.y == null ? 'Missing' : valueLabel(d.y)} ${units}${d.coverage !== undefined ? ` · ${(d.coverage * 100).toFixed(1)}% valid` : ''}`
+          ? `${time ? new Date(d.x).toISOString().slice(5, 16).replace('T', ' ') : `${d.x.toFixed(2)} Rᴇ`} · ${readValues(hoverIndex!)}`
           : compact
             ? daily
               ? 'Daily means · UTC; no subdaily variation inferred'

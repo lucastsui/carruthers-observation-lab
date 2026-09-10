@@ -20,15 +20,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { MeasurementChart } from '@/components/measurement-chart';
-import { fmt, roiError, roiLabel, downloadText } from '@/lib/research';
+import {
+  fmt,
+  roiError,
+  roiLabel,
+  downloadText,
+  PAIRED_REGIONS,
+} from '@/lib/research';
 import type { Frame, ROI, Baseline } from '@/lib/research';
 import type { useAnalysis } from '@/hooks/use-analysis';
 import { ContextChart } from '@/components/context-chart';
-import { DAWN_SECTOR, DUSK_SECTOR } from '@/lib/display';
 type Analysis = ReturnType<typeof useAnalysis>;
 const REGION_SHAPES = [
   { kind: 'annulus', label: 'Annulus' },
   { kind: 'sector', label: 'Annular sector' },
+  { kind: 'paired_sectors', label: 'Dawn + Dusk' },
   { kind: 'rectangle', label: 'Rectangle' },
   { kind: 'point', label: 'Single pixel' },
 ] as const;
@@ -53,6 +59,9 @@ function RegionShapeIcon({ kind }: { kind: ROI['kind'] }) {
       )}
       {kind === 'sector' && (
         <path d="M6 3 A15 15 0 0 1 21 18 L14 18 A8 8 0 0 0 6 10 Z" />
+      )}
+      {kind === 'paired_sectors' && (
+        <path d="M12 12 L3 6 A11 11 0 0 0 3 18 Z M12 12 L21 6 A11 11 0 0 1 21 18 Z" />
       )}
       {kind === 'rectangle' && (
         <rect x="3" y="5" width="18" height="14" rx="1" />
@@ -158,13 +167,32 @@ export function AnalysisControls({
             ? 'Drag a box; x right, y up.'
             : roi.kind === 'point'
               ? 'Click to select a pixel.'
-              : 'Drag to set the radii.'}
+              : roi.kind === 'paired_sectors'
+                ? 'Drag an edge handle to set both angles. Pies extend to the image edges.'
+                : 'Drag to set the radii.'}
         </p>
         {(roi.kind === 'annulus' || roi.kind === 'sector') && (
           <div className="pair">
             {numberField('inner', 'Inner · Rᴇ')}
             {numberField('outer', 'Outer · Rᴇ')}
           </div>
+        )}
+        {roi.kind === 'paired_sectors' && (
+          <>
+            <label className="field shared-angle">
+              Shared opening angle · °
+              <input
+                type="number"
+                min={1}
+                max={180}
+                step={1}
+                value={Number.isFinite(roi.angle_width) ? roi.angle_width : ''}
+                onChange={(e) =>
+                  setROI({ ...roi, angle_width: e.target.valueAsNumber })
+                }
+              />
+            </label>
+          </>
         )}
         {roi.kind === 'sector' && (
           <>
@@ -193,20 +221,6 @@ export function AnalysisControls({
             {numberField('y', 'y · Rᴇ')}
           </div>
         )}
-        <div className="sector-presets" aria-label="45 degree sector presets">
-          <button
-            className="button"
-            onClick={() => setROI({ ...roi, kind: 'sector', ...DAWN_SECTOR })}
-          >
-            Dawn 45°
-          </button>
-          <button
-            className="button"
-            onClick={() => setROI({ ...roi, kind: 'sector', ...DUSK_SECTOR })}
-          >
-            Dusk 45°
-          </button>
-        </div>
         <label className="switch-row" htmlFor="exclude-interpolation">
           Skip interpolated pixels
           <Switch
@@ -225,33 +239,53 @@ export function AnalysisControls({
       <div className="measurement-controls">
         <div className="measurement-summary">
           <div className="metric">
-            <div className="metric-value">
-              <span className="metric-label">Frame mean</span>
-              <strong>
-                {sample ? fmt(sample.mean_kR) : '—'}
-                <span>kR</span>
-              </strong>
-            </div>
-            <div className="metric-caption">
-              <span>
-                {playing
-                  ? 'Pause to inspect'
-                  : sample
-                    ? `${sample.valid_pixels.toLocaleString()} valid pixels`
-                    : a.sampleError
-                      ? 'Measurement unavailable'
-                      : invalid
-                        ? 'Adjust the selection'
-                        : frame
-                          ? 'Reading the array…'
-                          : 'No frame selected'}
-              </span>
-              <span>
-                {sample
-                  ? `${(sample.coverage * 100).toFixed(1)}% coverage`
-                  : ''}
-              </span>
-            </div>
+            {sample?.regions ? (
+              <div
+                className="paired-means"
+                aria-label="Dawn and Dusk frame means"
+              >
+                {PAIRED_REGIONS.map(({ id, label, color }) => (
+                  <div key={id}>
+                    <span style={{ color }}>{label}</span>
+                    <strong>{fmt(sample.regions![id].mean_kR)} kR</strong>
+                    <small>
+                      {(sample.regions![id].coverage * 100).toFixed(1)}%
+                      coverage
+                    </small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="metric-value">
+                <span className="metric-label">Frame mean</span>
+                <strong>
+                  {sample ? fmt(sample.mean_kR) : '—'}
+                  <span>kR</span>
+                </strong>
+              </div>
+            )}
+            {!sample?.regions && (
+              <div className="metric-caption">
+                <span>
+                  {playing
+                    ? 'Pause to inspect'
+                    : sample
+                      ? `${sample.valid_pixels.toLocaleString()} valid pixels`
+                      : a.sampleError
+                        ? 'Measurement unavailable'
+                        : invalid
+                          ? 'Adjust the selection'
+                          : frame
+                            ? 'Reading the array…'
+                            : 'No frame selected'}
+                </span>
+                <span>
+                  {sample
+                    ? `${(sample.coverage * 100).toFixed(1)}% coverage`
+                    : ''}
+                </span>
+              </div>
+            )}
           </div>
           {sample && sample.coverage < 0.8 && (
             <p className="status">This selection has limited valid coverage.</p>
@@ -271,7 +305,9 @@ export function AnalysisControls({
               <span className="small muted">
                 {a.phase === 'waiting'
                   ? 'Submitting analysis…'
-                  : a.job?.status === 'queued' ? `Queued · ${a.job.queue_position ?? 1} in line` : `${a.job?.completed ?? 0} / ${a.job?.total ?? count} frames`}
+                  : a.job?.status === 'queued'
+                    ? `Queued · ${a.job.queue_position ?? 1} in line`
+                    : `${a.job?.completed ?? 0} / ${a.job?.total ?? count} frames`}
               </span>
               <button className="button" onClick={() => a.cancel()}>
                 <Square />
@@ -291,7 +327,9 @@ export function AnalysisControls({
                     ? 'Choose an interval'
                     : invalid
                       ? 'Adjust the selection'
-                      : a.phase === 'complete' ? 'Analysis complete' : 'Ready to analyze'}
+                      : a.phase === 'complete'
+                        ? 'Analysis complete'
+                        : 'Ready to analyze'}
             </span>
             {count > 0 && !invalid && a.phase !== 'complete' && (
               <button className="button ghost" onClick={a.retry}>
@@ -336,7 +374,7 @@ export function AnalysisControls({
                 not a direct measurement of local hydrogen density. Error bars
                 have not been validated.
               </p>
-              {sample && (
+              {sample && !sample.regions && (
                 <dl>
                   <dt>Median</dt>
                   <dd>{fmt(sample.median_kR)} kR</dd>
@@ -492,11 +530,29 @@ export function AnalysisResults({
                 id: r.frame_id,
                 coverage: r.coverage,
               }))}
+              series={
+                result.recipe.roi.kind === 'paired_sectors'
+                  ? PAIRED_REGIONS.map(({ id, label, color }) => ({
+                      label,
+                      color,
+                      data: (result.rows || []).map((r) => ({
+                        x: r.epoch_ms,
+                        y: r.regions?.[id].mean_kR ?? null,
+                        id: r.frame_id,
+                        coverage: r.regions?.[id].coverage,
+                      })),
+                    }))
+                  : undefined
+              }
               time
               baseline={baseline?.mean_kR}
               selected={frame?.epoch_ms}
               onSelect={onSelect}
-              label="Mean selected-region brightness in kilo-Rayleighs versus reported observation time"
+              label={
+                result.recipe.roi.kind === 'paired_sectors'
+                  ? 'Dawn and Dusk radiance in kilo-Rayleighs versus reported observation time'
+                  : 'Mean selected-region brightness in kilo-Rayleighs versus reported observation time'
+              }
             />
             <div className="baseline-label" title={baseline?.definition}>
               <i />
@@ -533,7 +589,10 @@ export function AnalysisResults({
               · orange &lt;80% coverage · no error bars
             </p>
             <div className="action-row">
-              <button className="button" onClick={() => exportAnalysis(result, 'csv')}>
+              <button
+                className="button"
+                onClick={() => exportAnalysis(result, 'csv')}
+              >
                 <Download />
                 CSV
               </button>

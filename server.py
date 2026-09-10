@@ -34,6 +34,7 @@ METHOD = {
     'uncertainty': 'Image uncertainty definition is unvalidated; spatial_std_kR is pixel dispersion, not an uncertainty on the mean',
     'interpretation': 'Line-of-sight brightness, not local hydrogen density; exploratory measurements',
     'coverage': 'Valid / selected pixel centers within the raster; does not count region portions outside the raster',
+    'paired_sectors': 'Dawn centered at 180 degrees (image left), dusk at 0 degrees (image right); filled pies from Earth center to the raster edges, equal opening angles. regions contains separate statistics; top-level statistics describe their union.',
     'fingerprint': 'Source path, size and mtime identifier, not a cryptographic checksum of file contents',
 }
 
@@ -153,9 +154,13 @@ def export_csv(result):
     names = ['timestamp_utc', 'channel', 'mean_kR', 'median_kR', 'spatial_std_kR', 'valid_pixels', 'selected_pixels',
              'coverage', 'nonpositive_pixels', 'source', 'source_fingerprint', 'frame_index', 'data_version',
              'earth_x_pixel', 'earth_y_pixel', 'pixels_per_re', 'exposure_s', 'exclude_interpolated', 'roi_json', 'method_version', 'flags_json', 'baseline_mean_kR', 'baseline_frame_id']
+    paired = result['recipe']['roi']['kind'] == 'paired_sectors'
+    if paired:
+        names.insert(2, 'region')
     writer = csv.DictWriter(out, fieldnames=names)
     writer.writeheader()
-    for row in rows:
+    export_rows = [dict(row, region=name, **stats) for row in rows for name, stats in row['regions'].items()] if paired else rows
+    for row in export_rows:
         mapped = {n: row.get(n) for n in names if n in row}
         mapped.update(timestamp_utc=row['timestamp'], data_version=row['version'],
                       earth_x_pixel=row['earth_xy'][0], earth_y_pixel=row['earth_xy'][1],

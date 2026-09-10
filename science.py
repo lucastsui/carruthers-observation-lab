@@ -18,7 +18,7 @@ from netCDF4 import Dataset
 from PIL import Image
 
 RE_KM = 6370.0
-METHOD_VERSION = 'carruthers-local-1.0'
+METHOD_VERSION = 'carruthers-local-1.1'
 SCALES = {'WFI': [1.0, math.log10(270000)], 'NFI': [3.0, math.log10(270000)]}  # log10(R); 270 kR display ceiling.
 NETCDF_LOCK = threading.RLock()  # netCDF/HDF5 libraries are not thread-safe.
 GEOMETRY_NAMES = ['spacecraft_position', 'spacecraft_attitude', 'cam_attitude',
@@ -195,9 +195,10 @@ def validate_roi(value):
         raise ValueError('Selection must be a JSON object')
     kind = value.get('kind')
     fields = {'annulus': ('inner', 'outer'), 'sector': ('inner', 'outer', 'angle_start', 'angle_end'),
+              'paired_sectors': ('angle_width',),
               'rectangle': ('x1', 'x2', 'y1', 'y2'), 'point': ('x', 'y')}
     if kind not in fields:
-        raise ValueError('Choose annulus, sector, rectangle or point')
+        raise ValueError('Choose annulus, sector, paired sectors, rectangle or point')
     roi = {'kind': kind}
     for name in fields[kind]:
         v = float(value.get(name, float('nan')))
@@ -208,6 +209,8 @@ def validate_roi(value):
         raise ValueError('Radii must satisfy 0 ≤ inner < outer ≤ 100 Earth radii')
     if kind == 'sector' and not 0 < roi['angle_end']-roi['angle_start'] <= 360:
         raise ValueError('Sector end must be greater than start, spanning at most 360°')
+    if kind == 'paired_sectors' and not 1 <= roi['angle_width'] <= 180:
+        raise ValueError('Shared opening angle must be between 1° and 180°')
     if kind == 'rectangle' and not (roi['x1'] < roi['x2'] and roi['y1'] < roi['y2']):
         raise ValueError('Rectangle minimum coordinates must be below maximum coordinates')
     return roi
@@ -220,7 +223,20 @@ def coordinates(frame):
     return (cols-cx)/scale, (cy-rows)/scale
 
 
+def paired_sectors(roi, frame):
+    # Extend beyond every pixel center; only the angular bounds select the pies.
+    cx, cy = frame['earth_xy']
+    height, width = frame['shape']
+    radius = (math.hypot(max(abs(cx), abs(width-1-cx)), max(abs(cy), abs(height-1-cy))) + 1) / frame['pixels_per_re']
+    return {name: dict(kind='sector', inner=0, outer=radius,
+                       angle_start=center-roi['angle_width']/2, angle_end=center+roi['angle_width']/2)
+            for name, center in [('dawn', 180), ('dusk', 0)]}
+
+
 def selection_mask(frame, roi):
+    if roi['kind'] == 'paired_sectors':
+        dawn, dusk = paired_masks(frame, roi).values()
+        return dawn | dusk
     x, y = coordinates(frame)
     if roi['kind'] in ('annulus', 'sector'):
         r = np.hypot(x, y)
@@ -239,8 +255,17 @@ def selection_mask(frame, roi):
     return mask
 
 
-def measure_arrays(raw, fov, interpolation, frame, roi, exclude_interpolated=True):
-    selected = selection_mask(frame, roi)
+def paired_masks(frame, roi):
+    # The raster supplies the extent. Compute each pixel's angle just once.
+    x, y = coordinates(frame)
+    angle = np.degrees(np.arctan2(y, x))
+    half = roi['angle_width']/2
+    # Direct bounds avoid modulo rounding tiny negative offsets up to 360°.
+    return {'dawn': (angle >= 180-half) | (angle < -180+half),
+            'dusk': (angle >= -half) & (angle < half)}
+
+
+def measure_selected(raw, fov, interpolation, selected, exclude_interpolated):
     valid = selected & fov & np.isfinite(raw)
     if exclude_interpolated:
         valid &= ~interpolation
@@ -252,6 +277,16 @@ def measure_arrays(raw, fov, interpolation, frame, roi, exclude_interpolated=Tru
                 valid_pixels=count, selected_pixels=total,
                 coverage=count/total if total else 0.0,
                 nonpositive_pixels=int((values <= 0).sum()))
+
+
+def measure_arrays(raw, fov, interpolation, frame, roi, exclude_interpolated=True):
+    if roi['kind'] == 'paired_sectors':
+        masks = paired_masks(frame, roi)
+        result = measure_selected(raw, fov, interpolation, masks['dawn'] | masks['dusk'], exclude_interpolated)
+        result['regions'] = {name: measure_selected(raw, fov, interpolation, mask, exclude_interpolated)
+                             for name, mask in masks.items()}
+        return result
+    return measure_selected(raw, fov, interpolation, selection_mask(frame, roi), exclude_interpolated)
 
 
 def radial_profile(raw, fov, interpolation, frame, exclude_interpolated):
