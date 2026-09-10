@@ -26,9 +26,11 @@ Cloudflare Quick Tunnel supplies HTTPS and an outbound connection without a paid
 
 ## Monitoring and email
 
-Better Stack's free Uptime service is the selected external monitor and email sender. It needs the owner's account sign-in to be completed. Until `/etc/carruthers/monitor.env` is configured, only local monitoring and restart recovery work; no email alert is sent.
+Better Stack's free Uptime service is active under `lucastsu@bu.edu`. The public monitor and the Spark heartbeat both report healthy. The existing team-scoped Uptime API token, monitor ID and heartbeat URL are installed in `/etc/carruthers/monitor.env`, owned by root with mode 0600; credentials are not stored in this repository.
 
-Create a public HTTPS monitor of `<current-url>/health` with 5-minute checks, 15-minute sustained failure threshold, and email notifications to `lucastsu@bu.edu`. Create a heartbeat with expected interval 60 seconds and 15-minute grace. Disable paid call/SMS features. Give the watchdog a scoped API token if available, monitor ID and heartbeat URL in a root-only file (mode 0600):
+The [public HTTPS monitor](https://uptime.betterstack.com/team/t596700/monitors/4916571) checks `<current-url>/health` every 5 minutes, with a 15-minute sustained failure threshold and 3-minute recovery period. The [Spark heartbeat](https://uptime.betterstack.com/team/t596700/heartbeats/492203) expects a ping every 60 seconds with 15 minutes of grace for missing pings. Explicit `/fail` reports create an incident immediately. Both send email to primary responder Lucas Tsui at `lucastsu@bu.edu`; call, SMS, push and further escalation are disabled. The account uses the free plan with no payment method added.
+
+For recovery or migration, the root-only environment file has these keys:
 
 ```text
 BETTERSTACK_API_TOKEN=...
@@ -36,7 +38,7 @@ BETTERSTACK_MONITOR_ID=...
 BETTERSTACK_HEARTBEAT_URL=...
 ```
 
-The watchdog automatically updates the external monitor when the tunnel address changes, and pings/fails the heartbeat for local health. It sends only health messages and the public health URL. Restart `carruthers-monitor.service` after configuration. Inspect `/var/lib/carruthers-monitor/health.json` for whether external monitoring is configured and URL synchronization succeeded. Verify delivery with a controlled test incident before relying on alerts.
+The watchdog automatically updates the external monitor when the tunnel address changes, and pings/fails the heartbeat for local health. It sends only health messages and the public health URL. Restart `carruthers-monitor.service` after configuration. Inspect `/var/lib/carruthers-monitor/health.json` for whether external monitoring is configured and URL synchronization succeeded. Both were verified on September 10, 2026. A website test alert was received in the BU mailbox through browser testing. A controlled heartbeat failure created incident `1013648651` and resolved automatically after a healthy watchdog ping; both the failure and recovery emails were verified in the BU mailbox. The research app stayed available throughout the test.
 
 ## Verification
 
