@@ -38,6 +38,12 @@ BETTERSTACK_HEARTBEAT_URL=...
 
 The watchdog automatically updates the external monitor when the tunnel address changes, and pings/fails the heartbeat for local health. It sends only health messages and the public health URL. Restart `carruthers-monitor.service` after configuration. Inspect `/var/lib/carruthers-monitor/health.json` for whether external monitoring is configured and URL synchronization succeeded. Verify delivery with a controlled test incident before relying on alerts.
 
+## Verification
+
+`npm run check`, the production build, 17 TypeScript tests and 22 Python tests pass. The Python tests accept `CARRUTHERS_DATA_DIR` for a deployed dataset. Repository-wide lint has pre-existing component/accessibility and hook-dependency findings; the new standalone public-analysis/export TypeScript files pass targeted lint.
+
+Browser testing on the public tunnel produced CSV and JSON for all 22 WFI observations on March 15. The first/last annulus means were 5.055363316796408 / 5.0864138765212 kR, matching the local calculation. Crash recovery, Tailscale SSH after firewall activation, read-only observations and effective 1 GiB cache / 2 GiB temporary mounts were checked on the Spark.
+
 ## Operations
 
 ```sh
