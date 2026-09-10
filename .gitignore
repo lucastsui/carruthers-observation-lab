@@ -53,3 +53,6 @@ __pycache__/
 *.csv
 *.mp4
 *.png
+
+# Small, independent scientific regression reference.
+!tests/fixtures/*.csv

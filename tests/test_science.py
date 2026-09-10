@@ -86,7 +86,7 @@ class RealDataRegressionTests(unittest.TestCase):
 
     def test_all_march15_wfi_values_match_prior_independent_extraction(self):
         frames = [f for f in self.catalogue.frames if f['channel'] == 'WFI' and f['timestamp'].startswith('2026-03-15')]
-        with (BASE.parent / 'code and data/diagnostics/brightness_example/wfi_5re_brightness_20260315.csv').open() as f:
+        with (BASE / 'tests/fixtures/wfi_5re_brightness_20260315.csv').open() as f:
             expected = list(csv.DictReader(f))
         self.assertEqual(len(frames), 22)
         self.assertEqual(len(frames), len(expected))
