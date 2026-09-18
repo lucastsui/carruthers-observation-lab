@@ -6,9 +6,9 @@ import contourpy
 CIRCULARITY_METHOD = {
     'version': 'circularity-1.0',
     'definition': '100 * RMS radial residual / fitted radius; geometric least-squares circle with a free center',
-    'contour': 'Unique closed high-radiance contour enclosing projected Earth; full image, independent of ROI',
+    'contour': 'Unique closed high-brightness contour enclosing projected Earth; full image, independent of ROI',
     'sampling': '512 points at uniform arc-length intervals on the unrounded contour',
-    'smoothing': 'None; calibrated linear radiance with the same validity/interpolation mask as the analysis',
+    'smoothing': 'None; calibrated linear brightness with the same validity/interpolation mask as the analysis',
     'levels_kR': [1., 3.],
     'sensitivity_factors': [.95, 1., 1.05],
     'band': 'Min/max departure across the three thresholds, only when all three contours are valid; not a confidence interval',

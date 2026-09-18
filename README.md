@@ -23,7 +23,7 @@ external Observation Data volume and serves requested results through Tailscale 
    playback. The rate is frames per second, independently of observation cadence.
 3. Try **2× / 4× zoom**. Rings mark projected distance from Earth. Changing the
    display limits affects the image colors; it does not affect measurements.
-   Drag the two handles on the **Radiance · kR** scale bar to set the minimum and maximum
+   Drag the two handles on the **Brightness · kR** scale bar to set the minimum and maximum
    brightness limits. The image updates automatically, with no Apply button.
    **Reset scale** restores the selected camera's default brightness display limits.
 4. Choose an **annulus, annular sector, rectangle, or single pixel** with the shape
@@ -193,11 +193,11 @@ through all 633 WFI frames took about 4.1 seconds; all 1,161 NFI frames took abo
 other computers, selections or future datasets.
 
 
-## September 8 radiance, reference series, and 3D update
+## September 8 brightness, reference series, and 3D update
 
-- Image colors use logarithmic radiance with tick marks in kR and a 270 kR
+- Image colors use logarithmic brightness with tick marks in kR and a 270 kR
   default upper limit for both cameras. Display changes do not alter measurements.
-- Contours default to actual radiance levels (1, 3, 10, 30, 60, 100, 200, 270 kR
+- Contours default to actual brightness levels (1, 3, 10, 30, 60, 100, 200, 270 kR
   when present), calculated from original arrays with the current pixel mask.
   Choose radius contours or hide contours using **Contours**. The blue 1 Rᴇ
   boundary remains visible. The array is never recentered.
@@ -205,7 +205,7 @@ other computers, selections or future datasets.
   displayed image. The matching buttons select those annular sectors. These
   labels follow the requested image convention; they are not an attitude-derived
   magnetic local-time coordinate transformation.
-- The radial profile uses logarithmic radiance. Nonpositive bins remain in
+- The radial profile uses logarithmic brightness. Nonpositive bins remain in
   exported data and are omitted from the logarithmic plot.
 - The gold dashed baseline is the average of all valid FOV pixels in the first
   image of the selected camera and interval, respecting the interpolation mask.
@@ -213,7 +213,7 @@ other computers, selections or future datasets.
   It is computed from `/api/baseline`, not from a logarithmic image or colorbar.
   Time-series JSON/CSV exports include the baseline value and its source frame.
 - The top-right time panel aligns three plots on exactly the same UTC limits:
-  selected-region radiance, 1-minute **SYM-H** in nT from WDC Kyoto via NASA
+  selected-region brightness, 1-minute **SYM-H** in nT from WDC Kyoto via NASA
   CDAWeb `OMNI_HRO_1MIN`, and daily **Composite Solar Lyman-alpha** irradiance
   from LASP LISIRD. Irradiance is shown in mW/m² at 1 AU (source W/m² × 1000).
   Daily values occupy their UTC day without inventing subdaily changes. Missing

@@ -31,7 +31,7 @@ export function MeasurementChart({
   daily = false,
   maxGap,
   zeroBased = false,
-  seriesLabel = 'Radiance series',
+  seriesLabel = 'Brightness series',
 }: {
   data: Datum[];
   series?: { label: string; color: string; data: Datum[] }[];
@@ -53,7 +53,7 @@ export function MeasurementChart({
   const [hover, setHover] = useState<number | null>(null);
   const valid = (d: Datum) =>
     d.y !== null && Number.isFinite(d.y) && (!logarithmic || d.y > 0);
-  const datasets = series ?? [{ label: 'Radiance', color, data: primaryData }];
+  const datasets = series ?? [{ label: 'Brightness', color, data: primaryData }];
   const data = datasets[0].data;
   const points = datasets.flatMap((s) => s.data.filter(valid));
   const drawing = useRef<HTMLDivElement>(null);
@@ -74,7 +74,7 @@ export function MeasurementChart({
     return (
       <div className="chart-empty">
         {logarithmic
-          ? 'No positive radiance to plot. Nonpositive values remain in exports.'
+          ? 'No positive brightness to plot. Nonpositive values remain in exports.'
           : 'No valid data in this interval.'}
       </div>
     );
@@ -379,7 +379,7 @@ export function MeasurementChart({
               : '1-minute observations · UTC'
             : time
               ? 'Hover for values · click to view frame'
-              : `Full annuli · logarithmic radiance${data.some((d) => d.y !== null && d.y <= 0) ? ' · nonpositive bins omitted' : ''}`}
+              : `Full annuli · logarithmic brightness${data.some((d) => d.y !== null && d.y <= 0) ? ' · nonpositive bins omitted' : ''}`}
       </div>
     </div>
   );

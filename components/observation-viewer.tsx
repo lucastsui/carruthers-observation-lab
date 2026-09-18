@@ -45,7 +45,7 @@ export function ObservationViewer({
   const [contourFailure, setContourFailure] = useState<string | null>(null);
   const contourKey = `${frame.id}:${exclude}`;
   const contourError =
-    contourFailure === contourKey ? 'Radiance contours unavailable' : '';
+    contourFailure === contourKey ? 'Brightness contours unavailable' : '';
   useEffect(() => {
     if (contours !== 'radiance') return;
     const controller = new AbortController();
@@ -479,7 +479,7 @@ export function ObservationViewer({
           src="/api/colorbar"
           alt="Logarithmic heat color scale from black through red to white"
         />
-        <div className="radiance-ticks" aria-label="Radiance scale markings">
+        <div className="radiance-ticks" aria-label="Brightness scale markings">
           {radianceTicks(...scale).map((t) => (
             <span key={t.value} style={{ left: `${t.fraction * 100}%` }}>
               {radianceLabel(t.value)}
@@ -487,7 +487,7 @@ export function ObservationViewer({
           ))}
         </div>
         <div className="colorbar-caption">
-          Radiance · kR{' '}
+          Brightness · kR{' '}
           <span>
             {contourError ||
               (contours === 'radiance'

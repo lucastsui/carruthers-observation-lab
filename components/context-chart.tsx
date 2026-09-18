@@ -48,7 +48,7 @@ export function ContextChart({
             units={value.units}
             color={color}
             selected={selected}
-            label={`${value.name} ${value.units} versus UTC on the radiance plot time interval`}
+            label={`${value.name} ${value.units} versus UTC on the brightness plot time interval`}
           />
           {value.stale && (
             <span className="small status">

@@ -133,7 +133,7 @@ export function CircularityChart({
         <p>
           100 × RMS distance from the fitted circle ÷ fitted radius. The center
           is free to move. Each full contour is sampled at 512 equal arc-length
-          intervals; the selected region does not restrict it. Radiance is
+          intervals; the selected region does not restrict it. Brightness is
           unsmoothed.
         </p>
         <p>

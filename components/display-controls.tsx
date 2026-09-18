@@ -71,21 +71,21 @@ export function DisplayControls({
           <SelectTrigger aria-label="Contour quantity">
             <SelectValue>
               {contours === 'radiance'
-                ? 'Radiance · kR'
+                ? 'Brightness · kR'
                 : contours === 're'
                   ? 'Radius · Rᴇ'
                   : 'None'}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="radiance">Radiance · kR</SelectItem>
+            <SelectItem value="radiance">Brightness · kR</SelectItem>
             <SelectItem value="re">Radius · Rᴇ</SelectItem>
             <SelectItem value="none">None</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="scale-heading">
-        <span id="brightness-scale-label">Radiance · kR</span>
+        <span id="brightness-scale-label">Brightness · kR</span>
         <button
           className="button ghost"
           onClick={onReset}

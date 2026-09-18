@@ -1175,7 +1175,7 @@ h2 {
   }
 }
 
-/* Radiance comparisons and observation geometry share the existing workbench. */
+/* Brightness comparisons and observation geometry share the existing workbench. */
 .contour-control { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:5px; font-size:13px; margin:8px 0; }
 .contour-control [data-slot='select-trigger'] { font-size:13px; min-width:135px; }
 .slider-scale-ticks, .radiance-ticks { position:relative; height:24px; margin:0 6px; color:#afbecc; font:12px var(--font-mono); }

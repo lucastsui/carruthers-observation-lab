@@ -497,7 +497,7 @@ export function AnalysisResults({
         aria-busy={a.busy}
       >
         <div className="chart-header">
-          <h3>Radiance & solar / geomagnetic activity</h3>
+          <h3>Brightness & solar / geomagnetic activity</h3>
           {result && <span className="small muted">{result.total} frames</span>}
         </div>
         {result ? (
@@ -540,7 +540,7 @@ export function AnalysisResults({
               onSelect={onSelect}
               label={
                 result.recipe.roi.kind === 'paired_sectors'
-                  ? 'Dawn and Dusk radiance in kilo-Rayleighs versus reported observation time'
+                  ? 'Dawn and Dusk brightness in kilo-Rayleighs versus reported observation time'
                   : 'Mean selected-region brightness in kilo-Rayleighs versus reported observation time'
               }
             />
@@ -643,7 +643,7 @@ export function AnalysisResults({
         aria-label="Radial brightness profile"
       >
         <div className="chart-header">
-          <h3>Radiance / Rᴇ</h3>
+          <h3>Brightness / Rᴇ</h3>
           <button
             className="button ghost"
             disabled={!a.sample?.profile}
