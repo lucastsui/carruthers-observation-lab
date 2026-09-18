@@ -1,4 +1,4 @@
-# Observation Lab — Carruthers research app
+# Carruthers Exploratory Data Analysis (CEDA)
 
 The public app runs independently on Nightglow at <https://nightglow.tail2214e5.ts.net>.
 For storage, monitoring and operation while logged out, see [deploy/nightglow/README.md](deploy/nightglow/README.md).

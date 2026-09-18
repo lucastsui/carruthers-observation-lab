@@ -182,7 +182,7 @@ export default function Home() {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand">
-          <h1>Observation Lab</h1>
+          <h1>Carruthers Exploratory Data Analysis (CEDA)</h1>
         </div>
         <div className="header-actions">
           {catalogue && (
