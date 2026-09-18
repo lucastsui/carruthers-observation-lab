@@ -140,7 +140,7 @@ class PublicJobs:
                         cancel = job['status']=='cancelling' or self.stopped
                         expired = time.monotonic()-job['_started'] >= self.timeout
                         if cancel or expired:
-                            job.update(status='cancelled' if cancel else 'error', error='Analysis exceeded the two-minute limit. Select a smaller interval.' if expired else '')
+                            job.update(status='cancelled' if cancel else 'error', error=f'Analysis exceeded the {self.timeout:g}-second limit. Select a smaller interval.' if expired else '')
                             break
                     if receive.poll(.05):
                         kind, value = receive.recv()

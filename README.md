@@ -1,6 +1,8 @@
 # Observation Lab — Carruthers research app
 
-For the public DGX Spark installation, resource limits, monitoring and recovery, see [deploy/README.md](deploy/README.md). The local launcher remains available.
+The public app runs independently on Nightglow at <https://nightglow.tail2214e5.ts.net>.
+For storage, monitoring and operation while logged out, see [deploy/nightglow/README.md](deploy/nightglow/README.md).
+The local launcher remains available; [deploy/README.md](deploy/README.md) records the retired Spark deployment.
 
 Double-click **Launch Observation Lab.command** in the Carruthers folder. It opens
 <http://127.0.0.1:8765> in your browser. Keep its Terminal window open; press
@@ -8,7 +10,8 @@ Control+C in that window when finished. Launching it again reuses the running ap
 
 This version reads your existing March 2026 L1C v1.3 collection: 633 WFI frames and
 1,161 NFI frames, in 62 files. Source observations remain in
-`../code and data/L1C`. The Spark deployment uses a transferred copy of these same files; observations stay on the Spark and requested results are served through Cloudflare.
+`../code and data/L1C`. The public deployment reads a verified copy on Nightglow's
+external Observation Data volume and serves requested results through Tailscale Funnel.
 
 ## A short demo for Brian and John
 

@@ -1,5 +1,10 @@
 # Spark deployment
 
+This deployment was retired on September 18, 2026. The live app runs entirely on
+Nightglow at <https://nightglow.tail2214e5.ts.net>; see [nightglow/README.md](nightglow/README.md)
+for current operations and [MIGRATION-NIGHTGLOW.md](MIGRATION-NIGHTGLOW.md) for the migration record.
+The instructions below document the earlier Spark installation.
+
 Observation Lab runs on the DGX Spark. Its public URL is the current Cloudflare Quick Tunnel address in `/run/carruthers-tunnel/public-url`. SSH uses Tailscale. The app, gateway and tunnel listen on no LAN/public HTTP socket: cloudflared forwards outbound tunnel traffic to `127.0.0.1:8765`, and the bounded nginx gateway forwards to Python on `127.0.0.1:8766`.
 
 ## Limits and behavior

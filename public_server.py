@@ -60,7 +60,12 @@ class BoundedServer(ThreadingHTTPServer):
         print('Request failed or timed out', flush=True)
 
 
-def public_handler(catalogue, jobs, static, origin_file, secret):
+def valid_public_origin(value):
+    return bool(re.fullmatch(r'https://[a-z0-9-]+\.trycloudflare\.com', value)
+                or value == 'https://nightglow.tail2214e5.ts.net')
+
+
+def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=()):
     parent = make_handler(catalogue, jobs, static)
     limits = Limits()
     compute = threading.BoundedSemaphore(2)
@@ -73,13 +78,14 @@ def public_handler(catalogue, jobs, static, origin_file, secret):
             host = self.headers.get('Host','')
             try: public = Path(origin_file).read_text().strip()
             except OSError: public = ''
-            if not re.fullmatch(r'https://[a-z0-9-]+\.trycloudflare\.com', public): public = ''
+            if not valid_public_origin(public): public = ''
+            public_origins = {public, *extra_origins} - {''}
             local = host.split(':')[0] in ('localhost','127.0.0.1')
-            if not local and host != urlparse(public).netloc:
+            if not local and host not in {urlparse(value).netloc for value in public_origins}:
                 self.send_json({'error':'Unrecognized website address'},403); return False
             origin = self.headers.get('Origin')
-            allowed = {public, 'http://127.0.0.1:8765','http://localhost:8765', 'http://127.0.0.1:5173', f'http://127.0.0.1:{self.server.server_port}'}-{''}
-            if origin and origin not in allowed or self.command=='POST' and not local and origin != public:
+            allowed = public_origins | {'http://127.0.0.1:8765','http://localhost:8765', 'http://127.0.0.1:5173', f'http://127.0.0.1:{self.server.server_port}'}
+            if origin and origin not in allowed or self.command=='POST' and not local and origin != 'https://' + host:
                 self.send_json({'error':'Cross-origin request rejected'},403); return False
             if self.command=='POST' and self.headers.get('Sec-Fetch-Site')=='cross-site':
                 self.send_json({'error':'Cross-site request rejected'},403); return False
@@ -153,7 +159,13 @@ def main():
     parser.add_argument('--port',type=int,default=8766)
     parser.add_argument('--state',type=Path,default=Path('/var/lib/carruthers'))
     parser.add_argument('--origin-file',default='/run/carruthers-tunnel/public-url')
+    parser.add_argument('--extra-origin',action='append',default=[],help='Additional approved origin during migration')
+    parser.add_argument('--job-timeout',type=float,default=120,help='Analysis deadline in seconds (1–600; default 120)')
     args=parser.parse_args()
+    if not 1 <= args.job_timeout <= 600:
+        parser.error('--job-timeout must be between 1 and 600 seconds')
+    if any(not valid_public_origin(value) for value in args.extra_origin):
+        parser.error('--extra-origin must be an approved HTTPS website origin')
     args.state.mkdir(parents=True,exist_ok=True)
     key=args.state/'session-key'
     if not key.exists():
@@ -161,8 +173,8 @@ def main():
         with os.fdopen(fd,'wb') as f: f.write(secrets.token_bytes(32))
     catalogue=Catalogue(args.data)
     if not catalogue.frames: raise RuntimeError('No validated observation frames found')
-    jobs=PublicJobs(catalogue,args.state/'analyses',METHOD)
-    server=BoundedServer(('127.0.0.1',args.port),public_handler(catalogue,jobs,BASE/'dist/client',args.origin_file,key.read_bytes()))
+    jobs=PublicJobs(catalogue,args.state/'analyses',METHOD,timeout=args.job_timeout)
+    server=BoundedServer(('127.0.0.1',args.port),public_handler(catalogue,jobs,BASE/'dist/client',args.origin_file,key.read_bytes(),args.extra_origin))
     print(f'Ready: {len(catalogue.frames)} frames on 127.0.0.1:{args.port}',flush=True)
     try: server.serve_forever()
     finally: server.server_close(); jobs.close()

@@ -1,0 +1,312 @@
+{
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260301_v1.3.nc": {
+    "bytes": 1523781375,
+    "mtime_ns": 1787777489000000000,
+    "fingerprint": "305de8d45ed2a73a"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260301_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777545000000000,
+    "fingerprint": "afbbda67408300d2"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260302_v1.3.nc": {
+    "bytes": 199419647,
+    "mtime_ns": 1787777546000000000,
+    "fingerprint": "ad406b630bcebffa"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260302_v1.3.nc": {
+    "bytes": 1489178367,
+    "mtime_ns": 1787777490000000000,
+    "fingerprint": "e80b5e2a6758c7a7"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260303_v1.3.nc": {
+    "bytes": 970129151,
+    "mtime_ns": 1787777492000000000,
+    "fingerprint": "d92a0f6e8dc55978"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260303_v1.3.nc": {
+    "bytes": 251326207,
+    "mtime_ns": 1787777547000000000,
+    "fingerprint": "e7a958dd7b4fdc04"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260304_v1.3.nc": {
+    "bytes": 520285951,
+    "mtime_ns": 1787777493000000000,
+    "fingerprint": "54968f017f73b256"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260304_v1.3.nc": {
+    "bytes": 69654271,
+    "mtime_ns": 1787777548000000000,
+    "fingerprint": "390d469f7b8dd2ad"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260305_v1.3.nc": {
+    "bytes": 147513087,
+    "mtime_ns": 1787777549000000000,
+    "fingerprint": "52b82dc0bc89ce50"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260305_v1.3.nc": {
+    "bytes": 1004732159,
+    "mtime_ns": 1787777495000000000,
+    "fingerprint": "bc600cb1838a63c8"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260306_v1.3.nc": {
+    "bytes": 1350764287,
+    "mtime_ns": 1787777497000000000,
+    "fingerprint": "fb796d8cdc0e23e1"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260306_v1.3.nc": {
+    "bytes": 173465503,
+    "mtime_ns": 1787777551000000000,
+    "fingerprint": "ae888ecbe8a20aa2"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260307_v1.3.nc": {
+    "bytes": 1489178367,
+    "mtime_ns": 1787777498000000000,
+    "fingerprint": "dc6c27ff3102e8b0"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260307_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777552000000000,
+    "fingerprint": "da1ee39d8d19477f"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260308_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777553000000000,
+    "fingerprint": "6fb875eb16980cd9"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260308_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777500000000000,
+    "fingerprint": "f8ee64321ccf0f45"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260309_v1.3.nc": {
+    "bytes": 138862335,
+    "mtime_ns": 1787777554000000000,
+    "fingerprint": "580f119149572866"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260309_v1.3.nc": {
+    "bytes": 1039335167,
+    "mtime_ns": 1787777502000000000,
+    "fingerprint": "bf543822fdd224bd"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260310_v1.3.nc": {
+    "bytes": 173465503,
+    "mtime_ns": 1787777555000000000,
+    "fingerprint": "1091d4aac929f5dc"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260310_v1.3.nc": {
+    "bytes": 1281558271,
+    "mtime_ns": 1787777503000000000,
+    "fingerprint": "1bf32d770d9573d8"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260311_v1.3.nc": {
+    "bytes": 1143144455,
+    "mtime_ns": 1787777505000000000,
+    "fingerprint": "3476d190372f4157"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260311_v1.3.nc": {
+    "bytes": 156163839,
+    "mtime_ns": 1787777556000000000,
+    "fingerprint": "bf50eb9409550c90"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260312_v1.3.nc": {
+    "bytes": 1419972351,
+    "mtime_ns": 1787777507000000000,
+    "fingerprint": "446ef26ab07279a2"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260312_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777557000000000,
+    "fingerprint": "add77b86e2008958"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260313_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777509000000000,
+    "fingerprint": "fb9b41373ea45ef4"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260313_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777558000000000,
+    "fingerprint": "e248528e81a5726c"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260314_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777559000000000,
+    "fingerprint": "cae448c7441bf249"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260314_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777510000000000,
+    "fingerprint": "fd62ea65084c2172"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260315_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777560000000000,
+    "fingerprint": "96c18dc246a1772b"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260315_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777512000000000,
+    "fingerprint": "847b0942f9c36848"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260316_v1.3.nc": {
+    "bytes": 147513087,
+    "mtime_ns": 1787777561000000000,
+    "fingerprint": "702d83c116baa5eb"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260316_v1.3.nc": {
+    "bytes": 1108541183,
+    "mtime_ns": 1787777514000000000,
+    "fingerprint": "fb1452006c91aaf6"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260317_v1.3.nc": {
+    "bytes": 1419972351,
+    "mtime_ns": 1787777515000000000,
+    "fingerprint": "7941d5944d27c6fb"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260317_v1.3.nc": {
+    "bytes": 182118143,
+    "mtime_ns": 1787777562000000000,
+    "fingerprint": "dde28ac973e96790"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260318_v1.3.nc": {
+    "bytes": 147513087,
+    "mtime_ns": 1787777563000000000,
+    "fingerprint": "b3cfb8c8e749753b"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260318_v1.3.nc": {
+    "bytes": 1004732159,
+    "mtime_ns": 1787777517000000000,
+    "fingerprint": "d2a305ebbf1dbd41"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260319_v1.3.nc": {
+    "bytes": 1419972351,
+    "mtime_ns": 1787777519000000000,
+    "fingerprint": "2155e30cf1100950"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260319_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777564000000000,
+    "fingerprint": "fc47fd7e9049d422"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260320_v1.3.nc": {
+    "bytes": 1143144455,
+    "mtime_ns": 1787777520000000000,
+    "fingerprint": "a501f152f63d6e79"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260320_v1.3.nc": {
+    "bytes": 156163839,
+    "mtime_ns": 1787777565000000000,
+    "fingerprint": "8b3a0854bce9cf77"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260321_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777566000000000,
+    "fingerprint": "e54c945e4f869067"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260321_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777522000000000,
+    "fingerprint": "cdd8cda9fa013a98"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260322_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777567000000000,
+    "fingerprint": "c00752a66ce8e56d"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260322_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777524000000000,
+    "fingerprint": "04f07089ab927930"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260323_v1.3.nc": {
+    "bytes": 147513087,
+    "mtime_ns": 1787777568000000000,
+    "fingerprint": "1babddc3a606d363"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260323_v1.3.nc": {
+    "bytes": 1108541183,
+    "mtime_ns": 1787777525000000000,
+    "fingerprint": "e3f2564a5a45501e"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260324_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777527000000000,
+    "fingerprint": "a2df07fe296375bd"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260324_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777569000000000,
+    "fingerprint": "ccf273626fc5803b"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260325_v1.3.nc": {
+    "bytes": 1385367295,
+    "mtime_ns": 1787777529000000000,
+    "fingerprint": "4a59ed8768b467f6"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260325_v1.3.nc": {
+    "bytes": 182118143,
+    "mtime_ns": 1787777570000000000,
+    "fingerprint": "d4268dfc2c1b4457"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260326_v1.3.nc": {
+    "bytes": 1419972351,
+    "mtime_ns": 1787777531000000000,
+    "fingerprint": "1094e381f5bd2c64"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260326_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777572000000000,
+    "fingerprint": "dbfc97b462b709d5"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260327_v1.3.nc": {
+    "bytes": 1316161279,
+    "mtime_ns": 1787777533000000000,
+    "fingerprint": "f9de17b153a1e66b"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260327_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777573000000000,
+    "fingerprint": "78939182f3c72bbb"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260328_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777536000000000,
+    "fingerprint": "3ad50cd3dbbe7700"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260328_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777574000000000,
+    "fingerprint": "b10a1fb1322fe832"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260329_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777575000000000,
+    "fingerprint": "97fd56c8f4fbec81"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260329_v1.3.nc": {
+    "bytes": 1454575359,
+    "mtime_ns": 1787777539000000000,
+    "fingerprint": "a64bdff91d401d2d"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260330_v1.3.nc": {
+    "bytes": 164814591,
+    "mtime_ns": 1787777576000000000,
+    "fingerprint": "9f95313a839a2525"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260330_v1.3.nc": {
+    "bytes": 1246955263,
+    "mtime_ns": 1787777541000000000,
+    "fingerprint": "f633b364737b47b9"
+  },
+  "2603/CARRUTHERS_GCI-NFI_L1C_20260331_v1.3.nc": {
+    "bytes": 1316161279,
+    "mtime_ns": 1787777544000000000,
+    "fingerprint": "b0e419a1cf2d6355"
+  },
+  "2603/CARRUTHERS_GCI-WFI_L1C_20260331_v1.3.nc": {
+    "bytes": 190768895,
+    "mtime_ns": 1787777577000000000,
+    "fingerprint": "e06a06480fddf199"
+  }
+}

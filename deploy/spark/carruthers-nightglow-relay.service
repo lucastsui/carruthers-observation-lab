@@ -1,0 +1,23 @@
+[Unit]
+Description=Observation Lab private relay to nightglow
+After=network-online.target tailscaled.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=anaclast
+WorkingDirectory=/home/anaclast/carruthers-nightglow
+ExecStart=/usr/bin/python3 /home/anaclast/carruthers-nightglow/relay.py
+Restart=always
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+MemoryMax=128M
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

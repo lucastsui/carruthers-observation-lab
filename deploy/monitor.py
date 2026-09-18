@@ -21,14 +21,27 @@ def request(url, body=None, method=None, token=None):
 
 def main():
     problems=[]
+    remote = os.environ.get('CARRUTHERS_REMOTE_BACKEND') == 'nightglow'
+    backend_unit = 'carruthers-nightglow-relay.service' if remote else 'carruthers.service'
     try:
         health=request('http://127.0.0.1:8765/health')
         if health.get('status')!='ok': problems.append('Application health check failed')
     except Exception: problems.append('Application unavailable')
-    disk=shutil.disk_usage('/srv/carruthers')
-    if disk.free/disk.total < .2: problems.append('Disk below 20% free')
+    if remote:
+        try:
+            output=subprocess.check_output(['/usr/bin/ssh','-o','BatchMode=yes','-o','IdentitiesOnly=yes',
+                '-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=10',
+                '-o','UserKnownHostsFile=/etc/carruthers/nightglow-known-hosts',
+                '-i','/etc/carruthers/nightglow-monitor-key',
+                'lucastsui@100.118.4.122','storage-status'],text=True,timeout=20)
+            disk=json.loads(output)
+            if disk['free']/disk['total'] < .2: problems.append('Nightglow data volume below 20% free')
+        except Exception: problems.append('Nightglow data volume unavailable')
+    else:
+        disk=shutil.disk_usage('/srv/carruthers')
+        if disk.free/disk.total < .2: problems.append('Disk below 20% free')
     counts={}
-    for unit in ('carruthers.service','carruthers-gateway.service','carruthers-tunnel.service'):
+    for unit in (backend_unit,'carruthers-gateway.service','carruthers-tunnel.service'):
         try:
             count=int(subprocess.check_output(['systemctl','show',unit,'-p','NRestarts','--value'],text=True).strip())
             counts[unit]=count
@@ -46,7 +59,7 @@ def main():
     # Restart an unresponsive HTTP service after 3 watchdog failures, at most once / 15 min.
     last_restart=previous.get('last_restart',0)
     if failures>=3 and time.time()-last_restart>900:
-        subprocess.run(['systemctl','restart','carruthers.service'],check=False,timeout=30)
+        subprocess.run(['systemctl','restart',backend_unit],check=False,timeout=30)
         last_restart=time.time()
     url=''
     try: url=Path('/run/carruthers-tunnel/public-url').read_text().strip()
