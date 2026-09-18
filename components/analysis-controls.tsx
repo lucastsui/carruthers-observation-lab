@@ -553,7 +553,7 @@ export function AnalysisResults({
                   : 'Loading first-frame baseline…'}
             </div>
             <ContextChart
-              kind="symh"
+              kind="dst"
               start={result.recipe.start}
               end={result.recipe.end}
               domain={[

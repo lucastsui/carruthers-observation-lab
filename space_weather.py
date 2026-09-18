@@ -3,12 +3,18 @@ from __future__ import annotations
 import json
 import math
 import threading
+from calendar import monthrange
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 SOURCES = {
+    'dst': dict(name='Dst', units='nT', cadence='hourly mean',
+                source='WDC for Geomagnetism, Kyoto · provisional Dst',
+                source_url='https://wdc.kugi.kyoto-u.ac.jp/dstdir/index.html',
+                data_version='provisional',
+                interpretation='Hourly means plotted at UTC hour centers (00:30–23:30). Missing values remain gaps.'),
     'symh': dict(name='SYM-H', units='nT', cadence='1 minute',
                  source='WDC Kyoto via NASA CDAWeb · OMNI_HRO_1MIN',
                  source_url='https://cdaweb.gsfc.nasa.gov/misc/NotesO.html#OMNI_HRO_1MIN'),
@@ -17,6 +23,39 @@ SOURCES = {
                   source_url='https://lasp.colorado.edu/lisird/data/composite_lyman_alpha',
                   interpretation='Solar irradiance at 1 AU; timestamps are daily record centers. W/m² multiplied by 1000 to show mW/m².'),
 }
+
+
+def parse_dst(payload, month):
+    """Kyoto WDC-like records: base in 100 nT plus 24 hourly values in nT.
+
+    Format: https://wdc.kugi.kyoto-u.ac.jp/dstae/format/dstformat.html
+    The first value covers 00:00–01:00 UTC; plot each mean at its hour center.
+    Provisional monthly files must contain one complete record per calendar day.
+    """
+    rows, days = [], set()
+    for line in payload.splitlines():
+        if not line.strip():
+            continue
+        if line.startswith('[Created at ') and line.endswith(']'):
+            continue  # Kyoto appends a generation-time footer after the records.
+        if (len(line) != 120 or line[:3] != 'DST' or line[7] != '*'
+                or line[12:14] != 'X1'):
+            raise ValueError('Invalid provisional Kyoto Dst record')
+        year = int(line[14:16].strip() or '19') * 100 + int(line[3:5])
+        date = datetime(year, int(line[5:7]), int(line[8:10]), tzinfo=timezone.utc)
+        if (date.year, date.month) != (month.year, month.month) or date.day in days:
+            raise ValueError('Unexpected or duplicate Kyoto Dst date')
+        days.add(date.day)
+        base = int(line[16:20]) * 100
+        for hour in range(24):
+            value = int(line[20 + hour*4:24 + hour*4])
+            timestamp = date + timedelta(hours=hour, minutes=30)
+            rows.append(dict(x=int(timestamp.timestamp()*1000),
+                             y=None if value == 9999 else base + value))
+        int(line[116:120])  # Validate, but do not plot the daily-mean field.
+    if days != set(range(1, monthrange(month.year, month.month)[1] + 1)):
+        raise ValueError('Incomplete Kyoto Dst month')
+    return sorted(rows, key=lambda row: row['x'])
 
 
 def parse_symh(payload):
@@ -53,7 +92,7 @@ class SpaceWeather:
 
     def series(self, kind, start, end):
         if kind not in SOURCES:
-            raise ValueError('Choose symh or lyman')
+            raise ValueError('Choose dst, symh or lyman')
         start_date = datetime.strptime(start, '%Y-%m-%d').replace(tzinfo=timezone.utc)
         end_date = datetime.strptime(end, '%Y-%m-%d').replace(tzinfo=timezone.utc)
         if not 0 <= (end_date-start_date).days <= 62:
@@ -91,7 +130,10 @@ class SpaceWeather:
                     return old
             except (ValueError, OSError):
                 pass
-        if kind == 'symh':
+        if kind == 'dst':
+            url = (f'https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/{month:%Y%m}/'
+                   f'dst{month:%y%m}.for.request')
+        elif kind == 'symh':
             url = 'https://cdaweb.gsfc.nasa.gov/hapi/data?' + urlencode(dict(
                 id='OMNI_HRO_1MIN', parameters='SYM_H', **{'time.min':month.strftime('%Y-%m-%dT00:00:00Z'),
                 'time.max':next_month.strftime('%Y-%m-%dT00:00:00Z')}, format='json'))
@@ -99,9 +141,12 @@ class SpaceWeather:
             url = 'https://lasp.colorado.edu/lisird/latis/dap/composite_lyman_alpha.jsond?' + urlencode({
                 'time>':month.strftime('%Y-%m-%d'), 'time<':next_month.strftime('%Y-%m-%d')})
         try:
-            with urlopen(Request(url, headers={'User-Agent':'Carruthers-Observation-Lab/1.0'}), timeout=30) as response:
-                payload = json.load(response)
-            rows = parse_symh(payload) if kind == 'symh' else parse_lyman(payload)
+            with urlopen(Request(url, headers={'User-Agent':'Carruthers-CEDA/1.0'}), timeout=30) as response:
+                if kind == 'dst':
+                    rows = parse_dst(response.read().decode('ascii'), month)
+                else:
+                    payload = json.load(response)
+                    rows = parse_symh(payload) if kind == 'symh' else parse_lyman(payload)
             result = dict(data=rows, request_url=url, fetched_at=datetime.now(timezone.utc).isoformat())
             self.cache.mkdir(parents=True, exist_ok=True)
             temp = path.with_suffix('.tmp')

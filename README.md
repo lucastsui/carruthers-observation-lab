@@ -213,11 +213,16 @@ other computers, selections or future datasets.
   It is computed from `/api/baseline`, not from a logarithmic image or colorbar.
   Time-series JSON/CSV exports include the baseline value and its source frame.
 - The top-right time panel aligns three plots on exactly the same UTC limits:
-  selected-region brightness, 1-minute **SYM-H** in nT from WDC Kyoto via NASA
-  CDAWeb `OMNI_HRO_1MIN`, and daily **Composite Solar Lyman-alpha** irradiance
+  selected-region brightness, hourly **Dst** in nT directly from
+  [WDC for Geomagnetism, Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/index.html),
+  and daily **Composite Solar Lyman-alpha** irradiance
   from LASP LISIRD. Irradiance is shown in mW/m² at 1 AU (source W/m² × 1000).
   Daily values occupy their UTC day without inventing subdaily changes. Missing
-  values and gaps are retained. SYM-H is not silently replaced by hourly Dst.
+  values and gaps are retained. Dst uses the provisional monthly WDC-format file;
+  its 24 hourly means per UTC day are plotted at hour centers (00:30–23:30).
+  The chart labels the provisional status, preserves negative values and missing
+  hours, and does not bridge gaps longer than 90 minutes. Dst has a separate cache
+  from the former SYM-H chart; the old SYM-H endpoint remains for already-open tabs.
   Reference data are cached by month under `.local/space-weather`, refreshed after
   24 hours when requested. Offline cached data are identified as stale; unavailable
   observations are not synthesized. Source links are available above each plot.

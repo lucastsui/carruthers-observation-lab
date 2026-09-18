@@ -30,6 +30,7 @@ export function MeasurementChart({
   compact = false,
   daily = false,
   maxGap,
+  cadenceLabel = 'Observations · UTC',
   zeroBased = false,
   seriesLabel = 'Brightness series',
 }: {
@@ -47,6 +48,7 @@ export function MeasurementChart({
   compact?: boolean;
   daily?: boolean;
   maxGap?: number;
+  cadenceLabel?: string;
   zeroBased?: boolean;
   seriesLabel?: string;
 }) {
@@ -376,7 +378,7 @@ export function MeasurementChart({
           : compact
             ? daily
               ? 'Daily means · UTC; no subdaily variation inferred'
-              : '1-minute observations · UTC'
+              : cadenceLabel
             : time
               ? 'Hover for values · click to view frame'
               : `Full annuli · logarithmic brightness${data.some((d) => d.y !== null && d.y <= 0) ? ' · nonpositive bins omitted' : ''}`}

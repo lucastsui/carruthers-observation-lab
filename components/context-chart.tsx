@@ -8,7 +8,7 @@ export function ContextChart({
   domain,
   selected,
 }: {
-  kind: 'symh' | 'lyman';
+  kind: 'dst' | 'lyman';
   start: string;
   end: string;
   domain: [number, number];
@@ -16,24 +16,24 @@ export function ContextChart({
 }) {
   const { state, retry } = useContextSeries(kind, start, end);
   const value = state?.value;
-  const color = kind === 'symh' ? '#a9a1ff' : '#f3a962';
+  const color = kind === 'dst' ? '#a9a1ff' : '#f3a962';
   return (
     <div className="context-chart">
       <div className="context-heading">
         <strong style={{ color }}>
-          {kind === 'symh' ? 'SYM-H' : 'Solar Lyman-α'}
+          {kind === 'dst' ? 'Dst' : 'Solar Lyman-α'}
         </strong>
         <a
           href={
-            kind === 'symh'
-              ? 'https://cdaweb.gsfc.nasa.gov/misc/NotesO.html#OMNI_HRO_1MIN'
+            kind === 'dst'
+              ? 'https://wdc.kugi.kyoto-u.ac.jp/dstdir/index.html'
               : 'https://lasp.colorado.edu/lisird/data/composite_lyman_alpha'
           }
           target="_blank"
           rel="noreferrer"
-          title={value?.source}
+          title={value ? `${value.source}. ${value.interpretation ?? ''}` : undefined}
         >
-          {kind === 'symh' ? 'Kyoto / NASA · nT' : 'LISIRD · mW/m² at 1 AU'}
+          {kind === 'dst' ? 'Kyoto · provisional · nT' : 'LISIRD · mW/m² at 1 AU'}
         </a>
       </div>
       {value?.status === 'available' ? (
@@ -44,7 +44,9 @@ export function ContextChart({
             domain={domain}
             compact
             daily={kind === 'lyman'}
-            maxGap={90000}
+            maxGap={kind === 'dst' ? 90 * 60 * 1000 : undefined}
+            cadenceLabel="Hourly means · UTC (hour centers)"
+            seriesLabel={value.name}
             units={value.units}
             color={color}
             selected={selected}

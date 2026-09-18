@@ -312,12 +312,13 @@ export type Baseline = {
   exclude_interpolated: boolean;
 };
 export type ContextSeries = {
-  kind: 'symh' | 'lyman';
+  kind: 'dst' | 'lyman';
   name: string;
   units: string;
   cadence: string;
   source: string;
   source_url: string;
+  interpretation?: string;
   data: { x: number; y: number | null }[];
   status: string;
   error: string | null;

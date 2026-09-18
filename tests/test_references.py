@@ -5,11 +5,80 @@ from unittest.mock import patch
 from datetime import datetime, timezone
 import tempfile
 import json
+import io
+import os
+import time
 import numpy as np
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from science import frame_baseline, image_plane_geometry, SCALES
-from space_weather import parse_symh, parse_lyman, SpaceWeather
+from space_weather import parse_dst, parse_symh, parse_lyman, SpaceWeather
+
+DST_MONTH = datetime(2026, 3, 1, tzinfo=timezone.utc)
+DST_TEXT = (Path(__file__).parent / 'fixtures/dst-kyoto-provisional-202603.txt').read_text()
+
+
+class DstDataTests(unittest.TestCase):
+    def test_kyoto_month_values_and_utc_hour_centers(self):
+        rows = parse_dst(DST_TEXT, DST_MONTH)
+        self.assertEqual(len(rows), 31*24)
+        self.assertEqual(rows[0], {'x': 1772325000000, 'y': -17})
+        self.assertEqual(rows[-1], {'x': 1774999800000, 'y': -3})
+        self.assertTrue(all(b['x']-a['x'] == 3600000 for a, b in zip(rows, rows[1:])))
+        self.assertEqual([row['y'] for row in rows[14*24:15*24]],
+                         [-22, -18, -16, -15, -17, -21, -27, -24, -21, -17, -23, -24,
+                          -20, -19, -19, -17, -17, -18, -19, -20, -26, -36, -35, -25])
+        self.assertEqual(rows[21*24+22]['y'], -105)
+
+    def test_base_offset_and_missing_values_are_not_confused(self):
+        lines = DST_TEXT.splitlines()
+        # A 200 nT base: negative, missing, zero and positive hourly values.
+        lines[0] = lines[0][:16] + '   2' + '-2359999-200-195' + lines[0][36:116] + ' 777'
+        rows = parse_dst('\n'.join(lines), DST_MONTH)
+        self.assertEqual([row['y'] for row in rows[:4]], [-35, None, 0, 5])
+        self.assertEqual(len(rows), 744)  # The daily mean must not become a 25th hour.
+
+    def test_invalid_partial_wrong_month_and_duplicate_records_fail_closed(self):
+        lines = [line for line in DST_TEXT.splitlines() if line.startswith('DST')]
+        for text in ('<html>Temporarily unavailable</html>',
+                     '\n'.join(lines[:-1]), '\n'.join(lines + [lines[0]]),
+                     DST_TEXT.replace('DST2603', 'DST2604'),
+                     DST_TEXT.replace('PPX1', 'RRX0'), lines[0][:-1]):
+            with self.subTest(text=text[:30]), self.assertRaises(ValueError):
+                parse_dst(text, DST_MONTH)
+
+    def test_month_fetch_cache_and_day_filter_use_dst_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            weather = SpaceWeather(Path(tmp))
+            with patch('space_weather.urlopen', return_value=io.BytesIO(DST_TEXT.encode())) as request:
+                series = weather.series('dst', '2026-03-15', '2026-03-15')
+            self.assertEqual(request.call_args.args[0].full_url,
+                             'https://wdc.kugi.kyoto-u.ac.jp/dst_provisional/202603/dst2603.for.request')
+            self.assertEqual(series['data'][0], {'x': 1773534600000, 'y': -22})
+            self.assertEqual(series['data'][-1], {'x': 1773617400000, 'y': -25})
+            self.assertEqual(len(series['data']), 24)
+            self.assertEqual(series['cadence'], 'hourly mean')
+            self.assertEqual(series['data_version'], 'provisional')
+            self.assertEqual(series['units'], 'nT')
+            self.assertFalse(series['stale'])
+            with patch('space_weather.urlopen', side_effect=AssertionError('Must use monthly cache')):
+                self.assertEqual(weather.series('dst', '2026-03-15', '2026-03-15')['data'], series['data'])
+
+    def test_source_failure_returns_stale_dst_without_overwriting_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            weather = SpaceWeather(Path(tmp))
+            with patch('space_weather.urlopen', return_value=io.BytesIO(DST_TEXT.encode())):
+                original = weather.series('dst', '2026-03-15', '2026-03-15')
+            path = Path(tmp) / 'dst-2026-03.json'
+            cached = path.read_bytes()
+            os.utime(path, (time.time()-90000, time.time()-90000))
+            with patch('space_weather.urlopen', return_value=io.BytesIO(b'<html>Unavailable</html>')):
+                series = weather.series('dst', '2026-03-15', '2026-03-15')
+            self.assertEqual(series['data'], original['data'])
+            self.assertEqual(series['fetched_at'], original['fetched_at'])
+            self.assertTrue(series['stale'])
+            self.assertIn('showing cached observations', series['error'])
+            self.assertEqual(path.read_bytes(), cached)
 
 class BaselineAndGeometryTests(unittest.TestCase):
     def test_baseline_uses_all_valid_fov_pixels_and_retains_negative_values(self):
@@ -50,7 +119,9 @@ class ContextDataTests(unittest.TestCase):
     def test_network_failure_is_not_replaced_with_fake_data(self):
         with tempfile.TemporaryDirectory() as tmp,patch('space_weather.urlopen',side_effect=TimeoutError):
             w=SpaceWeather(Path(tmp))
-            d=w.series('symh','2026-03-15','2026-03-15')
+            # A former SYM-H cache must never stand in for unavailable Dst.
+            (Path(tmp)/'symh-2026-03.json').write_text(json.dumps(dict(data=[{'x':1773534600000,'y':-999}])))
+            d=w.series('dst','2026-03-15','2026-03-15')
             self.assertEqual(d['data'],[])
             self.assertEqual(d['status'],'unavailable')
             self.assertIn('no values substituted',d['error'])

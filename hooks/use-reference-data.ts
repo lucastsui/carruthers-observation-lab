@@ -27,7 +27,7 @@ export function useBaseline(first: Frame | undefined, exclude: boolean) {
   return state?.key === key ? state : null;
 }
 export function useContextSeries(
-  kind: 'symh' | 'lyman',
+  kind: 'dst' | 'lyman',
   start: string | undefined,
   end: string | undefined,
 ) {

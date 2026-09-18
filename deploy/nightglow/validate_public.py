@@ -83,10 +83,15 @@ def main():
                 raise RuntimeError('JSON export changed the analysis')
             request('/api/jobs?id=' + job['id'], expected=404, visitor=str(Path(directory) / 'other'))
             checks.append(camera + ' image, contours, analysis, exports and visitor privacy')
-        for kind in ('symh', 'lyman'):
+        for kind in ('dst', 'lyman'):
             series = request('/api/context?kind=' + kind + '&start=2026-03-15&end=2026-03-15')
             if series['status'] != 'available':
                 raise RuntimeError(kind + ' reference data unavailable')
+            if kind == 'dst' and (series['cadence'] != 'hourly mean'
+                    or series['units'] != 'nT' or len(series['data']) != 24
+                    or series['data'][0] != {'x': 1773534600000, 'y': -22}
+                    or series['data'][-1] != {'x': 1773617400000, 'y': -25}):
+                raise RuntimeError('Kyoto Dst values or UTC hour centers changed')
         request('/health', body={}, origin='https://evil.example', expected=403)
         request('/api/jobs', body=b' ' * (1024*1024 + 1), expected=413)
         checks += ['reference charts', 'cross-origin rejection', 'gateway upload limit']
