@@ -70,7 +70,23 @@ def image_plane_geometry(g, shape):
             raise ValueError('Image ray is parallel to the Earth plane')
         point = position - np.dot(position, normal)/denominator * ray
         corners.append((point / RE_KM).tolist())
-    return dict(spacecraft_position_km=position.tolist(), image_plane_corners_re=corners)
+    # Stored scalar-last JPL attitudes map GCRS -> body -> camera via R.T.
+    # Their inverses map the outward camera -Z boresight into GCRS. Camera +Z
+    # points backward; an undirected image-plane intersection cannot expose it.
+    boresight = attitude @ np.array([0., 0., -1.])
+    return dict(spacecraft_position_km=position.tolist(), image_plane_corners_re=corners,
+                spacecraft_attitude=[float(x) for x in g['spacecraft_attitude']],
+                camera_boresight_gcrs=(boresight / np.linalg.norm(boresight)).tolist())
+
+
+def pointing_deviation_deg(boresight, sun):
+    """Smaller angle (0–90 degrees) between camera pointing and the Earth–Sun line."""
+    b, s = np.asarray(boresight, dtype=float), np.asarray(sun, dtype=float)
+    if (b.shape != (3,) or s.shape != (3,) or not np.all(np.isfinite(np.r_[b, s]))
+            or np.linalg.norm(b) == 0 or np.linalg.norm(s) == 0):
+        raise ValueError('Expected finite nonzero pointing and Sun vectors')
+    cosine = abs(np.dot(b / np.linalg.norm(b), s / np.linalg.norm(s)))
+    return float(np.degrees(np.arccos(np.clip(cosine, 0., 1.))))
 
 
 def read_array(var, index=slice(None)):
@@ -135,6 +151,8 @@ class Catalogue:
             positions = get_sun(times).cartesian.xyz.to_value('km').T
             for frame, sun in zip(self.frames, positions):
                 frame['sun_position_km'] = sun.tolist()
+                frame['earth_sun_pointing_deviation_deg'] = pointing_deviation_deg(
+                    frame['camera_boresight_gcrs'], sun)
         self.total_bytes = total_bytes
         self.file_count = len(set(self.paths.values()))
         self.preview_cache = OrderedDict()

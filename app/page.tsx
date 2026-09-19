@@ -23,6 +23,8 @@ import type { ContourMode } from '@/lib/display';
 import { useBaseline } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
 import { useWorkspaceTools } from '@/hooks/use-workspace-tools';
+import { useFramePreview } from '@/hooks/use-frame-preview';
+import { previewImages } from '@/lib/preview-images';
 import { api, DEFAULT_ROI, previewURL, roiError } from '@/lib/research';
 import type { Catalogue, Channel, ROI, Recipe } from '@/lib/research';
 
@@ -66,6 +68,10 @@ export default function Home() {
     [catalogue, channel, start, end],
   );
   const frame = frames[Math.min(index, Math.max(0, frames.length - 1))];
+  const { preview, pending: previewPending, message: previewMessage } =
+    useFramePreview(frame, scale);
+  const displayedFrame = preview?.frame || frame;
+  const measurementFrame = frame ? displayedFrame : undefined;
   useEffect(() => {
     setPlaying(false);
     let closest = 0;
@@ -83,22 +89,25 @@ export default function Home() {
     if (frame) preferredTime.current = frame.epoch_ms;
   }, [frame]);
   useEffect(() => {
-    if (playing && frame && ready === frame.id) {
+    if (playing && frame && ready === frame.id && !previewPending) {
       const t = setTimeout(
         () => setIndex((i) => (i + 1) % frames.length),
         1000 / Number(fps),
       );
       return () => clearTimeout(t);
     }
-  }, [playing, frame, ready, frames.length, fps]);
+  }, [playing, frame, ready, frames.length, fps, previewPending]);
   useEffect(() => {
-    if (!frame) return;
-    const next = frames[(index + 1) % frames.length];
-    if (next) {
-      const im = new Image();
-      im.src = previewURL(next, scale);
-    }
-  }, [frame, frames, index, scale]);
+    if (!frame || previewPending) return;
+    const timer = setTimeout(() => {
+      for (const offset of [1, -1]) {
+        const adjacent = frames[(index + offset + frames.length) % frames.length];
+        if (adjacent && adjacent.id !== frame.id)
+          void previewImages.get(previewURL(adjacent, scale)).catch(() => {});
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [frame, frames, index, scale, previewPending]);
   const step = useCallback(
     (n: number) => {
       setPlaying(false);
@@ -115,7 +124,7 @@ export default function Home() {
     setDraftScale(next);
   };
   const baseline = useBaseline(frames[0], exclude);
-  const analysis = useAnalysis(frame, frames, roi, exclude, playing);
+  const analysis = useAnalysis(measurementFrame, frames, roi, exclude, playing);
   const changeROI = useCallback((r: ROI) => {
     setPlaying(false);
     setROI(r);
@@ -144,7 +153,9 @@ export default function Home() {
     channel,
     interval: { start_utc: start, end_utc: end },
     frame_count: frames.length,
-    frame: frame ? { id: frame.id, timestamp: frame.timestamp } : null,
+    frame: measurementFrame
+      ? { id: measurementFrame.id, timestamp: measurementFrame.timestamp }
+      : null,
     selection: roi,
     exclude_interpolated: exclude,
     measurement: analysis.sample
@@ -164,6 +175,7 @@ export default function Home() {
       onClick={analysis.retry}
       disabled={
         !frames.length ||
+        previewPending ||
         !!roiError(roi) ||
         analysis.busy ||
         analysis.phase === 'complete'
@@ -272,7 +284,7 @@ export default function Home() {
             >
               <AnalysisControls
                 a={analysis}
-                frame={frame}
+                frame={measurementFrame}
                 count={frames.length}
                 roi={roi}
                 setROI={changeROI}
@@ -322,9 +334,9 @@ export default function Home() {
                   <div className="panel viewer-panel">
                     <div className="viewer-head">
                       <div>
-                        <div className="eyebrow">{channel} observation</div>
+                        <div className="eyebrow">{displayedFrame.channel} observation</div>
                         <div className="time mono">
-                          {frame.timestamp
+                          {displayedFrame.timestamp
                             .replace('T', ' · ')
                             .replace('Z', ' UTC')}
                         </div>
@@ -339,20 +351,22 @@ export default function Home() {
                         </TabsList>
                       </Tabs>
                     </div>
-                    <div className="viewer-body">
+                    <div className="viewer-body" aria-busy={previewPending}>
                       {viewerMode === 'orbit' ? (
                         <OrbitViewer
                           actions={analyzeButton}
-                          frame={frame}
+                          frame={displayedFrame}
                           frames={catalogue.frames}
-                          scale={scale}
+                          image={preview?.image || null}
                           onReady={setReady}
                         />
                       ) : (
                         <ObservationViewer
                           actions={analyzeButton}
-                          frame={frame}
-                          scale={scale}
+                          frame={displayedFrame}
+                          image={preview?.image || null}
+                          interactive={!previewPending}
+                          scale={preview?.scale || scale}
                           roi={roi}
                           contours={contours}
                           exclude={exclude}
@@ -362,6 +376,12 @@ export default function Home() {
                           onTogglePlay={toggle}
                           onReady={setReady}
                         />
+                      )}
+                      {previewMessage && (
+                        <output className="preview-status">
+                          {previewMessage}
+                          {preview && ' Current image retained.'}
+                        </output>
                       )}
                     </div>
                   </div>
@@ -444,7 +464,7 @@ export default function Home() {
             <aside className="right-column" aria-label="Brightness results">
               <AnalysisResults
                 a={analysis}
-                frame={frame}
+                frame={measurementFrame}
                 onSelect={selectFrame}
                 baseline={baseline?.value}
                 baselineError={baseline?.error}

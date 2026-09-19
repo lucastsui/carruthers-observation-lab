@@ -1,8 +1,16 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Info } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectTrigger,
@@ -10,10 +18,13 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { previewURL } from '@/lib/research';
 import type { Frame } from '@/lib/research';
-import { sunAligned, RE_KM } from '@/lib/orbit';
+import { pointingDeviationGeometry, sunAligned, RE_KM } from '@/lib/orbit';
 import type { Vec3 } from '@/lib/orbit';
+import {
+  createSpacecraftModel,
+  spacecraftModelQuaternion,
+} from '@/lib/spacecraft-model';
 
 type Runtime = {
   scene: THREE.Scene;
@@ -21,6 +32,8 @@ type Runtime = {
   renderer: THREE.WebGLRenderer;
   controls: OrbitControls;
   group: THREE.Group;
+  satellite: THREE.Group;
+  deviationLabel?: THREE.Sprite;
 };
 function frameOverview(r: Runtime, mode: string) {
   const solarX = mode === 'overview' ? 175 : 360;
@@ -41,19 +54,26 @@ function frameOverview(r: Runtime, mode: string) {
   r.controls.update();
 }
 function disposeGroup(group: THREE.Group) {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materialsToDispose = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
   group.traverse((obj) => {
     const renderable = obj as THREE.Mesh;
-    renderable.geometry?.dispose();
+    if (renderable.geometry) geometries.add(renderable.geometry);
     const materials = renderable.material
       ? Array.isArray(renderable.material)
         ? renderable.material
         : [renderable.material]
       : [];
     materials.forEach((m) => {
-      (m as THREE.MeshBasicMaterial).map?.dispose();
-      m.dispose();
+      const texture = (m as THREE.MeshBasicMaterial).map;
+      if (texture) textures.add(texture);
+      materialsToDispose.add(m);
     });
   });
+  textures.forEach((texture) => texture.dispose());
+  materialsToDispose.forEach((material) => material.dispose());
+  geometries.forEach((geometry) => geometry.dispose());
   group.clear();
 }
 function label(
@@ -97,31 +117,27 @@ export function OrbitViewer({
   actions,
   frame,
   frames,
-  scale,
+  image,
   onReady,
 }: {
   actions?: ReactNode;
   frame: Frame;
   frames: Frame[];
-  scale: [number, number];
+  image: HTMLImageElement | null;
   onReady: (id: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
-    runtime = useRef<Runtime | null>(null);
+    runtime = useRef<Runtime | null>(null),
+    pointingExplanation = useRef<HTMLDivElement>(null),
+    orientationExplanation = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState('overview'),
     [cones, setCones] = useState(true),
     [fatalError, setFatalError] = useState(''),
     [mounted, setMounted] = useState(false);
-  const [imageState, setImageState] = useState<{
-    key: string;
-    error: string;
-  } | null>(null);
-  const frameKey = `${frame.id}:${scale.join(':')}:${mode}:${cones}`;
-  const loading = imageState?.key !== frameKey;
-  const error =
-    fatalError || (imageState?.key === frameKey ? imageState.error : '');
   const initial = useRef(true);
+  const spacecraftFocused = useRef(false);
   const distance = Math.hypot(...frame.spacecraft_position_km);
+  const deviation = frame.earth_sun_pointing_deviation_deg;
   useEffect(() => {
     const element = host.current;
     if (!element) return;
@@ -159,7 +175,11 @@ export function OrbitViewer({
     scene.add(light);
     const group = new THREE.Group();
     scene.add(group);
-    runtime.current = { scene, camera, renderer, controls, group };
+    const satellite = createSpacecraftModel();
+    satellite.scale.setScalar(8); // Enlarged schematic glyph, independent of orbit distance scale.
+    satellite.visible = false;
+    scene.add(satellite);
+    runtime.current = { scene, camera, renderer, controls, group, satellite };
     const resize = new ResizeObserver(() => {
       const { width, height } = element.getBoundingClientRect();
       if (width && height) {
@@ -173,6 +193,13 @@ export function OrbitViewer({
     function render() {
       animation = requestAnimationFrame(render);
       controls.update();
+      const deviationLabel = runtime.current?.deviationLabel;
+      if (deviationLabel && renderer.domElement.clientHeight) {
+        const pixelsPerUnit =
+          renderer.domElement.clientHeight /
+          (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+        deviationLabel.scale.set(190 / pixelsPerUnit, 23.75 / pixelsPerUnit, 1);
+      }
       renderer.render(scene, camera);
     }
     render();
@@ -183,16 +210,17 @@ export function OrbitViewer({
       resize.disconnect();
       controls.dispose();
       disposeGroup(group);
+      disposeGroup(satellite);
       renderer.dispose();
       renderer.domElement.remove();
       runtime.current = null;
     };
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const r = runtime.current;
-    if (!r || !mounted) return;
+    if (!r || !mounted || !image) return;
+    r.deviationLabel = undefined;
     disposeGroup(r.group);
-    let active = true;
     const factor = mode === 'overview' ? 0.45 : 1;
     const convert = (v: Vec3, sun = frame.sun_position_km) =>
       new THREE.Vector3(...sunAligned(v, sun));
@@ -249,20 +277,88 @@ export function OrbitViewer({
         ).multiplyScalar(factor),
       );
     if (orbit.length > 1) r.group.add(line(orbit, 0xd8b7ff));
-    // A visible spacecraft glyph. Its dimensions do not represent the physical bus.
-    const satellite = new THREE.Group();
-    satellite.position.copy(spacecraft);
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(2, 2, 2),
-      new THREE.MeshPhongMaterial({ color: 0xf3cb80 }),
-    );
-    satellite.add(body);
-    const wing = new THREE.Mesh(
-      new THREE.BoxGeometry(7, 0.15, 1.8),
-      new THREE.MeshPhongMaterial({ color: 0x426cba }),
-    );
-    satellite.add(wing);
-    r.group.add(satellite);
+    // Reuse the detailed model while frames change; only its pose changes.
+    if (spacecraftFocused.current) {
+      const delta = spacecraft.clone().sub(r.satellite.position);
+      r.camera.position.add(delta);
+      r.controls.target.add(delta);
+    }
+    r.satellite.position.copy(spacecraft);
+    r.satellite.visible = !!frame.spacecraft_attitude;
+    if (frame.spacecraft_attitude)
+      r.satellite.quaternion.copy(
+        spacecraftModelQuaternion(
+          frame.spacecraft_attitude,
+          frame.sun_position_km,
+        ),
+      );
+    if (cones && frame.camera_boresight_gcrs) {
+      const boresight = convert(frame.camera_boresight_gcrs).normalize();
+      r.group.add(
+        new THREE.ArrowHelper(
+          boresight,
+          spacecraft,
+          20,
+          frame.channel === 'WFI' ? 0xef7780 : 0x4c9fff,
+          2,
+          0.8,
+        ),
+      );
+    }
+    if (frame.camera_boresight_gcrs) {
+      const pointing = pointingDeviationGeometry(
+        frame.camera_boresight_gcrs,
+        frame.sun_position_km,
+      );
+      if (pointing) {
+        const reference = convert(pointing.reference).normalize();
+        const origin = spacecraft.clone().addScaledVector(reference, 9);
+        // A translated Earth-Sun reference makes the tilt direction clear at
+        // the spacecraft. Arrow length is schematic, independent of angle.
+        r.group.add(line([spacecraft, origin], 0xffd590, 0.8));
+        if (pointing.direction) {
+          const direction = convert(pointing.direction).normalize();
+          const arrow = new THREE.ArrowHelper(
+            direction,
+            origin,
+            12,
+            0x75eadb,
+            2.5,
+            1.3,
+          );
+          // Like the text labels, keep this schematic annotation visible when
+          // the enlarged spacecraft crosses its position in the close-up view.
+          for (const part of [arrow.line, arrow.cone]) {
+            part.renderOrder = 3;
+            const materials = Array.isArray(part.material)
+              ? part.material
+              : [part.material];
+            for (const material of materials) {
+              material.depthTest = false;
+              material.depthWrite = false;
+            }
+          }
+          r.group.add(arrow);
+          const caption = label(
+            `${frame.channel} deviation · ${pointing.angleDeg.toFixed(2)}°`,
+            '#9af8e9',
+            origin.clone().addScaledVector(direction, 15),
+            40,
+          );
+          caption.center.set(0.5, 1.1);
+          r.deviationLabel = caption;
+          r.group.add(caption);
+        } else {
+          r.deviationLabel = label(
+            `${frame.channel} deviation · 0.00°`,
+            '#9af8e9',
+            origin,
+            40,
+          );
+          r.group.add(r.deviationLabel);
+        }
+      }
+    }
     r.group.add(
       label(
         'Carruthers',
@@ -333,26 +429,8 @@ export function OrbitViewer({
       );
       geometry.setIndex([0, 1, 2, 0, 2, 3]);
       geometry.computeVertexNormals();
-      const texture = new THREE.TextureLoader().load(
-        previewURL(frame, scale),
-        (tex) => {
-          if (!active) {
-            tex.dispose();
-            return;
-          }
-          setImageState({ key: frameKey, error: '' });
-          onReady(frame.id);
-        },
-        undefined,
-        () => {
-          if (active) {
-            setImageState({
-              key: frameKey,
-              error: 'Observation image could not load.',
-            });
-          }
-        },
-      );
+      const texture = new THREE.Texture(image);
+      texture.needsUpdate = true;
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.magFilter = THREE.NearestFilter;
       // Additive black transparency preserves the measured image shape without an opaque square.
@@ -385,13 +463,12 @@ export function OrbitViewer({
       frameOverview(r, mode);
       initial.current = false;
     }
-    return () => {
-      active = false;
-    };
-  }, [frame, frames, scale, mode, cones, mounted, onReady, frameKey]);
+    onReady(frame.id);
+  }, [frame, frames, image, mode, cones, mounted, onReady]);
   function reset(close = false) {
     const r = runtime.current;
     if (!r) return;
+    spacecraftFocused.current = false;
     if (close) {
       r.controls.target.set(0, 0, 0);
       const direction = new THREE.Vector3(
@@ -405,6 +482,22 @@ export function OrbitViewer({
     }
     r.controls.update();
   }
+  function viewSpacecraft() {
+    const r = runtime.current;
+    if (!r || !r.satellite.visible) return;
+    spacecraftFocused.current = true;
+    const center = new THREE.Vector3(0, 0.18, 0)
+      .multiplyScalar(8)
+      .applyQuaternion(r.satellite.quaternion)
+      .add(r.satellite.position);
+    const offset = new THREE.Vector3(2.3, 1.6, -2.8)
+      .normalize()
+      .multiplyScalar(27)
+      .applyQuaternion(r.satellite.quaternion);
+    r.controls.target.copy(center);
+    r.camera.position.copy(center).add(offset);
+    r.controls.update();
+  }
   return (
     <div className="orbit-viewer">
       <div className="orbit-toolbar">
@@ -412,6 +505,7 @@ export function OrbitViewer({
           value={mode}
           onValueChange={(v) => {
             initial.current = true;
+            spacecraftFocused.current = false;
             setMode(v || 'overview');
           }}
         >
@@ -433,6 +527,13 @@ export function OrbitViewer({
         <button className="button ghost" onClick={() => reset(true)}>
           Face Earth
         </button>
+        <button
+          className="button ghost"
+          onClick={viewSpacecraft}
+          disabled={!frame.spacecraft_attitude}
+        >
+          View spacecraft
+        </button>
         <label className="switch-row" htmlFor="fov-cones">
           FOV
           <Switch id="fov-cones" checked={cones} onCheckedChange={setCones} />
@@ -441,11 +542,179 @@ export function OrbitViewer({
       <div className="orbit-stage" ref={host}>
         {actions && <div className="orbit-actions">{actions}</div>}
         <div className="orbit-help">
-          Drag to rotate · scroll to zoom · right-drag to pan
+          <div>Drag to rotate · scroll to zoom · right-drag to pan</div>
+          <div className="orbit-pointing">
+            <span>
+              Earth–Sun pointing deviation ({frame.channel}):{' '}
+              {typeof deviation === 'number' && Number.isFinite(deviation)
+                ? `${deviation.toFixed(2)}°`
+                : 'Unavailable'}
+            </span>
+            <Popover>
+              <PopoverTrigger
+                className="orbit-pointing-info"
+                aria-label="How is the Earth–Sun pointing deviation calculated?"
+              >
+                <Info aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent
+                ref={pointingExplanation}
+                initialFocus={pointingExplanation}
+                className="orbit-pointing-explanation"
+                align="start"
+              >
+                <PopoverTitle>Earth–Sun pointing deviation</PopoverTitle>
+                <PopoverDescription>
+                  The smaller angle between the selected {frame.channel}{' '}
+                  camera’s optical axis and the Earth–Sun line at this
+                  observation’s UTC timestamp. 0° means parallel to the line;
+                  90° means perpendicular. The value is independent of how you
+                  rotate or scale the 3D view.
+                </PopoverDescription>
+                <p>
+                  The NetCDF spacecraft_attitude and cam_attitude fields use
+                  scalar-last quaternions (x, y, z, w). We interpret them using
+                  the JPL passive convention: sky (GCRS/J2000) → spacecraft →
+                  camera. Reversing these transformations puts the outward
+                  camera −Z axis into the sky frame. It lies close to spacecraft
+                  −Y, the documented nominal boresight.
+                </p>
+                <p>
+                  Astropy/ERFA calculates the Earth → Sun direction in GCRS from
+                  the observation time. After normalizing both vectors, the
+                  angle is θ = arccos(|b · s|), where b is the camera direction
+                  and s is the Sun direction. The absolute value treats the
+                  Earth–Sun reference as a line, giving a result from 0° to 90°.
+                </p>
+                <p>
+                  The spacecraft model follows the recorded body attitude. Its
+                  solar-cell face is spacecraft +Y; the telescope side is −Y.
+                  The colored arrow shows the selected camera’s calibrated
+                  boresight when FOV is enabled. Model details and size are
+                  schematic.
+                </p>
+                <p>
+                  The mint arrow shows which way the boresight tilts away from
+                  the Earth–Sun line. It points along the boresight component
+                  perpendicular to that line: d = b − (b · s)s. A short gold
+                  segment places a parallel Earth–Sun reference at the
+                  spacecraft. The arrow has a fixed schematic length; its label
+                  gives the angle in degrees. Its direction and label update
+                  with the selected camera and observation. At exact alignment,
+                  no tilt direction exists, so the arrow is omitted.
+                </p>
+                <p>
+                  This uses camera pointing, which can differ slightly from the
+                  direction to Earth’s center. Checks of all 1,794 March 2026
+                  frames reproduce the registered Earth centers and confirm the
+                  boresight sign. This is consistency with the supplied
+                  geometry, not independent star-based validation of pointing
+                  accuracy.
+                </p>
+                <div className="orbit-pointing-sources">
+                  <a
+                    href="https://claude.ai/artifact/XCxFBEFvxrktwbWHW4doxT"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Spacecraft model supplied for CEDA
+                  </a>
+                  <a
+                    href="https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/q2m_c.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    JPL: quaternion conventions
+                  </a>
+                  <a
+                    href="https://arxiv.org/html/2608.13516v1#S2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Carruthers: viewing geometry and spacecraft −Y boresight
+                  </a>
+                  <a
+                    href="https://docs.astropy.org/en/stable/api/astropy.coordinates.get_sun.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Astropy: Sun position in GCRS
+                  </a>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="orbit-pointing">
+            <span>Assumption on orientation</span>
+            <Popover>
+              <PopoverTrigger
+                className="orbit-pointing-info"
+                aria-label="What is the assumption on spacecraft orientation?"
+              >
+                <Info aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent
+                ref={orientationExplanation}
+                initialFocus={orientationExplanation}
+                className="orbit-pointing-explanation"
+                align="start"
+              >
+                <PopoverTitle>Assumption on orientation</PopoverTitle>
+                <PopoverDescription>
+                  CEDA assumes the outward normal of the GCI instrument deck is
+                  spacecraft +Z. The solar-cell face points along +Y, and the
+                  nominal telescope viewing direction is −Y.
+                </PopoverDescription>
+                <p>
+                  The instrument-deck mapping follows Figure 2(a) of the viewing
+                  geometry paper and Sections 3.2 and 4.4 of the mission paper.
+                  The L1C metadata describes +Z as “positive outward through the
+                  launch vehicle adapter.” We interpret this as the same +Z
+                  direction as the instrument deck; that interpretation still
+                  needs confirmation from the mission team.
+                </p>
+                <p>
+                  The recorded quaternion includes the full attitude, including
+                  roll. With this model alignment, the instrument deck faces
+                  toward ecliptic south in the March observations. If the deck
+                  instead corresponds to −Z, the model would need a 180° roll
+                  adjustment about its nominal viewing axis.
+                </p>
+                <p>
+                  This uncertainty concerns how the model fits the spacecraft
+                  axes. The Earth–Sun pointing deviation is calculated from the
+                  camera geometry and does not depend on this model assumption.
+                </p>
+                <div className="orbit-pointing-sources">
+                  <a
+                    href="https://arxiv.org/html/2608.13516v1#S2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Viewing geometry: spacecraft axes, Figure 2(a)
+                  </a>
+                  <a
+                    href="https://arxiv.org/html/2608.10130v1#S3.SS2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Mission paper: GCI mounting side, Section 3.2
+                  </a>
+                  <a
+                    href="https://arxiv.org/html/2608.10130v1#S4.SS4"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Mission paper: +Z face and GCI, Section 4.4
+                  </a>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-        {(loading || error) && (
+        {fatalError && (
           <output className="orbit-message">
-            {error || 'Projecting observation…'}
+            {fatalError}
           </output>
         )}
         <div className="orbit-legend">
@@ -463,7 +732,7 @@ export function OrbitViewer({
           {mode === 'overview'
             ? 'Spacecraft distances ×0.45; Earth and image keep their relative scale.'
             : 'Earth, image and spacecraft distances share one scale.'}{' '}
-          Sun and spacecraft glyph sizes are schematic.
+          Sun and spacecraft model sizes are schematic.
         </p>
         <p>
           Image is a line-of-sight projection through Earth, not a 3D density

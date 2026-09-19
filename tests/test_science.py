@@ -9,7 +9,7 @@ from PIL import Image
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
-from science import Catalogue, earth_geometry, measure_arrays, measure_frame, selection_mask, validate_roi, paired_sectors
+from science import Catalogue, earth_geometry, image_plane_geometry, pointing_deviation_deg, rotation, measure_arrays, measure_frame, selection_mask, validate_roi, paired_sectors
 
 
 class ArrayScienceTests(unittest.TestCase):
@@ -100,6 +100,25 @@ class ArrayScienceTests(unittest.TestCase):
             with self.subTest(roi=roi), self.assertRaises(ValueError):
                 validate_roi(roi)
 
+    def test_pointing_deviation_uses_a_line_and_rejects_invalid_vectors(self):
+        for direction, expected in [([3, 0, 0], 0), ([-3, 0, 0], 0),
+                                    ([0, 2, 0], 90), ([1, 1, 0], 45)]:
+            self.assertAlmostEqual(pointing_deviation_deg(direction, [10, 0, 0]), expected)
+        for bad in ([0, 0, 0], [float('nan'), 0, 1], [1, 0]):
+            with self.assertRaises(ValueError):
+                pointing_deviation_deg(bad, [1, 0, 0])
+            with self.assertRaises(ValueError):
+                pointing_deviation_deg([1, 0, 0], bad)
+
+    def test_camera_boresight_sign_and_rotation_order(self):
+        # Camera +90° about X sends -Z to +Y; body +90° about Z sends +Y to -X.
+        half = 2 ** -.5
+        g = dict(spacecraft_position=np.array([1000000., 0., 0.]),
+                 spacecraft_attitude=[0, 0, half, half], cam_attitude=[half, 0, 0, half],
+                 cam_focal_length=[1000., 1000.], cam_ctr=[256., 256.], cam_skew=0.)
+        np.testing.assert_allclose(image_plane_geometry(g, [512, 512])['camera_boresight_gcrs'],
+                                   [-1, 0, 0], atol=1e-14)
+
 
 @unittest.skipUnless((Path(os.environ.get('CARRUTHERS_DATA_DIR', BASE.parent / 'code and data/L1C'))).is_dir(), 'Dataset is not installed')
 class RealDataRegressionTests(unittest.TestCase):
@@ -125,6 +144,24 @@ class RealDataRegressionTests(unittest.TestCase):
             value = measure_frame(self.catalogue, frame['id'], dict(kind='annulus', inner=4.5, outer=5.5))
             self.assertAlmostEqual(value['mean_kR'], float(prior['mean_brightness_kR']), places=12)
             self.assertEqual(value['valid_pixels'], int(prior['valid_pixels']))
+
+    def test_camera_pointing_matches_verified_march_geometry(self):
+        for frame in self.catalogue.frames:
+            # The physical solar-cell face is body +Y and must be sunward.
+            panel = rotation(frame['spacecraft_attitude']) @ np.array([0., 1., 0.])
+            to_sun = np.array(frame['sun_position_km']) - np.array(frame['spacecraft_position_km'])
+            self.assertGreater(np.dot(panel, to_sun / np.linalg.norm(to_sun)), .9)
+            self.assertLess(np.dot(-panel, frame['spacecraft_position_km']), 0)
+            self.assertTrue(np.isfinite(frame['earth_sun_pointing_deviation_deg']))
+            self.assertGreaterEqual(frame['earth_sun_pointing_deviation_deg'], 0)
+            self.assertLessEqual(frame['earth_sun_pointing_deviation_deg'], 90)
+            self.assertAlmostEqual(np.linalg.norm(frame['camera_boresight_gcrs']), 1)
+            # Forward camera rays must point toward Earth, not away from it.
+            self.assertLess(np.dot(frame['camera_boresight_gcrs'], frame['spacecraft_position_km']), 0)
+        for channel, expected in [('WFI', 17.35834441), ('NFI', 17.65656877)]:
+            frame = next(f for f in self.catalogue.frames
+                         if f['channel'] == channel and f['timestamp'].startswith('2026-03-15'))
+            self.assertAlmostEqual(frame['earth_sun_pointing_deviation_deg'], expected, places=5)
 
     def test_paired_real_data_matches_each_individual_sector_and_csv(self):
         from server import export_csv, METHOD

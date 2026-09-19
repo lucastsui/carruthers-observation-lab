@@ -1,9 +1,16 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Info } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import type { Frame, ROI, Contours } from '@/lib/research';
 import {
   api,
-  previewURL,
   roiError,
   snapPointToPixel,
   pairedSectors,
@@ -16,6 +23,8 @@ import type { ContourMode } from '@/lib/display';
 export function ObservationViewer({
   actions,
   frame,
+  image,
+  interactive,
   scale,
   roi,
   contours,
@@ -28,6 +37,8 @@ export function ObservationViewer({
 }: {
   actions?: ReactNode;
   frame: Frame;
+  image: HTMLImageElement | null;
+  interactive: boolean;
   scale: [number, number];
   roi: ROI;
   contours: ContourMode;
@@ -65,19 +76,12 @@ export function ObservationViewer({
   }, [contourKey, contours, frame.id, exclude]);
   const canvas = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null);
-  const [image, setImage] = useState<{
-      id: string;
-      url: string;
-      image: HTMLImageElement;
-    } | null>(null),
-    [error, setError] = useState('');
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const drag = useRef<{ origin: [number, number]; angle: boolean } | null>(
       null,
     ),
     lastWheel = useRef(0);
-  const url = previewURL(frame, scale),
-    loaded = image?.url === url;
+  const loaded = !!image;
   const size = frame.shape[1],
     span = size / zoom,
     cx = frame.earth_xy[0],
@@ -85,30 +89,7 @@ export function ObservationViewer({
     left = (size - span) / 2,
     top = (frame.shape[0] - span) / 2;
   const p = frame.pixels_per_re;
-  useEffect(() => {
-    let active = true;
-    setError('');
-    const im = new Image();
-    im.onload = () => {
-      if (active) {
-        setImage({ id: frame.id, url, image: im });
-        onReady(frame.id);
-      }
-    };
-    im.onerror = () => {
-      if (active)
-        setError(
-          'Frame could not load. Check the local service and display limits.',
-        );
-    };
-    im.src = url;
-    return () => {
-      active = false;
-      im.onload = null;
-      im.onerror = null;
-    };
-  }, [url, frame.id, onReady]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const c = canvas.current;
     if (!c) return;
     const ctx = c.getContext('2d');
@@ -117,9 +98,10 @@ export function ObservationViewer({
     ctx.fillRect(0, 0, size, size);
     if (loaded && image) {
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(image.image, left, top, span, span, 0, 0, size, size);
+      ctx.drawImage(image, left, top, span, span, 0, 0, size, size);
+      onReady(frame.id);
     }
-  }, [image, loaded, size, left, top, span]);
+  }, [image, loaded, size, left, top, span, frame.id, onReady]);
   useEffect(() => {
     const node = stage.current;
     if (!node) return;
@@ -271,7 +253,7 @@ export function ObservationViewer({
             }
           }}
           onPointerDown={(e) => {
-            if (!loaded) return;
+            if (!loaded || !interactive) return;
             e.currentTarget.focus();
             e.currentTarget.setPointerCapture(e.pointerId);
             const origin = position(e);
@@ -282,15 +264,19 @@ export function ObservationViewer({
             if (roi.kind === 'point') update(origin, origin);
           }}
           onPointerMove={(e) => {
+            if (!interactive) {
+              drag.current = null;
+              return;
+            }
             const xy = position(e);
             setCursor(xy);
             if (drag.current) update(drag.current.origin, xy);
           }}
           onPointerUp={(e) => {
-            if (drag.current) {
+            if (drag.current && interactive) {
               update(drag.current.origin, position(e));
-              drag.current = null;
             }
+            drag.current = null;
             e.currentTarget.releasePointerCapture(e.pointerId);
           }}
           onPointerCancel={() => {
@@ -461,16 +447,52 @@ export function ObservationViewer({
           <span className="stage-label">
             {frame.channel} · L1C · {zoom > 1 ? `${zoom}×` : 'FULL FRAME'}
           </span>
-          {(!loaded || error) && (
-            <span className="stage-status" role="status">
-              {error || 'Loading frame…'}
-            </span>
-          )}
-          {loaded && cursor && (
+          {loaded && interactive && cursor && (
             <span className="stage-status mono">
               x {cursor[0].toFixed(2)} · y {cursor[1].toFixed(2)} Rᴇ
             </span>
           )}
+        </div>
+        <div className="image-orientation">
+          <div className="north-indicator">
+            <span className="north-arrow" aria-hidden="true">↑</span>
+            <Popover>
+              <PopoverTrigger
+                className="north-info"
+                aria-label="Why does the arrow point to ecliptic north?"
+              >
+                <Info aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent className="north-explanation" align="start">
+                <PopoverTitle>Why ecliptic north?</PopoverTitle>
+                <PopoverDescription>
+                  Ecliptic north (GSE +Z) is perpendicular to Earth’s orbital
+                  plane. It is different from Earth’s geographic or magnetic
+                  north.
+                </PopoverDescription>
+                <p>
+                  Section 8 of the Carruthers calibration paper specifies that
+                  registered images place projected ecliptic north upward, toward
+                  decreasing row numbers. CEDA preserves this row order.
+                </p>
+                <p>
+                  The NetCDF headers provide camera and spacecraft attitudes,
+                  but do not explicitly label the image “north up.” This arrow
+                  marks the documented registration convention: our geometry
+                  check of all 1,794 March 2026 frames found differences of up to
+                  2.2° from vertical, so exact alignment remains unverified.
+                </p>
+                <a
+                  href="https://arxiv.org/html/2606.21606v1#S8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Read the calibration paper · Section 8
+                </a>
+              </PopoverContent>
+            </Popover>
+            <span className="north-label">Ecliptic north</span>
+          </div>
         </div>
         {actions && <div className="image-actions">{actions}</div>}
       </div>

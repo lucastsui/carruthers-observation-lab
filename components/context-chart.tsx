@@ -21,7 +21,7 @@ export function ContextChart({
     <div className="context-chart">
       <div className="context-heading">
         <strong style={{ color }}>
-          {kind === 'dst' ? 'Dst' : 'Solar Lyman-α'}
+          {kind === 'dst' ? 'DST' : 'Solar Lyman-α'}
         </strong>
         <a
           href={

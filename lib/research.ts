@@ -14,7 +14,10 @@ export type Frame = {
   exposure_s: number;
   sun_position_km: [number, number, number];
   spacecraft_position_km: [number, number, number];
+  spacecraft_attitude?: [number, number, number, number];
   image_plane_corners_re: [number, number, number][];
+  camera_boresight_gcrs?: [number, number, number];
+  earth_sun_pointing_deviation_deg?: number;
   flags: Record<string, number | null>;
 };
 export type Catalogue = {
