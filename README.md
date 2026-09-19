@@ -2,7 +2,7 @@
 
 ## How to Read This
 - If you are an AI new to this project, read the section Introduction For AIs first and treat the rest as context.
-- If you are a member of the science team, you should go to https://laboratories-correct-jpeg-crowd.trycloudflare.com/ and explore right away.
+- If you are a member of the science team, you should go to https://nightglow.tail2214e5.ts.net/ and explore right away.
 - If you want to assess the technical merit of the project and the thinking process behind the result, use AI to summarize and analyze this document and the code.
 
 ## Introduction For Humans
@@ -48,27 +48,37 @@ For After-Action-Assessment, in each iteration below, there is a problem to be s
 	- Solution: Use AI to Migrate the deployment from a DGX Spark cluster to a Mac Studio plus and external drive, hosted in Boston University. Main bottleneck is a scheduling problem where all needed personnel's physical presence is required.
 	- Result: Set up a server compliant to the security standard of Boston University with 24/7 access and remote monitoring.
 
-- Problem: The north pole of Earth needs to be determined.
+- Problem: The image's upward direction needs a documented reference.
 	- Start Date: 2026-09-09
 	- End Date: 2026-09-18
-	- Solution: Trust the calibration paper that defined image up as ecliptic north. Add arrow to UI to clarify.
-	- Result: none.
-	- Complication: No external sources to verify the direction of ecliptic north. Need to ask to professor on whether should I trust this.
+	- Solution: Lucas used Codex to review the calibration paper's registration convention and add an upward ecliptic-north arrow with an explanation button.
+	- Result: The UI distinguishes ecliptic north from Earth's geographic or magnetic north and identifies the convention's source.
+	- Complication: The geometry check differs from exact vertical by up to 2.2° across the 1,794 March frames. The indicator is implemented, but exact alignment still needs scientific clarification.
 
-Problem: The correctness of the 3D orbit in quaternion form needs to be verified.
-- Start Date: 2026-09-09
-- End Date: 2026-09-18
-- Solution: Checked axis convention from sources from Jet Propulsion Lab. Added angle deviation and showed direction of deviation. Added a more detail 3D model of the satellite.
+- Problem: Spacecraft pointing and attitude need to be visualized and checked separately from the orbit.
+	- Start Date: 2026-09-09
+	- End Date: 2026-09-18
+	- Solution: Lucas used Codex to check the scalar-last JPL quaternion interpretation, camera rotation order and outward boresight against the supplied geometry. Lucas supplied a schematic spacecraft model for adaptation to CEDA.
+	- Result: The trajectory continues to use x/y/z positions; the model follows the recorded attitude, including roll. The solar-cell face points sunward. The 3D view shows the Earth–Sun pointing deviation, its calculation and convention sources, and a fixed-length arrow whose direction and angle label follow the selected observation.
+	- Complication: These checks establish consistency with the supplied geometry, not independent pointing accuracy. The model's instrument-deck-to-body-axis mapping remains provisional.
 
-Problem: No external sources to verify the direction of ecliptic north. Need to ask to professor on whether should I trust this.
-- Start Date: 2026-09-18
-- End Date: 2026-09-18
-- Solution: The quaternion coordinate does specify the orientation of the satellite. Orientation is now shown in the 3D view, with angle deviation from boresight shown as arrow.
-- Complication: none.
+- Problem: The physical meaning of spacecraft +Z needs clarification.
+	- Start Date: 2026-09-18
+	- Status: Awaiting mission-team clarification; the email is drafted but has not been sent.
+	- Solution: Lucas requested the missing references be saved in the Carruthers papers folder and a clarification email be drafted. Lucas asked for an "Assumption on orientation" explanation below the pointing-deviation line.
+	- Result: CEDA explicitly assumes the instrument deck's outward normal is body +Z and explains the uncertainty in interpreting the metadata's launch-adapter wording. The quaternion contains roll; the open question is how the physical model maps to the recorded body axes.
+	- Complication: A different deck-axis mapping could require a 180° model roll adjustment. The calculated camera pointing deviation does not depend on that model assumption.
+
+- Problem: Frame images flicker while the slider loads a new observation.
+	- Start Date: 2026-09-18
+	- End Date: 2026-09-18
+	- Solution: Lucas reported the flicker; Codex changed both viewers to retain the displayed image until its replacement is decoded, preload nearby frames in a bounded cache, and ignore outdated load responses.
+	- Result: Pixels, timestamp, brightness scale, geometry and frame measurements stay matched during loading. Tests covered an eight-second simulated delay, out-of-order responses, failed loads and retries, playback, camera switching and mobile layout. The fix was deployed to Nightglow and committed and pushed with the orientation work in `4eedc3d`.
 
 Pending problems:
-- To have an accurate intuitive understanding of how the geocorona changes due to seasons, the image needs put the Earth disk at the image center but current center coordinates are incorrect. Start Date: 2026-09-09
+- The March L1C `earth_loc` headers are incorrect. CEDA uses validated registered raster centers; updated upstream metadata still needs checking before changing that behavior. Start Date: 2026-09-09
 - Analysis software was written in IDL whose compatibility needs to be considered. Start Date: 2026-09-09
+- Confirm the exact ecliptic-north alignment and the physical instrument-deck/body-axis mapping with the mission team. The UI records the current convention and assumption; these questions remain open. Start Date: 2026-09-18
 
 
 ## AI Techniques used
@@ -118,7 +128,7 @@ Pending problems:
 | 2026-09-15 | Lucas attended research-group and project meetings and gathered researcher needs; John supplied coordinate definitions and velocity-distribution code.                                                                                                                                                    |
 | 2026-09-16 | Lucas and John discussed shared-machine/storage access; John requested a room key for Lucas; Brian supplied a potential collaborator’s contact.                                                                                                                                                           |
 | 2026-09-17 | Lucas met John for Carruthers setup; John confirmed that Nightglow was operational and began coordinating Brian’s account with him.                                                                                                                                                                       |
-| 2026-09-18 | Lucas completed independent Nightglow hosting with a 1 TB external-volume quota, removed Spark’s runtime dependency and verified operation while logged out. Lucas renamed the app CEDA, changed terminology to brightness, replaced SYM-H with hourly Kyoto Dst, and committed and pushed those changes. |
+| 2026-09-18 | Lucas completed independent Nightglow hosting with a 1 TB external-volume quota, removed Spark's runtime dependency and verified operation while logged out. Lucas renamed the app CEDA, changed terminology to brightness, replaced SYM-H with hourly Kyoto Dst and set the chart title to DST. Lucas reorganized the README for human and AI readers, documented mission roles and project history, and used Codex to add the ecliptic-north indicator, quaternion-driven spacecraft model, Earth–Sun pointing deviation and direction arrow, and orientation-assumption explanation. Lucas collected missing orientation references and prepared an unsent clarification email; exact north alignment and the physical +Z mapping remain open. Lucas reported frame flicker; Codex implemented decoded-image swaps and adjacent-frame preloading for both 2D and 3D. The updates were deployed to Nightglow; browser checks, public functional validation, 33 TypeScript tests and 15 scientific tests passed. Lucas committed and pushed the changes, most recently in `4eedc3d`. |
 
 ## Introduction For AIs
 
@@ -175,12 +185,13 @@ proof that a scientific behavior is correct.
 
 ### Last verified baseline
 
-This handoff was reviewed against source through `ec184ae` on 2026-09-18. The deployment evidence below was recorded on that date; it is not a
+This handoff was reviewed against source through `4eedc3d` on 2026-09-18. The deployment evidence below was recorded on that date; it is not a
 fresh uptime check every time this README is read.
 
 | Item | Last recorded state | Evidence / where to check |
 | --- | --- | --- |
 | Product | CEDA title; visible brightness terminology; hourly Kyoto Dst replacing the displayed SYM-H series. | Commits `09cc54a`, `4ec23dc`, `ec184ae`; current interface and reference tests. |
+| Orientation and playback | Ecliptic-north indicator, attitude-driven schematic model, pointing-deviation line and arrow, explicit orientation assumption, uppercase DST title, and decoded-image swaps in both viewers. | Commit `4eedc3d`; 33 TypeScript tests and 15 scientific tests passed, alongside browser and public functional checks. Local evidence includes `.local/frame-preview-browser-validation.json` and `.local/frame-preview-public-validation.json`; these reports are not part of a fresh clone. |
 | Public site | `https://nightglow.tail2214e5.ts.net`, served entirely by Nightglow. | [Nightglow operations](deploy/nightglow/README.md); current `/health` and public functional validation. |
 | Collection | March 2026 L1C v1.3 only: 62 files / 1,794 frames, split into 633 WFI and 1,161 NFI. | [Dataset manifest](deploy/dataset-manifest.json), catalogue and scientific regression fixtures. |
 | Persistence | Observations/state/cache on Nightglow's external volume; saved user analyses in browser IndexedDB. | Storage architecture below, `lib/saved.ts`, Nightglow supervisors. |
