@@ -6,7 +6,7 @@
 - If you want to assess the technical merit of the project and the thinking process behind the result, use AI to summarize and analyze this document and the code.
 
 ## Introduction For Humans
-Carruther Geocorna Imager is a NASA mission to launch a satellite into a special kind of Earth orbit called L1 Lagrange point to observe the geocorona, a layer of the atmosphere that we don't have a good theoretical model yet. We collect observational data from the mission to deduce the shape of the geocorona, and how it is changed by solar weather, with the goal of predicting how the geocorona affects satellites and ground electronics.
+Carruthers Geocorna Imager is a NASA mission to launch a satellite into a special kind of Earth orbit called L1 Lagrange point to observe the geocorona, a layer of the atmosphere that we don't have a good theoretical model yet. We collect observational data from the mission to deduce the shape of the geocorona, and how it is changed by solar weather, with the goal of predicting how the geocorona affects satellites and ground electronics.
 
 People mentioned in this documents:
 - Ming Leong Tsui (Lucas) is the CEDA project owner.
