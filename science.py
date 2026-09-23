@@ -18,7 +18,8 @@ from netCDF4 import Dataset
 from PIL import Image
 
 RE_KM = 6370.0
-METHOD_VERSION = 'carruthers-local-1.2'
+METHOD_VERSION = 'carruthers-local-1.3'
+PAIRED_KINDS = ('paired_sectors', 'paired_annular_sectors')
 SCALES = {'WFI': [0.0, math.log10(270000)], 'NFI': [2.0, math.log10(270000)]}  # log10(R); defaults 0.001/0.1 kR to 270 kR.
 NETCDF_LOCK = threading.RLock()  # netCDF/HDF5 libraries are not thread-safe.
 GEOMETRY_NAMES = ['spacecraft_position', 'spacecraft_attitude', 'cam_attitude',
@@ -214,21 +215,24 @@ def validate_roi(value):
     kind = value.get('kind')
     fields = {'annulus': ('inner', 'outer'), 'sector': ('inner', 'outer', 'angle_start', 'angle_end'),
               'paired_sectors': ('angle_width',),
+              'paired_annular_sectors': ('inner', 'outer', 'angle_start', 'angle_end'),
               'rectangle': ('x1', 'x2', 'y1', 'y2'), 'point': ('x', 'y')}
     if kind not in fields:
-        raise ValueError('Choose annulus, sector, paired sectors, rectangle or point')
+        raise ValueError('Choose annulus, sector, paired sectors, paired annular sectors, rectangle or point')
     roi = {'kind': kind}
     for name in fields[kind]:
         v = float(value.get(name, float('nan')))
         if not math.isfinite(v) or abs(v) > 1000:
             raise ValueError(f'Invalid selection value: {name}')
         roi[name] = v
-    if kind in ('annulus', 'sector') and not 0 <= roi['inner'] < roi['outer'] <= 100:
+    if kind in ('annulus', 'sector', 'paired_annular_sectors') and not 0 <= roi['inner'] < roi['outer'] <= 100:
         raise ValueError('Radii must satisfy 0 ≤ inner < outer ≤ 100 Earth radii')
     if kind == 'sector' and not 0 < roi['angle_end']-roi['angle_start'] <= 360:
         raise ValueError('Sector end must be greater than start, spanning at most 360°')
     if kind == 'paired_sectors' and not 1 <= roi['angle_width'] <= 180:
         raise ValueError('Shared opening angle must be between 1° and 180°')
+    if kind == 'paired_annular_sectors' and not -90 <= roi['angle_start'] < roi['angle_end'] <= 90:
+        raise ValueError('Right-side angles must satisfy −90° ≤ start < end ≤ 90°')
     if kind == 'rectangle' and not (roi['x1'] < roi['x2'] and roi['y1'] < roi['y2']):
         raise ValueError('Rectangle minimum coordinates must be below maximum coordinates')
     return roi
@@ -242,6 +246,10 @@ def coordinates(frame):
 
 
 def paired_sectors(roi, frame):
+    if roi['kind'] == 'paired_annular_sectors':
+        return {name: dict(kind='sector', inner=roi['inner'], outer=roi['outer'],
+                           angle_start=roi['angle_start']+center, angle_end=roi['angle_end']+center)
+                for name, center in [('dawn', 180), ('dusk', 0)]}
     # Extend beyond every pixel center; only the angular bounds select the pies.
     cx, cy = frame['earth_xy']
     height, width = frame['shape']
@@ -252,7 +260,7 @@ def paired_sectors(roi, frame):
 
 
 def selection_mask(frame, roi):
-    if roi['kind'] == 'paired_sectors':
+    if roi['kind'] in PAIRED_KINDS:
         dawn, dusk = paired_masks(frame, roi).values()
         return dawn | dusk
     x, y = coordinates(frame)
@@ -277,6 +285,13 @@ def paired_masks(frame, roi):
     # The raster supplies the extent. Compute each pixel's angle just once.
     x, y = coordinates(frame)
     angle = np.degrees(np.arctan2(y, x))
+    if roi['kind'] == 'paired_annular_sectors':
+        radius = np.hypot(x, y)
+        radial = (radius >= roi['inner']) & (radius < roi['outer'])
+        start, end = roi['angle_start'], roi['angle_end']
+        return {'dawn': radial & (((angle >= start+180) & (angle < end+180)) |
+                                  ((angle >= start-180) & (angle < end-180))),
+                'dusk': radial & (angle >= start) & (angle < end)}
     half = roi['angle_width']/2
     # Direct bounds avoid modulo rounding tiny negative offsets up to 360°.
     return {'dawn': (angle >= 180-half) | (angle < -180+half),
@@ -298,7 +313,7 @@ def measure_selected(raw, fov, interpolation, selected, exclude_interpolated):
 
 
 def measure_arrays(raw, fov, interpolation, frame, roi, exclude_interpolated=True):
-    if roi['kind'] == 'paired_sectors':
+    if roi['kind'] in PAIRED_KINDS:
         masks = paired_masks(frame, roi)
         result = measure_selected(raw, fov, interpolation, masks['dawn'] | masks['dusk'], exclude_interpolated)
         result['regions'] = {name: measure_selected(raw, fov, interpolation, mask, exclude_interpolated)

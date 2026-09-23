@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import numpy as np
 from matplotlib import colormaps
 from PIL import Image
-from science import Catalogue, METHOD_VERSION, measure_frame, validate_roi, frame_baseline, radiance_contours
+from science import Catalogue, METHOD_VERSION, PAIRED_KINDS, measure_frame, validate_roi, frame_baseline, radiance_contours
 from space_weather import SpaceWeather
 from circularity import CIRCULARITY_METHOD
 
@@ -37,6 +37,7 @@ METHOD = {
     'interpretation': 'Line-of-sight brightness, not local hydrogen density; exploratory measurements',
     'coverage': 'Valid / selected pixel centers within the raster; does not count region portions outside the raster',
     'paired_sectors': 'Dawn centered at 180 degrees (image left), dusk at 0 degrees (image right); filled pies from Earth center to the raster edges, equal opening angles. regions contains separate statistics; top-level statistics describe their union.',
+    'paired_annular_sectors': 'Equal annular sectors separated by 180 degrees around Earth. Shared inner/outer radii; angle_start/end specify the right (dusk) sector within -90 to 90 degrees; left (dawn) angles add 180 degrees. Lower-inclusive, upper-exclusive pixel-center bounds. regions contains separate statistics; top-level statistics describe their union.',
     'fingerprint': 'Source path, size and mtime identifier, not a cryptographic checksum of file contents',
 }
 
@@ -156,7 +157,7 @@ def export_csv(result):
     names = ['timestamp_utc', 'channel', 'mean_kR', 'median_kR', 'spatial_std_kR', 'valid_pixels', 'selected_pixels',
              'coverage', 'nonpositive_pixels', 'source', 'source_fingerprint', 'frame_index', 'data_version',
              'earth_x_pixel', 'earth_y_pixel', 'pixels_per_re', 'exposure_s', 'exclude_interpolated', 'roi_json', 'method_version', 'flags_json', 'baseline_mean_kR', 'baseline_frame_id']
-    paired = result['recipe']['roi']['kind'] == 'paired_sectors'
+    paired = result['recipe']['roi']['kind'] in PAIRED_KINDS
     if paired:
         names.insert(2, 'region')
     writer = csv.DictWriter(out, fieldnames=names)

@@ -62,7 +62,7 @@ export async function loadSaved(id: string): Promise<Job> {
   return result;
 }
 export function exportAnalysis(result: Job, format: 'csv' | 'json') {
-  const name = `carruthers-${result.recipe.channel}-${result.recipe.start.slice(0, 10)}${result.recipe.roi.kind === 'paired_sectors' ? '-dawn-dusk' : ''}`;
+  const name = `carruthers-${result.recipe.channel}-${result.recipe.start.slice(0, 10)}${result.recipe.roi.kind === 'paired_sectors' ? '-dawn-dusk' : result.recipe.roi.kind === 'paired_annular_sectors' ? '-paired-annular-sectors' : ''}`;
   if (format === 'json')
     return downloadText(
       `${name}.json`,

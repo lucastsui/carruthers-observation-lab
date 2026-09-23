@@ -1,6 +1,7 @@
 import os
 import csv
 import io
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -9,7 +10,7 @@ from PIL import Image
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
-from science import Catalogue, earth_geometry, image_plane_geometry, pointing_deviation_deg, rotation, measure_arrays, measure_frame, selection_mask, validate_roi, paired_sectors
+from science import Catalogue, earth_geometry, image_plane_geometry, pointing_deviation_deg, rotation, measure_arrays, measure_frame, selection_mask, validate_roi, paired_sectors, paired_masks
 
 
 class ArrayScienceTests(unittest.TestCase):
@@ -84,6 +85,39 @@ class ArrayScienceTests(unittest.TestCase):
         for width in (0, 181, float('nan')):
             with self.assertRaises(ValueError):
                 validate_roi(dict(roi, angle_width=width))
+
+    def test_paired_annular_bounds_mirror_and_masked_statistics(self):
+        roi = validate_roi(dict(kind='paired_annular_sectors', inner=1, outer=2, angle_start=-45, angle_end=45))
+        masks = paired_masks(self.frame, roi)
+        self.assertEqual(np.argwhere(masks['dusk']).tolist(), [[2, 3], [3, 3]])
+        self.assertEqual(np.argwhere(masks['dawn']).tolist(), [[1, 1], [2, 1]])
+        np.testing.assert_array_equal(masks['dawn'], masks['dusk'][::-1, ::-1])
+        self.assertFalse((masks['dawn'] & masks['dusk']).any())
+        raw = np.full((5, 5), 100000.)  # outside the four selected pixels must not contribute
+        raw[1, 1], raw[2, 1], raw[2, 3], raw[3, 3] = -1000, 3000, 5000, 9000
+        fov, interp = np.ones((5, 5), bool), np.zeros((5, 5), bool)
+        interp[3, 3] = True
+        result = measure_arrays(raw, fov, interp, self.frame, roi)
+        self.assertEqual(result['regions']['dawn']['mean_kR'], 1)
+        self.assertEqual(result['regions']['dawn']['nonpositive_pixels'], 1)
+        self.assertEqual(result['regions']['dusk']['mean_kR'], 5)
+        self.assertEqual(result['regions']['dusk']['coverage'], .5)
+        self.assertEqual(result['mean_kR'], 7/3)
+        self.assertEqual(measure_arrays(raw, fov, interp, self.frame, roi, False)['regions']['dusk']['mean_kR'], 7)
+        fov[2, 3] = False
+        self.assertIsNone(measure_arrays(raw, fov, interp, self.frame, roi)['regions']['dusk']['mean_kR'])
+
+    def test_paired_annular_half_open_partition_and_validation(self):
+        roi = dict(kind='paired_annular_sectors', inner=1, outer=2, angle_start=-90, angle_end=90)
+        for cx in (2., 2.-2**-51, 2.+2**-50):
+            frame = dict(self.frame, earth_xy=[cx, 2.])
+            dawn, dusk = paired_masks(frame, roi).values()
+            self.assertFalse((dawn & dusk).any())
+            np.testing.assert_array_equal(dawn | dusk, selection_mask(frame, dict(kind='annulus', inner=1, outer=2)))
+        for patch in (dict(inner=-1), dict(outer=1), dict(angle_start=-91), dict(angle_end=91),
+                      dict(angle_end=-90), dict(angle_start=float('nan'))):
+            with self.subTest(patch=patch), self.assertRaises(ValueError):
+                validate_roi(dict(roi, **patch))
 
     def test_geometry_signed_axis_and_scale(self):
         g = dict(spacecraft_position=np.array([0., 0., 637000.]),
@@ -178,6 +212,24 @@ class RealDataRegressionTests(unittest.TestCase):
             self.assertEqual([r['region'] for r in rows], ['dawn', 'dusk'])
             for row in rows:
                 self.assertEqual(float(row['mean_kR']), pair['regions'][row['region']]['mean_kR'])
+
+    def test_paired_annular_real_data_and_csv_match_independent_sector_extraction(self):
+        from server import export_csv, METHOD
+        roi = validate_roi(dict(kind='paired_annular_sectors', inner=3, outer=6, angle_start=-35, angle_end=20))
+        for channel in ('WFI', 'NFI'):
+            frame = next(f for f in self.catalogue.frames if f['channel'] == channel)
+            for exclude in (True, False):
+                pair = measure_frame(self.catalogue, frame['id'], roi, exclude)
+                for name, start, end in [('dawn', 145, 200), ('dusk', -35, 20)]:
+                    individual = measure_frame(self.catalogue, frame['id'], dict(kind='sector', inner=3, outer=6, angle_start=start, angle_end=end), exclude)
+                    for key, value in pair['regions'][name].items():
+                        self.assertEqual(value, individual[key])
+                result = dict(rows=[pair], recipe=dict(roi=roi, exclude_interpolated=exclude), method=METHOD)
+                rows = list(csv.DictReader(io.StringIO(export_csv(result).decode())))
+                self.assertEqual([r['region'] for r in rows], ['dawn', 'dusk'])
+                for row in rows:
+                    self.assertEqual(json.loads(row['roi_json']), roi)
+                    self.assertEqual(float(row['mean_kR']), pair['regions'][row['region']]['mean_kR'])
 
     def test_circularity_uses_full_contours_and_preserves_radiance(self):
         frame = next(f for f in self.catalogue.frames if f['channel']=='WFI')

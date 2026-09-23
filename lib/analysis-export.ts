@@ -1,8 +1,9 @@
 import type { Job } from './research';
+import { isPairedROI } from './research.ts';
 
 // Paired analyses use one explicitly labeled row per sector and frame.
 export function analysisCSV(result: Job) {
-  const paired = result.recipe.roi.kind === 'paired_sectors';
+  const paired = isPairedROI(result.recipe.roi);
   const columns = [
     'timestamp_utc',
     'channel',

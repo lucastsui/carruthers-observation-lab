@@ -26,6 +26,7 @@ import {
   roiLabel,
   downloadText,
   PAIRED_REGIONS,
+  isPairedROI,
 } from '@/lib/research';
 import type { Frame, ROI, Baseline } from '@/lib/research';
 import type { useAnalysis } from '@/hooks/use-analysis';
@@ -35,6 +36,7 @@ const REGION_SHAPES = [
   { kind: 'annulus', label: 'Annulus' },
   { kind: 'sector', label: 'Annular sector' },
   { kind: 'paired_sectors', label: 'Dawn + Dusk' },
+  { kind: 'paired_annular_sectors', label: 'Paired annular sectors' },
   { kind: 'rectangle', label: 'Rectangle' },
   { kind: 'point', label: 'Single pixel' },
 ] as const;
@@ -62,6 +64,9 @@ function RegionShapeIcon({ kind }: { kind: ROI['kind'] }) {
       )}
       {kind === 'paired_sectors' && (
         <path d="M12 12 L3 6 A11 11 0 0 0 3 18 Z M12 12 L21 6 A11 11 0 0 1 21 18 Z" />
+      )}
+      {kind === 'paired_annular_sectors' && (
+        <path d="M3 6 A11 11 0 0 0 3 18 L8 15 A5 5 0 0 1 8 9 Z M21 6 A11 11 0 0 1 21 18 L16 15 A5 5 0 0 0 16 9 Z" />
       )}
       {kind === 'rectangle' && (
         <rect x="3" y="5" width="18" height="14" rx="1" />
@@ -140,7 +145,24 @@ export function AnalysisControls({
                 const kind = REGION_SHAPES.find(
                   (shape) => shape.kind === values[0],
                 )?.kind;
-                if (kind && kind !== roi.kind) setROI({ ...roi, kind });
+                if (kind && kind !== roi.kind) {
+                  const next = { ...roi, kind };
+                  if (
+                    kind === 'paired_annular_sectors' &&
+                    (roi.kind === 'paired_sectors' || roiError(next))
+                  ) {
+                    next.angle_start = -22.5;
+                    next.angle_end = 22.5;
+                    if (
+                      roi.kind === 'paired_sectors' &&
+                      Number.isFinite(roi.angle_width)
+                    ) {
+                      next.angle_start = -roi.angle_width / 2;
+                      next.angle_end = roi.angle_width / 2;
+                    }
+                  }
+                  setROI(next);
+                }
               }}
             >
               {REGION_SHAPES.map(({ kind, label }) => (
@@ -169,9 +191,13 @@ export function AnalysisControls({
               ? 'Click to select a pixel.'
               : roi.kind === 'paired_sectors'
                 ? 'Drag an edge handle to set both angles. Pies extend to the image edges.'
-                : 'Drag to set the radii.'}
+                : roi.kind === 'paired_annular_sectors'
+                  ? 'Drag from upper-left to lower-right on one side to set a sector. The opposite side mirrors it. Drag a corner to resize.'
+                  : 'Drag to set the radii.'}
         </p>
-        {(roi.kind === 'annulus' || roi.kind === 'sector') && (
+        {(roi.kind === 'annulus' ||
+          roi.kind === 'sector' ||
+          roi.kind === 'paired_annular_sectors') && (
           <div className="pair">
             {numberField('inner', 'Inner · Rᴇ')}
             {numberField('outer', 'Outer · Rᴇ')}
@@ -194,13 +220,17 @@ export function AnalysisControls({
             </label>
           </>
         )}
-        {roi.kind === 'sector' && (
+        {(roi.kind === 'sector' || roi.kind === 'paired_annular_sectors') && (
           <>
             <div className="pair">
               {numberField('angle_start', 'Start · °', 1)}
               {numberField('angle_end', 'End · °', 1)}
             </div>
-            <p className="small muted">0° right; 90° up.</p>
+            <p className="small muted">
+              {roi.kind === 'paired_annular_sectors'
+                ? 'Angles describe the right side (−90° to 90°); the left is 180° opposite. 0° right; 90° up.'
+                : '0° right; 90° up.'}
+            </p>
           </>
         )}
         {roi.kind === 'rectangle' && (
@@ -521,7 +551,7 @@ export function AnalysisResults({
                 coverage: r.coverage,
               }))}
               series={
-                result.recipe.roi.kind === 'paired_sectors'
+                isPairedROI(result.recipe.roi)
                   ? PAIRED_REGIONS.map(({ id, label, color }) => ({
                       label,
                       color,
@@ -539,7 +569,7 @@ export function AnalysisResults({
               selected={frame?.epoch_ms}
               onSelect={onSelect}
               label={
-                result.recipe.roi.kind === 'paired_sectors'
+                isPairedROI(result.recipe.roi)
                   ? 'Dawn and Dusk brightness in kilo-Rayleighs versus reported observation time'
                   : 'Mean selected-region brightness in kilo-Rayleighs versus reported observation time'
               }

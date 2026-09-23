@@ -43,7 +43,13 @@ export function snapPointToPixel(
   };
 }
 export type ROI = {
-  kind: 'annulus' | 'sector' | 'paired_sectors' | 'rectangle' | 'point';
+  kind:
+    | 'annulus'
+    | 'sector'
+    | 'paired_sectors'
+    | 'paired_annular_sectors'
+    | 'rectangle'
+    | 'point';
   inner: number;
   outer: number;
   angle_start: number;
@@ -130,17 +136,87 @@ export const PAIRED_REGIONS = [
   { id: 'dawn', label: 'Dawn', center: 180, color: '#83dfca' },
   { id: 'dusk', label: 'Dusk', center: 0, color: '#eea5dd' },
 ] as const;
+export function isPairedROI(roi: Pick<ROI, 'kind'>) {
+  return roi.kind === 'paired_sectors' || roi.kind === 'paired_annular_sectors';
+}
 export function pairedSectors(roi: ROI) {
   return PAIRED_REGIONS.map((region) => ({
     ...region,
     roi: {
       ...roi,
       kind: 'sector' as const,
-      inner: 0,
-      angle_start: region.center - roi.angle_width / 2,
-      angle_end: region.center + roi.angle_width / 2,
+      inner: roi.kind === 'paired_annular_sectors' ? roi.inner : 0,
+      angle_start:
+        region.center +
+        (roi.kind === 'paired_annular_sectors'
+          ? roi.angle_start
+          : -roi.angle_width / 2),
+      angle_end:
+        region.center +
+        (roi.kind === 'paired_annular_sectors'
+          ? roi.angle_end
+          : roi.angle_width / 2),
     },
   }));
+}
+type RegionPoint = [number, number];
+function polarPoint(radius: number, angle: number): RegionPoint {
+  return [
+    radius * Math.cos((angle * Math.PI) / 180),
+    radius * Math.sin((angle * Math.PI) / 180),
+  ];
+}
+// Store angles on the right side; a drag on the left is rotated by 180°.
+export function pairedAnnularFromDrag(a: RegionPoint, b: RegionPoint) {
+  if (![...a, ...b].every(Number.isFinite) || a[0] * b[0] < 0) return null;
+  const side = a[0] < 0 || b[0] < 0 ? -1 : 1;
+  const angles = [a, b].map(
+    ([x, y]) => (Math.atan2(side * y, side * x) * 180) / Math.PI,
+  );
+  const radii = [Math.hypot(...a), Math.hypot(...b)];
+  const round = (n: number) => Math.round(n * 100) / 100;
+  const bounds = {
+    inner: round(Math.min(...radii)),
+    outer: round(Math.max(...radii)),
+    angle_start: round(Math.min(...angles)),
+    angle_end: round(Math.max(...angles)),
+  };
+  if (
+    Math.min(...radii) === 0 ||
+    roiError({ ...DEFAULT_ROI, kind: 'paired_annular_sectors', ...bounds })
+  )
+    return null;
+  return bounds;
+}
+export function pairedAnnularCorners(roi: ROI) {
+  return pairedSectors(roi).flatMap(({ id, roi: sector }) =>
+    [sector.inner, sector.outer].flatMap((radius, ri) =>
+      [sector.angle_start, sector.angle_end].map((angle, ai) => ({
+        id,
+        point: polarPoint(radius, angle),
+        anchor: polarPoint(
+          [sector.outer, sector.inner][ri],
+          [sector.angle_end, sector.angle_start][ai],
+        ),
+      })),
+    ),
+  );
+}
+export function pairedAnnularDragAnchor(
+  roi: ROI,
+  point: RegionPoint,
+  tolerance: number,
+): RegionPoint {
+  const nearest = pairedAnnularCorners(roi)
+    .map((corner) => ({
+      ...corner,
+      distance: Math.hypot(
+        corner.point[0] - point[0],
+        corner.point[1] - point[1],
+      ),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0];
+  return nearest.distance <= tolerance ? nearest.anchor : point;
 }
 // Both wedges stay centered on the image's dawn/dusk axes.
 export function pairedOpeningAngle(x: number, y: number) {
@@ -229,6 +305,8 @@ export function roiLabel(roi: ROI) {
   if (roi.kind === 'annulus') return `${roi.inner}–${roi.outer} Rᴇ annulus`;
   if (roi.kind === 'paired_sectors')
     return `Dawn + Dusk · full image · ${roi.angle_width}° each`;
+  if (roi.kind === 'paired_annular_sectors')
+    return `Dawn + Dusk · ${roi.inner}–${roi.outer} Rᴇ · ${roi.angle_start}–${roi.angle_end}° on right`;
   if (roi.kind === 'sector')
     return `${roi.inner}–${roi.outer} Rᴇ, ${roi.angle_start}–${roi.angle_end}° sector`;
   if (roi.kind === 'point') return `Point (${roi.x}, ${roi.y}) Rᴇ`;
@@ -242,13 +320,15 @@ export function roiError(roi: ROI): string | null {
         ? ['x1', 'x2', 'y1', 'y2']
         : roi.kind === 'paired_sectors'
           ? ['angle_width']
-          : roi.kind === 'sector'
+          : roi.kind === 'sector' || roi.kind === 'paired_annular_sectors'
             ? ['inner', 'outer', 'angle_start', 'angle_end']
             : ['inner', 'outer'];
   if (keys.some((k) => !Number.isFinite(roi[k as keyof ROI])))
     return 'Enter valid numbers for the selection.';
   if (
-    (roi.kind === 'annulus' || roi.kind === 'sector') &&
+    (roi.kind === 'annulus' ||
+      roi.kind === 'sector' ||
+      roi.kind === 'paired_annular_sectors') &&
     !(roi.inner >= 0 && roi.outer > roi.inner && roi.outer <= 100)
   )
     return 'Outer radius must exceed inner radius (0–100 Rᴇ).';
@@ -259,6 +339,15 @@ export function roiError(roi: ROI): string | null {
     !(roi.angle_end > roi.angle_start && roi.angle_end - roi.angle_start <= 360)
   )
     return 'Sector must span more than 0° and at most 360°.';
+  if (
+    roi.kind === 'paired_annular_sectors' &&
+    !(
+      roi.angle_start >= -90 &&
+      roi.angle_end <= 90 &&
+      roi.angle_start < roi.angle_end
+    )
+  )
+    return 'Right-side angles must satisfy −90° ≤ start < end ≤ 90°.';
   if (
     roi.kind === 'paired_sectors' &&
     !(roi.angle_width >= 1 && roi.angle_width <= 180)
@@ -274,7 +363,7 @@ export function activeROI(roi: ROI) {
         ? ['x1', 'x2', 'y1', 'y2']
         : roi.kind === 'paired_sectors'
           ? ['angle_width']
-          : roi.kind === 'sector'
+          : roi.kind === 'sector' || roi.kind === 'paired_annular_sectors'
             ? ['inner', 'outer', 'angle_start', 'angle_end']
             : ['inner', 'outer'];
   return Object.fromEntries(

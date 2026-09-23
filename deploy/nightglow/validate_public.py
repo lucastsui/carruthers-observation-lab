@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Verify public Funnel access through public DNS, bypassing the caller's tailnet."""
+import csv
+import io
 import ipaddress
 import json
 from pathlib import Path
@@ -83,6 +85,30 @@ def main():
                 raise RuntimeError('JSON export changed the analysis')
             request('/api/jobs?id=' + job['id'], expected=404, visitor=str(Path(directory) / 'other'))
             checks.append(camera + ' image, contours, analysis, exports and visitor privacy')
+            roi = dict(kind='paired_annular_sectors', inner=3, outer=6, angle_start=-35, angle_end=20)
+            job = request('/api/jobs', dict(frame_ids=ids, roi=roi, exclude_interpolated=True))
+            for _ in range(180):
+                result = request('/api/jobs?id=' + job['id'] + '&rows=1')
+                if result['status'] in ('complete', 'error', 'cancelled'):
+                    break
+                time.sleep(1)
+            if result['status'] != 'complete' or len(result['rows']) != 2 or result['recipe']['roi'] != roi:
+                raise RuntimeError('Paired annular analysis or recipe failed')
+            exported = request('/api/export?id=' + job['id'] + '&format=json')
+            if exported['rows'] != result['rows'] or exported['recipe']['roi'] != roi:
+                raise RuntimeError('Paired annular JSON changed the result or recipe')
+            rows = list(csv.DictReader(io.StringIO(request('/api/export?id=' + job['id'], raw=True).decode())))
+            if len(rows) != 4:
+                raise RuntimeError('Paired annular CSV must have two rows per frame')
+            for i, row in enumerate(rows):
+                region = ('dawn', 'dusk')[i % 2]
+                stats = result['rows'][i // 2]['regions'][region]
+                if (row['region'] != region or json.loads(row['roi_json']) != roi
+                        or float(row['mean_kR']) != stats['mean_kR']
+                        or int(row['valid_pixels']) != stats['valid_pixels']):
+                    raise RuntimeError('Paired annular CSV differs from measured values')
+            request('/api/jobs?id=' + job['id'], expected=404, visitor=str(Path(directory) / 'other'))
+            checks.append(camera + ' paired annular analysis, CSV/JSON recipe and visitor privacy')
         for kind in ('dst', 'lyman'):
             series = request('/api/context?kind=' + kind + '&start=2026-03-15&end=2026-03-15')
             if series['status'] != 'available':

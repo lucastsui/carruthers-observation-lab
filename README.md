@@ -213,8 +213,9 @@ is listed separately under known gaps.
 | Image navigation | Provide previous/next controls, a frame slider, playback with adjustable frames per second, keyboard/wheel navigation when the viewer is focused, and 1×/2×/4× zoom. Retain the displayed image until its replacement is decoded, then swap pixels, image geometry, time label and brightness scale together in both 2D and 3D. Preload adjacent frames with a bounded decoded-image cache; ignore stale loads during scrubbing. Show observation time, exposure and frame flags. |
 | Brightness display | Use the visible term brightness, in kR. Render logarithmic `gist_heat` images with adjustable minimum/maximum handles, labeled ticks and camera-specific reset: WFI 0.001–270 kR; NFI 0.1–270 kR. The slider permits a minimum of 0.0001 kR for faint outer emission. Display changes must not change numeric measurements. |
 | Overlays | Offer brightness contours, projected-radius contours, or no contours; retain the blue 1 Earth-radius reference boundary. Brightness contours use the original numeric arrays and the selected validity mask. |
-| Region selection | Support annulus, annular sector, rectangle, single pixel and Dawn + Dusk. Allow image dragging and numeric controls. Use projected Earth radii, x right and y up; angles begin at image right and increase toward image top. |
+| Region selection | Support annulus, annular sector, rectangle, single pixel, Dawn + Dusk and Paired annular sectors. Allow image dragging and numeric controls. Use projected Earth radii, x right and y up; angles begin at image right and increase toward image top. |
 | Paired dawn/dusk regions | Select two filled pies extending from Earth to the raster edges, centered at 180°/0°. A shared 1–180° opening angle controls both, including through edge dragging. Calculate and label separate Dawn/Dusk curves; CSV has two labeled rows per frame, and JSON retains both regions and the shared recipe. |
+| Paired annular sectors | Drag two diagonal corners on either image side to set inner/outer radii and angular bounds. Mirror the other sector by a 180° rotation about Earth; corner handles resize both. Numeric angles describe the right sector (−90° to 90°). Keep separate Dawn/Dusk measurements, curves and CSV rows; save/export all four bounds. |
 | Current-frame measurements | Refresh the selected-region statistics and full-annulus radial profile automatically when playback is paused. The radial profile is independent of the selected region and offers CSV export with bin bounds and valid-pixel coverage. |
 | Time-series analysis | Start explicitly with Analyze at the top-right of the image. Show progress, cancellation and retry. Region, camera, interval or interpolation-mask changes invalidate/cancel outdated work and hide stale results/exports. Scrubbing frames must not rerun a time series. Clicking a plotted observation selects its frame. |
 | Baseline | Show a constant first-frame valid-FOV mean for the chosen camera, interval and interpolation mask. It is independent of the selected region and does not change while scrubbing. Include its value and source frame in exports. |
@@ -257,7 +258,12 @@ is listed separately under known gaps.
   `image_uncertainty` needs scientific validation before use as error bars.
 - Dawn/dusk labels follow image left/right, not an attitude-derived magnetic
   local-time transformation. At a 180° paired opening, the regions partition the
-  full raster without overlap or boundary gaps.
+  full raster without overlap or boundary gaps. Paired annular sectors apply
+  shared lower-inclusive/upper-exclusive radial bounds and right-side angular
+  bounds, with the left sector rotated 180°. At a 180° opening they partition
+  that annulus. Finite negative values and the normal FOV/interpolation masks
+  apply separately to both sides. Method `carruthers-local-1.3` adds this mode;
+  top-level statistics describe the union, and `regions` holds each side.
 - Circularity departure is `100 * circle-fit RMS residual / fitted radius` on
   the unique closed high-brightness contour enclosing Earth. Fit a free center
   after sampling 512 equal arc-length positions, without smoothing. Bands span

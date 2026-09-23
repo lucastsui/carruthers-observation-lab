@@ -1,5 +1,11 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Info } from 'lucide-react';
 import {
   Popover,
@@ -15,6 +21,10 @@ import {
   snapPointToPixel,
   pairedSectors,
   pairedOpeningAngle,
+  isPairedROI,
+  pairedAnnularFromDrag,
+  pairedAnnularCorners,
+  pairedAnnularDragAnchor,
 } from '@/lib/research';
 
 import { radianceTicks, radianceLabel } from '@/lib/display';
@@ -77,9 +87,7 @@ export function ObservationViewer({
   const canvas = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState<[number, number] | null>(null);
-  const drag = useRef<{ origin: [number, number]; angle: boolean } | null>(
-      null,
-    ),
+  const drag = useRef<{ origin: [number, number] } | null>(null),
     lastWheel = useRef(0);
   const loaded = !!image;
   const size = frame.shape[1],
@@ -134,7 +142,10 @@ export function ObservationViewer({
     )
       return;
     const round = (x: number) => Math.round(x * 100) / 100;
-    if (roi.kind === 'rectangle')
+    if (roi.kind === 'paired_annular_sectors') {
+      const bounds = pairedAnnularFromDrag(a, b);
+      if (bounds) onROI({ ...roi, ...bounds });
+    } else if (roi.kind === 'rectangle')
       onROI({
         ...roi,
         x1: round(Math.min(a[0], b[0])),
@@ -204,14 +215,22 @@ export function ObservationViewer({
         Math.max(Math.abs(cy + 0.5), Math.abs(frame.shape[0] - cy - 0.5)),
       )) /
     p;
+  // Keep paired handles and labels the same visible size for both camera rasters.
+  const pairedMarkScale = span / 512;
   const paired =
-    validROI && roi.kind === 'paired_sectors'
-      ? pairedSectors({ ...roi, outer: fullRadius })
+    validROI && isPairedROI(roi)
+      ? pairedSectors(
+          roi.kind === 'paired_sectors' ? { ...roi, outer: fullRadius } : roi,
+        )
+      : [];
+  const corners =
+    validROI && roi.kind === 'paired_annular_sectors'
+      ? pairedAnnularCorners(roi)
       : [];
   function edgePoint(degrees: number, inset = 0) {
     const dx = Math.cos((degrees * Math.PI) / 180),
       dy = -Math.sin((degrees * Math.PI) / 180);
-    const pad = inset / zoom;
+    const pad = inset * pairedMarkScale;
     const tx =
       Math.abs(dx) < 1e-10
         ? Infinity
@@ -258,8 +277,16 @@ export function ObservationViewer({
             e.currentTarget.setPointerCapture(e.pointerId);
             const origin = position(e);
             drag.current = {
-              origin,
-              angle: roi.kind === 'paired_sectors',
+              origin:
+                roi.kind === 'paired_annular_sectors' && validROI
+                  ? pairedAnnularDragAnchor(
+                      roi,
+                      origin,
+                      (10 * span) /
+                        e.currentTarget.getBoundingClientRect().width /
+                        p,
+                    )
+                  : origin,
             };
             if (roi.kind === 'point') update(origin, origin);
           }}
@@ -408,34 +435,70 @@ export function ObservationViewer({
                   data-region={id}
                   stroke={color}
                   fill={color}
-                  strokeWidth={1.5 / zoom}
+                  strokeWidth={1.5 * pairedMarkScale}
                 >
                   <path
                     d={sectorPath(
                       sector.angle_start,
                       sector.angle_end,
-                      0,
-                      fullRadius,
+                      sector.inner,
+                      sector.outer,
                     )}
                     fillOpacity=".15"
                   />
-                  {[sector.angle_start, sector.angle_end].map((angle) => (
-                    <circle
-                      key={angle}
-                      cx={edgePoint(angle, 7)[0]}
-                      cy={edgePoint(angle, 7)[1]}
-                      r={5 / zoom}
-                      fill="#101e27"
-                      strokeWidth={2 / zoom}
-                    />
-                  ))}
+                  {roi.kind === 'paired_sectors' &&
+                    [sector.angle_start, sector.angle_end].map((angle) => (
+                      <circle
+                        key={angle}
+                        cx={edgePoint(angle, 7)[0]}
+                        cy={edgePoint(angle, 7)[1]}
+                        r={5 * pairedMarkScale}
+                        fill="#101e27"
+                        strokeWidth={2 * pairedMarkScale}
+                      />
+                    ))}
+                  {corners
+                    .filter((corner) => corner.id === id)
+                    .map(({ point }, i) => (
+                      <circle
+                        key={i}
+                        data-corner={i}
+                        cx={vx(point[0])}
+                        cy={vy(point[1])}
+                        r={5 * pairedMarkScale}
+                        fill="#101e27"
+                        strokeWidth={2 * pairedMarkScale}
+                      />
+                    ))}
                   <text
-                    x={edgePoint(center, 32)[0]}
-                    y={cy + 0.5 - 7 / zoom}
+                    x={
+                      roi.kind === 'paired_sectors'
+                        ? edgePoint(center, 32)[0]
+                        : vx(
+                            ((sector.inner + sector.outer) / 2) *
+                              Math.cos(
+                                (((sector.angle_start + sector.angle_end) / 2) *
+                                  Math.PI) /
+                                  180,
+                              ),
+                          )
+                    }
+                    y={
+                      roi.kind === 'paired_sectors'
+                        ? cy + 0.5 - 7 * pairedMarkScale
+                        : vy(
+                            ((sector.inner + sector.outer) / 2) *
+                              Math.sin(
+                                (((sector.angle_start + sector.angle_end) / 2) *
+                                  Math.PI) /
+                                  180,
+                              ),
+                          )
+                    }
                     textAnchor="middle"
-                    fontSize={12 / zoom}
+                    fontSize={12 * pairedMarkScale}
                     stroke="#080e15"
-                    strokeWidth={3 / zoom}
+                    strokeWidth={3 * pairedMarkScale}
                     paintOrder="stroke"
                   >
                     {label}
@@ -455,7 +518,9 @@ export function ObservationViewer({
         </div>
         <div className="image-orientation">
           <div className="north-indicator">
-            <span className="north-arrow" aria-hidden="true">↑</span>
+            <span className="north-arrow" aria-hidden="true">
+              ↑
+            </span>
             <Popover>
               <PopoverTrigger
                 className="north-info"
@@ -472,15 +537,15 @@ export function ObservationViewer({
                 </PopoverDescription>
                 <p>
                   Section 8 of the Carruthers calibration paper specifies that
-                  registered images place projected ecliptic north upward, toward
-                  decreasing row numbers. CEDA preserves this row order.
+                  registered images place projected ecliptic north upward,
+                  toward decreasing row numbers. CEDA preserves this row order.
                 </p>
                 <p>
                   The NetCDF headers provide camera and spacecraft attitudes,
                   but do not explicitly label the image “north up.” This arrow
                   marks the documented registration convention: our geometry
-                  check of all 1,794 March 2026 frames found differences of up to
-                  2.2° from vertical, so exact alignment remains unverified.
+                  check of all 1,794 March 2026 frames found differences of up
+                  to 2.2° from vertical, so exact alignment remains unverified.
                 </p>
                 <a
                   href="https://arxiv.org/html/2606.21606v1#S8"
