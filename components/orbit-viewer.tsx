@@ -176,7 +176,7 @@ export function OrbitViewer({
     const group = new THREE.Group();
     scene.add(group);
     const satellite = createSpacecraftModel();
-    satellite.scale.setScalar(8); // Enlarged schematic glyph, independent of orbit distance scale.
+    satellite.scale.setScalar(1); // Eight times smaller than the original schematic glyph.
     satellite.visible = false;
     scene.add(satellite);
     runtime.current = { scene, camera, renderer, controls, group, satellite };
@@ -487,12 +487,12 @@ export function OrbitViewer({
     if (!r || !r.satellite.visible) return;
     spacecraftFocused.current = true;
     const center = new THREE.Vector3(0, 0.18, 0)
-      .multiplyScalar(8)
+      .multiply(r.satellite.scale)
       .applyQuaternion(r.satellite.quaternion)
       .add(r.satellite.position);
     const offset = new THREE.Vector3(2.3, 1.6, -2.8)
       .normalize()
-      .multiplyScalar(27)
+      .multiplyScalar(Math.max(r.controls.minDistance, 27 * r.satellite.scale.x / 8))
       .applyQuaternion(r.satellite.quaternion);
     r.controls.target.copy(center);
     r.camera.position.copy(center).add(offset);

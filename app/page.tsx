@@ -18,7 +18,7 @@ import {
   AnalysisResults,
 } from '@/components/analysis-controls';
 import { OrbitViewer } from '@/components/orbit-viewer';
-import { MAX_LOG_R } from '@/lib/display';
+import { DEFAULT_WFI_LOG_R, MAX_LOG_R } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
 import { useBaseline } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
@@ -42,8 +42,8 @@ export default function Home() {
     [contours, setContours] = useState<ContourMode>('radiance'),
     [viewerMode, setViewerMode] = useState('image'),
     [zoom, setZoom] = useState('1');
-  const [scale, setScale] = useState<[number, number]>([1, MAX_LOG_R]),
-    [draftScale, setDraftScale] = useState<[number, number]>([1, MAX_LOG_R]);
+  const [scale, setScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]),
+    [draftScale, setDraftScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]);
   const [exclude, setExclude] = useState(true);
   const [compactPanel, setCompactPanel] = useState('viewer');
   const preferredTime = useRef<number | null>(null);
@@ -119,7 +119,7 @@ export default function Home() {
   const changeCamera = (value: Channel) => {
     setChannel(value);
     const next =
-      catalogue?.scales[value] || ([1, MAX_LOG_R] as [number, number]);
+      catalogue?.scales[value] || ([DEFAULT_WFI_LOG_R, MAX_LOG_R] as [number, number]);
     setScale(next);
     setDraftScale(next);
   };

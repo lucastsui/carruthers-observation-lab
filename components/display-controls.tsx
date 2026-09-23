@@ -1,5 +1,5 @@
 'use client';
-import { MAX_LOG_R, radianceLabel, radianceTicks } from '@/lib/display';
+import { MIN_LOG_R, MAX_LOG_R, radianceLabel, radianceTicks } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -34,7 +34,7 @@ export function DisplayControls({
       !Array.isArray(value) ||
       value.length !== 2 ||
       !value.every(Number.isFinite) ||
-      value[0] < 1 ||
+      value[0] < MIN_LOG_R ||
       value[1] > MAX_LOG_R + 1e-8 ||
       value[0] >= value[1]
     )
@@ -101,22 +101,23 @@ export function DisplayControls({
       <Slider
         className="brightness-slider"
         aria-labelledby="brightness-scale-label"
-        min={1}
+        min={MIN_LOG_R}
         max={MAX_LOG_R}
         step={0.01}
         largeStep={1}
         minStepsBetweenValues={2}
         thumbCollisionBehavior="none"
+        thumbAlignment="center"
         value={scale}
         onValueChange={(v) => update(v)}
         onValueCommitted={(v) => update(v, true)}
         format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
       />
       <div className="slider-scale-ticks" aria-hidden="true">
-        {radianceTicks(1, MAX_LOG_R)
+        {radianceTicks(MIN_LOG_R, MAX_LOG_R)
           .filter(
             (t) =>
-              [0.01, 0.1, 1, 10].some((v) => Math.abs(v - t.value) < 1e-8) ||
+              [0.0001, 0.1, 10].some((v) => Math.abs(v - t.value) < 1e-8) ||
               t.fraction === 1,
           )
           .map((t) => (

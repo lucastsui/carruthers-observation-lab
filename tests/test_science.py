@@ -199,7 +199,7 @@ class RealDataRegressionTests(unittest.TestCase):
             before = measure_frame(self.catalogue, frame['id'], roi, profile=True)
             png = self.catalogue.preview(frame['id'], *scale)
             self.assertEqual(Image.open(io.BytesIO(png)).size, (size, size))
-            alternate = self.catalogue.preview(frame['id'], 0., 3.)
+            alternate = self.catalogue.preview(frame['id'], -1., 3.)
             self.assertNotEqual(png, alternate)
             after = measure_frame(self.catalogue, frame['id'], roi)
             self.assertEqual(before['mean_kR'], after['mean_kR'])

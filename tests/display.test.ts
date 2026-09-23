@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  MIN_LOG_R,
+  radianceLabel,
   MAX_LOG_R,
   radianceTicks,
   DAWN_SECTOR,
@@ -8,7 +10,9 @@ import {
 } from '../lib/display.ts';
 import { sunAligned } from '../lib/orbit.ts';
 void test('radiance ticks span exactly 270 kR and decades have equal spacing', () => {
-  const ticks = radianceTicks(1, MAX_LOG_R);
+  const ticks = radianceTicks(MIN_LOG_R, MAX_LOG_R);
+  assert.equal(ticks[0].value, 0.0001);
+  assert.equal(radianceLabel(ticks[0].value), '0.0001');
   assert.ok(Math.abs(ticks.at(-1)!.value - 270) < 1e-9);
   const at = (v: number) =>
     ticks.find((t) => Math.abs(t.value - v) < 1e-9)!.fraction;

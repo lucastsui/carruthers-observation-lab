@@ -1,3 +1,5 @@
+export const MIN_LOG_R = -1; // 0.0001 kR; allow inspection of faint positive emission.
+export const DEFAULT_WFI_LOG_R = 0; // 0.001 kR.
 export const MAX_RADIANCE_KR = 270;
 export const MAX_LOG_R = Math.log10(MAX_RADIANCE_KR * 1000);
 export type ContourMode = 'radiance' | 're' | 'none';

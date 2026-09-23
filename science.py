@@ -19,7 +19,7 @@ from PIL import Image
 
 RE_KM = 6370.0
 METHOD_VERSION = 'carruthers-local-1.2'
-SCALES = {'WFI': [1.0, math.log10(270000)], 'NFI': [3.0, math.log10(270000)]}  # log10(R); 270 kR display ceiling.
+SCALES = {'WFI': [0.0, math.log10(270000)], 'NFI': [2.0, math.log10(270000)]}  # log10(R); defaults 0.001/0.1 kR to 270 kR.
 NETCDF_LOCK = threading.RLock()  # netCDF/HDF5 libraries are not thread-safe.
 GEOMETRY_NAMES = ['spacecraft_position', 'spacecraft_attitude', 'cam_attitude',
                   'cam_focal_length', 'cam_ctr', 'cam_skew']
