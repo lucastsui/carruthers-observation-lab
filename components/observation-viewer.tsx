@@ -215,8 +215,8 @@ export function ObservationViewer({
         Math.max(Math.abs(cy + 0.5), Math.abs(frame.shape[0] - cy - 0.5)),
       )) /
     p;
-  // Keep paired handles and labels the same visible size for both camera rasters.
-  const pairedMarkScale = span / 512;
+  // Keep overlay labels and handles the same visible size for both camera rasters.
+  const overlayScale = span / 512;
   const paired =
     validROI && isPairedROI(roi)
       ? pairedSectors(
@@ -230,7 +230,7 @@ export function ObservationViewer({
   function edgePoint(degrees: number, inset = 0) {
     const dx = Math.cos((degrees * Math.PI) / 180),
       dy = -Math.sin((degrees * Math.PI) / 180);
-    const pad = inset * pairedMarkScale;
+    const pad = inset * overlayScale;
     const tx =
       Math.abs(dx) < 1e-10
         ? Infinity
@@ -382,9 +382,10 @@ export function ObservationViewer({
                               y={y}
                               fill="#ffe5a4"
                               stroke="#0a111b"
-                              strokeWidth={2 / zoom}
+                              strokeWidth={3 * overlayScale}
                               paintOrder="stroke"
-                              fontSize={10 / zoom}
+                              fontSize={16 * overlayScale}
+                              fontWeight={600}
                             >
                               {level.level_kR} kR
                             </text>
@@ -435,7 +436,7 @@ export function ObservationViewer({
                   data-region={id}
                   stroke={color}
                   fill={color}
-                  strokeWidth={1.5 * pairedMarkScale}
+                  strokeWidth={1.5 * overlayScale}
                 >
                   <path
                     d={sectorPath(
@@ -452,9 +453,9 @@ export function ObservationViewer({
                         key={angle}
                         cx={edgePoint(angle, 7)[0]}
                         cy={edgePoint(angle, 7)[1]}
-                        r={5 * pairedMarkScale}
+                        r={5 * overlayScale}
                         fill="#101e27"
-                        strokeWidth={2 * pairedMarkScale}
+                        strokeWidth={2 * overlayScale}
                       />
                     ))}
                   {corners
@@ -465,9 +466,9 @@ export function ObservationViewer({
                         data-corner={i}
                         cx={vx(point[0])}
                         cy={vy(point[1])}
-                        r={5 * pairedMarkScale}
+                        r={5 * overlayScale}
                         fill="#101e27"
-                        strokeWidth={2 * pairedMarkScale}
+                        strokeWidth={2 * overlayScale}
                       />
                     ))}
                   <text
@@ -485,7 +486,7 @@ export function ObservationViewer({
                     }
                     y={
                       roi.kind === 'paired_sectors'
-                        ? cy + 0.5 - 7 * pairedMarkScale
+                        ? cy + 0.5 - 7 * overlayScale
                         : vy(
                             ((sector.inner + sector.outer) / 2) *
                               Math.sin(
@@ -496,9 +497,9 @@ export function ObservationViewer({
                           )
                     }
                     textAnchor="middle"
-                    fontSize={12 * pairedMarkScale}
+                    fontSize={12 * overlayScale}
                     stroke="#080e15"
-                    strokeWidth={3 * pairedMarkScale}
+                    strokeWidth={3 * overlayScale}
                     paintOrder="stroke"
                   >
                     {label}
