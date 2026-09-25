@@ -24,7 +24,7 @@ import { useBaseline } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
 import { useWorkspaceTools } from '@/hooks/use-workspace-tools';
 import { useFramePreview } from '@/hooks/use-frame-preview';
-import { previewImages } from '@/lib/preview-images';
+import { previewImages, previewWindowIndices } from '@/lib/preview-images';
 import { api, DEFAULT_ROI, previewURL, roiError } from '@/lib/research';
 import type { Catalogue, Channel, ROI, Recipe } from '@/lib/research';
 
@@ -97,17 +97,21 @@ export default function Home() {
       return () => clearTimeout(t);
     }
   }, [playing, frame, ready, frames.length, fps, previewPending]);
+  const previewWindow = useMemo(
+    () => previewWindowIndices(frames.length, index).map((i) => previewURL(frames[i], scale)),
+    [frames, index, scale],
+  );
   useEffect(() => {
-    if (!frame || previewPending) return;
-    const timer = setTimeout(() => {
-      for (const offset of [1, -1]) {
-        const adjacent = frames[(index + offset + frames.length) % frames.length];
-        if (adjacent && adjacent.id !== frame.id)
-          void previewImages.get(previewURL(adjacent, scale)).catch(() => {});
-      }
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [frame, frames, index, scale, previewPending]);
+    previewImages.setPreloadWindow(previewWindow, false);
+    // Let the selected frame decode first and debounce rapid scrubbing.
+    const timer = previewPending ? undefined : setTimeout(() => {
+      previewImages.setPreloadWindow(previewWindow);
+    }, 75);
+    return () => {
+      clearTimeout(timer);
+      previewImages.setPreloadWindow([]);
+    };
+  }, [previewWindow, previewPending]);
   const step = useCallback(
     (n: number) => {
       setPlaying(false);

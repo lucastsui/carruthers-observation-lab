@@ -1,9 +1,140 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PreviewImageCache } from '../lib/preview-images.ts';
+import { PreviewImageCache, previewWindowIndices } from '../lib/preview-images.ts';
 import { loadedFrameRanges } from '../lib/loaded-frame-ranges.ts';
 
 const image = (src: string) => ({ src }) as HTMLImageElement;
+const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+function controlledCache(capacity = 12) {
+  const calls: string[] = [];
+  const pending = new Map<string, {
+    resolve: (value: HTMLImageElement) => void;
+    reject: (error: Error) => void;
+  }>();
+  const cache = new PreviewImageCache((url) => {
+    calls.push(url);
+    return new Promise((resolve, reject) => { pending.set(url, { resolve, reject }); });
+  }, capacity);
+  return {
+    cache, calls,
+    finish: (url: string) => pending.get(url)!.resolve(image(url)),
+    fail: (url: string) => pending.get(url)!.reject(new Error('network')),
+  };
+}
+
+void test('the preload window includes five frames on each side, nearest first, without wrapping', () => {
+  assert.deepEqual(previewWindowIndices(20, 10), [10, 11, 9, 12, 8, 13, 7, 14, 6, 15, 5]);
+  assert.deepEqual(previewWindowIndices(20, 0), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(previewWindowIndices(20, 19), [19, 18, 17, 16, 15, 14]);
+  assert.deepEqual(previewWindowIndices(3, 1), [1, 2, 0]);
+  assert.deepEqual(previewWindowIndices(3, 20), [2, 1, 0]);
+  assert.deepEqual(previewWindowIndices(3, -1), [0, 1, 2]);
+  assert.deepEqual(previewWindowIndices(1, 0), [0]);
+  assert.deepEqual(previewWindowIndices(0, 0), []);
+});
+
+void test('jumping replaces queued work, keeps at most two background requests, and prioritizes selection', async () => {
+  const { cache, calls, finish } = controlledCache();
+  cache.setPreloadWindow(['a0', 'a1', 'a2', 'a3']);
+  assert.deepEqual(calls, ['a1', 'a2']);
+  cache.setPreloadWindow(['b0', 'b1', 'b2']);
+  cache.setPreloadWindow(['c0', 'c1', 'c2', 'c3'], false);
+  const selected = cache.get('c0');
+  assert.deepEqual(calls, ['a1', 'a2', 'c0']);
+  finish('a1');
+  await settle();
+  assert.deepEqual(calls, ['a1', 'a2', 'c0']); // Still waiting for the selected image.
+  finish('c0');
+  await selected;
+  cache.setPreloadWindow(['c0', 'c1', 'c2', 'c3']);
+  assert.deepEqual(calls, ['a1', 'a2', 'c0', 'c1']); // Old a2 still occupies one slot.
+  cache.setPreloadWindow(['c0', 'c1', 'c2', 'c3']);
+  finish('a2');
+  await settle();
+  assert.deepEqual(calls, ['a1', 'a2', 'c0', 'c1', 'c2']);
+  finish('c1');
+  await settle();
+  assert.deepEqual(calls, ['a1', 'a2', 'c0', 'c1', 'c2', 'c3']);
+  cache.setPreloadWindow([]); // Unmount/cleanup drops the queue.
+  finish('c2');
+  finish('c3');
+  await settle();
+});
+
+void test('the decoded buffer moves forward and backward and rebuilds for a different camera or scale', async () => {
+  const calls: string[] = [];
+  const cache = new PreviewImageCache(async (url) => {
+    calls.push(url);
+    return image(url);
+  });
+  const move = async (index: number, camera = 'WFI', low = 1) => {
+    const urls = previewWindowIndices(40, index).map((i) => `${camera}/${i}?low=${low}`);
+    cache.setPreloadWindow(urls, false);
+    await cache.get(urls[0]);
+    cache.setPreloadWindow(urls);
+    await settle();
+    assert.ok(urls.every((url) => cache.getSnapshot().has(url)));
+    assert.ok(cache.getSnapshot().size <= 12);
+    return urls;
+  };
+  await move(10);
+  assert.equal(calls.length, 11);
+  await move(11);
+  assert.equal(calls.length, 12); // Only the newly exposed forward edge is requested.
+  await move(10);
+  assert.equal(calls.length, 12); // Recent past is already ready.
+  await move(25);
+  await move(25, 'NFI');
+  await move(25, 'NFI', 2);
+  const urls = await move(0, 'NFI', 2);
+  assert.equal(urls.length, 6);
+});
+
+void test('late loads from an old window cannot evict decoded frames in the current window', async () => {
+  const { cache, finish } = controlledCache(3);
+  cache.setPreloadWindow(['old-current', 'old-next', 'old-previous']);
+  const urls = ['new-current', 'new-next', 'new-previous'];
+  cache.setPreloadWindow(urls, false);
+  for (const url of urls) {
+    const request = cache.get(url);
+    finish(url);
+    await request;
+  }
+  const snapshot = cache.getSnapshot();
+  finish('old-next');
+  finish('old-previous');
+  await settle();
+  assert.equal(cache.getSnapshot(), snapshot);
+  assert.deepEqual([...snapshot], urls);
+});
+
+void test('a failed background frame leaves a gap, continues loading, and retries on a later window', async () => {
+  const { cache, calls, finish, fail } = controlledCache();
+  cache.setPreloadWindow(['current', 'bad', 'good', 'later']);
+  fail('bad');
+  await settle();
+  assert.deepEqual(calls, ['bad', 'good', 'later']);
+  finish('good');
+  finish('later');
+  await settle();
+  assert.deepEqual([...cache.getSnapshot()], ['good', 'later']);
+  cache.setPreloadWindow(['current', 'bad', 'good', 'later']);
+  assert.deepEqual(calls, ['bad', 'good', 'later', 'bad']);
+  finish('bad');
+  await settle();
+  assert.ok(cache.getSnapshot().has('bad'));
+});
+
+void test('clearing a window prevents completed background work from starting more requests', async () => {
+  const { cache, calls, finish } = controlledCache();
+  cache.setPreloadWindow(['current', 'next', 'previous', 'queued']);
+  cache.setPreloadWindow([]);
+  finish('next');
+  finish('previous');
+  await settle();
+  assert.deepEqual(calls, ['next', 'previous']);
+});
 
 void test('loaded markers follow decode completion, eviction and exact brightness URLs', async () => {
   const finishes = new Map<string, (value: HTMLImageElement) => void>();
