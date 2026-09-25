@@ -13,11 +13,11 @@ export function previewWindowIndices(count: number, index: number): number[] {
   return indices;
 }
 
-/** Share decoded images between the viewer and a moving, bounded preload window. */
-export class PreviewImageCache {
-  private images = new Map<string, HTMLImageElement>();
-  private pending = new Map<string, Promise<HTMLImageElement>>();
-  private load: (url: string) => Promise<HTMLImageElement>;
+/** Share complete preview assets between the viewer and a bounded preload window. */
+export class PreviewCache<T> {
+  private entries = new Map<string, T>();
+  private pending = new Map<string, Promise<T>>();
+  private load: (url: string) => Promise<T>;
   private capacity: number;
   private listeners = new Set<() => void>();
   private snapshot: ReadonlySet<string> = new Set();
@@ -27,7 +27,7 @@ export class PreviewImageCache {
   private preloadTimer: ReturnType<typeof setTimeout> | undefined;
   private preloadIntervalMs: number;
 
-  /** Stable until decoded cache membership changes; pending loads are excluded. */
+  /** Stable until complete cache membership changes; pending loads are excluded. */
   getSnapshot = (): ReadonlySet<string> => this.snapshot;
 
   subscribe = (listener: () => void): (() => void) => {
@@ -36,13 +36,7 @@ export class PreviewImageCache {
   };
 
   constructor(
-    load: (url: string) => Promise<HTMLImageElement> = async (url) => {
-      const image = new Image();
-      image.decoding = 'async';
-      image.src = url;
-      await image.decode();
-      return image;
-    },
+    load: (url: string) => Promise<T>,
     capacity = PREVIEW_CACHE_CAPACITY,
     preloadIntervalMs = 150,
   ) {
@@ -64,7 +58,7 @@ export class PreviewImageCache {
     // This limit spans window changes, including old requests still in flight.
     while (this.preloading.size < 2 && this.preloadQueue.length) {
       const url = this.preloadQueue.shift()!;
-      if (this.images.has(url) || this.preloading.has(url)) continue;
+      if (this.entries.has(url) || this.preloading.has(url)) continue;
       this.preloading.add(url);
       // Pace even fast cached responses, leaving request capacity for interaction.
       // Keep this cooldown across window changes so scrubbing cannot reset the limit.
@@ -82,24 +76,24 @@ export class PreviewImageCache {
     }
   }
 
-  get(url: string): Promise<HTMLImageElement> {
-    const cached = this.images.get(url);
+  get(url: string): Promise<T> {
+    const cached = this.entries.get(url);
     if (cached) {
-      this.images.delete(url);
-      this.images.set(url, cached);
+      this.entries.delete(url);
+      this.entries.set(url, cached);
       return Promise.resolve(cached);
     }
     const pending = this.pending.get(url);
     if (pending) return pending;
     const request = this.load(url).then((image) => {
-      this.images.set(url, image);
-      while (this.images.size > this.capacity) {
-        const oldestOutsideWindow = [...this.images.keys()].find((key) => !this.window.has(key));
-        this.images.delete(oldestOutsideWindow ?? this.images.keys().next().value!);
+      this.entries.set(url, image);
+      while (this.entries.size > this.capacity) {
+        const oldestOutsideWindow = [...this.entries.keys()].find((key) => !this.window.has(key));
+        this.entries.delete(oldestOutsideWindow ?? this.entries.keys().next().value!);
       }
       // A late response from an old window may be discarded immediately.
-      if (this.images.has(url)) {
-        this.snapshot = new Set(this.images.keys());
+      if (this.entries.has(url)) {
+        this.snapshot = new Set(this.entries.keys());
         this.listeners.forEach((listener) => listener());
       }
       return image;
@@ -109,4 +103,16 @@ export class PreviewImageCache {
   }
 }
 
-export const previewImages = new PreviewImageCache();
+export async function decodePreviewImage(url: string): Promise<HTMLImageElement> {
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = url;
+  await image.decode();
+  return image;
+}
+
+export class PreviewImageCache extends PreviewCache<HTMLImageElement> {
+  constructor(load = decodePreviewImage, capacity = PREVIEW_CACHE_CAPACITY, preloadIntervalMs = 150) {
+    super(load, capacity, preloadIntervalMs);
+  }
+}

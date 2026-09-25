@@ -210,7 +210,7 @@ is listed separately under known gaps.
 | Area | Expected behavior |
 | --- | --- |
 | Collection and time selection | Browse March 2026 L1C v1.3 data: 62 NetCDF files, 633 WFI frames and 1,161 NFI frames. Select a camera and UTC interval. Switching cameras selects the nearest available observation time. Start on WFI, 2026-03-15, with a 4.5–5.5 Earth-radius annulus. |
-| Image navigation | Provide previous/next controls, a frame slider, playback with adjustable frames per second, keyboard/wheel navigation when the viewer is focused, and 1×/2×/4× zoom. Retain the displayed image until its replacement is decoded, then swap pixels, image geometry, time label and brightness scale together in both 2D and 3D. For both WFI and NFI, preload up to 100 earlier and 100 upcoming frames around the selected frame, nearest first, within the selected interval (up to 201 including the current frame). Move this window during playback and scrubbing; prioritize the selected frame, limit background loading to two requests at a time with at least 150 ms between starts, discard obsolete queued work, and protect the current window from late responses. Keep the decoded-image cache bounded and ignore stale display loads during scrubbing. Light sections on the frame slider and its loaded count show decoded frames in the current camera/interval at the current brightness scale. Markers update after decoding and eviction from the 201-image working set; pending/failed loads and other scales are excluded. Browser HTTP cache entries outside this working set are not counted. Show observation time, exposure and frame flags. |
+| Image navigation | Provide previous/next controls, a frame slider, playback with adjustable frames per second, keyboard/wheel navigation when the viewer is focused, and 1×/2×/4× zoom. Retain the complete displayed frame until its replacement image is decoded and its selected brightness contours are available, then swap pixels, contours, image geometry, time label and brightness scale together. This shared frame state feeds both 2D and 3D. Radius contours are synchronous geometry; disabling brightness contours requires no contour request. For both WFI and NFI, preload up to 100 earlier and 100 upcoming frames around the selected frame, nearest first, within the selected interval (up to 201 including the current frame). Move this window during playback and scrubbing; prioritize the selected frame, limit background loading to two frame bundles at a time with at least 300 ms between starts (each may request one image and one contour set), discard obsolete queued work, and protect the current window from late responses. Keep the decoded-image cache bounded and ignore stale display loads during scrubbing. Light sections on the frame slider and its loaded count show complete frames in the current camera/interval at the current brightness scale and contour mask. Markers update only after image decoding and required contours finish, and after eviction from the 201-frame working set; pending/failed loads and other scales or masks are excluded. Failed foreground loads retain the previous complete frame and provide Retry. Browser HTTP cache entries outside this working set are not counted. Show observation time, exposure and frame flags. |
 | Brightness display | Use the visible term brightness, in kR. Render logarithmic `gist_heat` images with adjustable minimum/maximum handles, labeled ticks and camera-specific reset: WFI 0.001–270 kR; NFI 0.1–270 kR. The slider permits a minimum of 0.0001 kR for faint outer emission. Display changes must not change numeric measurements. |
 | Overlays | Offer brightness contours, projected-radius contours, or no contours; retain the blue 1 Earth-radius reference boundary. Brightness contours use the original numeric arrays and the selected validity mask. |
 | Region selection | Support annulus, annular sector, rectangle, single pixel, Dawn + Dusk and Paired annular sectors. Allow image dragging and numeric controls. Use projected Earth radii, x right and y up; angles begin at image right and increase toward image top. |
@@ -225,6 +225,49 @@ is listed separately under known gaps.
 | Save and export | Save completed results and their recipes in the visitor's browser IndexedDB. Restore them without recalculation. Download analysis CSV/JSON, radial-profile CSV and circularity CSV. Export provenance, masks, units, method versions and exact frame identities. |
 | Responsive workspace | Keep the image, controls and results usable within the viewport. Plots share an independently scrolling results card. Use compact tabs when needed; open references and the paginated saved-analysis list in separate dialogs. |
 | Public operation | Allow anonymous browsing and bounded analysis, with visitor-owned jobs/downloads. Preserve source observations and expose no arbitrary source-file download, upload or administration interface. Keep the public service running independently of a desktop login. |
+| Theory explorer | THEORY beside WFI/NFI opens `/#theory`. Vary source altitude, upward flux, cold/hot energy scales, hot flux fraction and launch directions; inspect local H density, a spherical slice and example trajectories. Pin a comparison and export CSV/JSON with parameters and units. Keep assumed populations and omitted physics explicit; this is not observed density or an observational fit. Fit the controls, metrics, density profile, spatial view and method summary into the desktop viewport; use panel buttons on narrow/short screens and paginated dialogs for full assumptions, equations and density samples, rather than extending the page. |
+
+### Theory explorer: scope and method
+
+The first THEORY model (`spherical-h-flux-1.0`) is a stationary, spherically
+symmetric, source-fed neutral-H model in Earth's inverse-square gravity.
+Launch radius is 6,370 km plus the selected altitude. Source flux is in
+atoms/cm²/s; the hot fraction partitions that outward flux, not reservoir density
+or the population already aloft. Default values are illustrative, not fitted.
+
+Each of the two source components uses the Maxwell **surface-crossing** speed
+law `p(s) = s exp(-s)`, with `s = m_H v² / (2 k_B T)`. The cosine direction law
+`p(mu) = 2 mu` retains transverse velocity and angular momentum; the optional
+radial-only mode is a controlled comparison using the same speed law. It is not
+a reproduction of John's IDL procedures. For total specific energy `epsilon`
+and angular momentum `h`, radial speed obeys
+`v_r² = 2 epsilon + 2 GM/r - h²/r²`. Density follows the integral of residence
+time: `n(r) = F (r0/r)² E[passes/v_r]`, with consistent cm/km conversion.
+Allowed bound trajectories contribute outward and returning passages; escaping
+ones contribute one passage. Gaussian moments evaluate the reduced velocity and
+angle integrals deterministically. The plotted trajectory examples are exact
+Kepler conics, not the numerical samples used to calculate density.
+
+There is no independently trapped satellite population, finite source age,
+ionization/lifetime, charge exchange, collisions or solar radiation pressure.
+The plotted domain ends at 30 Earth radii, but returning orbits with apogees
+beyond that boundary still contribute to steady density. The model is not the
+Qin–Waldrop inversion, does not derive a nonthermal production mechanism, and
+does not calculate Lyman-alpha brightness or fit Carruthers measurements.
+Nonthermal production, loss processes, asymmetry and radiative transfer remain
+future physics work. Exported JSON records these assumptions and constants.
+
+`lib/theory.ts` is independent of the observation pipeline and runs in the
+browser. `tests/theory.test.ts` compares density against a separate adaptive
+residence-time integral in cm units, and tests Jeans escape fractions, flux and
+mixture linearity, source half-space normalization, angular momentum, parameter
+extremes and export metadata. These validate this specified mathematical model,
+not its adequacy for the real exosphere.
+
+[Comparison with Clarke’s September 2026 slides](docs/theory-slide-comparison.md)
+records the shared gravity physics, distinct particle/flux weighting and the
+large step-size error in the supplied 10 km/s IDL example. The comparison did
+not change the THEORY equations or constants.
 
 ### Scientific rules to preserve
 
@@ -439,6 +482,7 @@ claim that this new data volume has a configured backup policy.
 | Task | Start with | Relevant existing checks |
 | --- | --- | --- |
 | Selection, playback, layout, image overlays | `app/page.tsx`, `components/observation-viewer.tsx`, `components/display-controls.tsx`, `components/analysis-controls.tsx`, `app/globals.css` | TypeScript check/build, `tests/research.test.ts`, `tests/display.test.ts`, browser interaction checks. |
+| Theory source populations, density and trajectories | `lib/theory.ts`, `components/theory-explorer.tsx`, `app/theory.css` | `tests/theory.test.ts`, TypeScript check/build, browser knob/comparison/export and WFI/NFI navigation checks. |
 | Job submission, cancellation, stale results, saved results | `hooks/use-analysis.ts`, `lib/auto-analysis.ts`, `lib/saved.ts` | `tests/manual-analysis.test.ts`, `tests/auto-analysis.test.ts`, restore/save/cancel checks in the browser. |
 | Geometry, units, masking, profiles, paired regions | `science.py`, `lib/research.ts`, `server.py` | `tests/test_science.py`, `tests/test_service.py`, independent WFI fixture and both-camera checks. |
 | Contour circularity or exports | `circularity.py`, `components/circularity-chart.tsx`, `lib/circularity-export.ts`, `lib/analysis-export.ts` | `tests/test_circularity.py`, `tests/circularity-export.test.ts`, `tests/analysis-export.test.ts`, `tests/plot-bands.test.ts`; compare exported rows with calculated results. |

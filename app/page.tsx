@@ -18,17 +18,20 @@ import {
   AnalysisResults,
 } from '@/components/analysis-controls';
 import { OrbitViewer } from '@/components/orbit-viewer';
+import { TheoryExplorer } from '@/components/theory-explorer';
 import { DEFAULT_WFI_LOG_R, MAX_LOG_R } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
 import { useBaseline } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
 import { useWorkspaceTools } from '@/hooks/use-workspace-tools';
 import { useFramePreview } from '@/hooks/use-frame-preview';
-import { previewImages, previewWindowIndices } from '@/lib/preview-images';
-import { api, DEFAULT_ROI, previewURL, roiError } from '@/lib/research';
+import { previewWindowIndices } from '@/lib/preview-images';
+import { framePreviews, framePreviewKey } from '@/lib/frame-previews';
+import { api, DEFAULT_ROI, roiError } from '@/lib/research';
 import type { Catalogue, Channel, ROI, Recipe } from '@/lib/research';
 
 export default function Home() {
+  const [theory, setTheory] = useState(false);
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null),
     [error, setError] = useState('');
   const [channel, setChannel] = useState<Channel>('WFI'),
@@ -47,6 +50,20 @@ export default function Home() {
   const [exclude, setExclude] = useState(true);
   const [compactPanel, setCompactPanel] = useState('viewer');
   const preferredTime = useRef<number | null>(null);
+  useEffect(() => {
+    const sync = () => {
+      const active = window.location.hash === '#theory';
+      setTheory(active);
+      if (active) setPlaying(false);
+    };
+    sync();
+    window.addEventListener('hashchange', sync);
+    window.addEventListener('popstate', sync);
+    return () => {
+      window.removeEventListener('hashchange', sync);
+      window.removeEventListener('popstate', sync);
+    };
+  }, []);
   // Group rapid slider movements; releasing a handle applies its final value immediately.
   useEffect(() => {
     const timer = setTimeout(() => setScale(draftScale), 120);
@@ -68,8 +85,8 @@ export default function Home() {
     [catalogue, channel, start, end],
   );
   const frame = frames[Math.min(index, Math.max(0, frames.length - 1))];
-  const { preview, pending: previewPending, message: previewMessage } =
-    useFramePreview(frame, scale);
+  const { preview, pending: previewPending, message: previewMessage, error: previewError, retry: retryPreview } =
+    useFramePreview(frame, scale, contours, exclude);
   const displayedFrame = preview?.frame || frame;
   const measurementFrame = frame ? displayedFrame : undefined;
   useEffect(() => {
@@ -98,18 +115,18 @@ export default function Home() {
     }
   }, [playing, frame, ready, frames.length, fps, previewPending]);
   const previewWindow = useMemo(
-    () => previewWindowIndices(frames.length, index).map((i) => previewURL(frames[i], scale)),
-    [frames, index, scale],
+    () => previewWindowIndices(frames.length, index).map((i) => framePreviewKey(frames[i], scale, contours, exclude)),
+    [frames, index, scale, contours, exclude],
   );
   useEffect(() => {
-    previewImages.setPreloadWindow(previewWindow, false);
+    framePreviews.setPreloadWindow(previewWindow, false);
     // Let the selected frame decode first and debounce rapid scrubbing.
     const timer = previewPending ? undefined : setTimeout(() => {
-      previewImages.setPreloadWindow(previewWindow);
+      framePreviews.setPreloadWindow(previewWindow);
     }, 75);
     return () => {
       clearTimeout(timer);
-      previewImages.setPreloadWindow([]);
+      framePreviews.setPreloadWindow([]);
     };
   }, [previewWindow, previewPending]);
   const step = useCallback(
@@ -126,6 +143,15 @@ export default function Home() {
       catalogue?.scales[value] || ([DEFAULT_WFI_LOG_R, MAX_LOG_R] as [number, number]);
     setScale(next);
     setDraftScale(next);
+  };
+  const changeWorkspace = (value: string) => {
+    setPlaying(false);
+    const active = value === 'THEORY';
+    setTheory(active);
+    if (!active && value !== channel) changeCamera(value as Channel);
+    const hash = active ? '#theory' : '';
+    if (window.location.hash !== hash)
+      window.history.pushState(null, '', window.location.pathname + window.location.search + hash);
   };
   const baseline = useBaseline(frames[0], exclude);
   const analysis = useAnalysis(measurementFrame, frames, roi, exclude, playing);
@@ -201,7 +227,7 @@ export default function Home() {
           <h1>Carruthers Exploratory Data Analysis (CEDA)</h1>
         </div>
         <div className="header-actions">
-          {catalogue && (
+          {catalogue && !theory && (
             <CollectionDialog
               catalogue={catalogue}
               a={analysis}
@@ -210,33 +236,22 @@ export default function Home() {
           )}
         </div>
       </header>
-      {!catalogue ? (
-        <main className="empty-page">
-          <h2>
-            {error
-              ? 'Unable to open observations'
-              : 'Reading observation catalogue…'}
-          </h2>
-          <p className="muted">
-            {error || 'Preparing the local March 2026 collection.'}
-          </p>
-        </main>
-      ) : (
-        <>
           <section
-            className="observation-bar"
-            aria-label="Observation interval"
+            className={`observation-bar${theory ? ' theory-bar' : ''}`}
+            aria-label="Workspace and observation interval"
           >
             <Tabs
-              value={channel}
-              onValueChange={(v) => changeCamera(v as Channel)}
+              value={theory ? 'THEORY' : channel}
+              onValueChange={(v) => changeWorkspace(String(v))}
               className="selection-tabs"
             >
-              <TabsList aria-label="Camera">
+              <TabsList aria-label="Camera or theory">
                 <TabsTrigger value="WFI">WFI</TabsTrigger>
                 <TabsTrigger value="NFI">NFI</TabsTrigger>
+                <TabsTrigger value="THEORY">THEORY</TabsTrigger>
               </TabsList>
             </Tabs>
+            {theory ? <p className="small muted">Explore a theoretical hydrogen population</p> : <>
             <label className="field">
               From · UTC
               <input
@@ -268,8 +283,16 @@ export default function Home() {
             >
               All of March
             </button>
+            </>}
           </section>
-
+      <div className="theory-host" hidden={!theory}><TheoryExplorer /></div>
+      {theory ? null : !catalogue ? (
+        <main className="empty-page">
+          <h2>{error ? 'Unable to open observations' : 'Reading observation catalogue…'}</h2>
+          <p className="muted">{error || 'Preparing the local March 2026 collection.'}</p>
+        </main>
+      ) : (
+        <>
           <Tabs
             className="compact-nav"
             value={compactPanel}
@@ -372,8 +395,8 @@ export default function Home() {
                           interactive={!previewPending}
                           scale={preview?.scale || scale}
                           roi={roi}
-                          contours={contours}
-                          exclude={exclude}
+                          contours={preview?.contours ?? contours}
+                          isolines={preview?.isolines ?? null}
                           zoom={Number(zoom)}
                           onROI={changeROI}
                           onStep={step}
@@ -384,7 +407,8 @@ export default function Home() {
                       {previewMessage && (
                         <output className="preview-status">
                           {previewMessage}
-                          {preview && ' Current image retained.'}
+                          {preview && ' Current frame retained.'}
+                          {previewError && <button className="button ghost" onClick={retryPreview}>Retry</button>}
                         </output>
                       )}
                     </div>
@@ -411,6 +435,8 @@ export default function Home() {
                         <FrameSlider
                           frames={frames}
                           scale={scale}
+                          contours={contours}
+                          exclude={exclude}
                           index={index}
                           onChange={(next) => {
                             setPlaying(false);

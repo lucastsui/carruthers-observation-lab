@@ -1,0 +1,131 @@
+.app-shell .observation-bar .selection-tabs { width: 224px; }
+.theory-host { flex: 1; min-height: 0; overflow: hidden; }
+.theory-host[hidden] { display: none; }
+.theory-page { height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; }
+.theory-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: none; }
+.theory-intro .eyebrow { display: flex; align-items: center; gap: 6px; color: #a9efda; letter-spacing: .1em; font-size: 9px; margin-bottom: 2px; }
+.theory-intro h2 { font-size: 20px; font-weight: 500; letter-spacing: -.025em; margin: 0; }
+.theory-intro p { margin: 2px 0 0; color: #a7bac6; font-size: 11px; }
+.theory-intro-actions { display: flex; align-items: center; gap: 14px; }
+.theory-model-badge { color: #a9c6c5; font-size: 11px; }
+.theory-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 12px; }
+.theory-controls { padding: 12px; display: flex; flex-direction: column; min-height: 0; }
+.theory-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
+.theory-page h3 { font-size: 13px; font-weight: 550; margin: 0; }
+.theory-card-heading p { font-size: 10px; margin: 3px 0 0; color: #91a6b5; }
+.theory-explainer { font-size: 11px; line-height: 1.4; color: #91a6b5; margin: 6px 0; }
+.theory-knob { margin: 7px 0; }
+.theory-knob > label { display: flex; justify-content: space-between; gap: 4px; color: #d2e0e8; font-size: 11px; }
+.theory-knob > label span { color: #91a6b5; font-size: 10px; align-self: center; }
+.theory-knob-inputs { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.theory-knob input[type=range] { width: 100%; min-width: 0; height: 18px; accent-color: #91e5cd; padding: 0; cursor: pointer; background: none; border: none; box-shadow: none; }
+.theory-knob input[type=number] { width: 74px; flex-shrink: 0; padding: 3px 6px; height: 27px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.theory-knob p { color: #91a6b5; font-size: 10px; line-height: 1.3; margin: 3px 0 0; }
+.theory-divider { border-top: 1px solid #253642; margin: 4px 0; }
+.theory-page .theory-law { font-size: 11px; margin: 5px 0; gap: 4px; }
+.theory-page select { background: #0c1620; border: 1px solid #30424e; border-radius: 6px; padding: 5px; color: #d2e0e8; font-size: 11px; max-width: 100%; }
+.theory-source-note { margin-top: auto; padding: 7px 8px; border-left: 2px solid #687e8d; background: #16232d; color: #a7bac6; font-size: 10px; line-height: 1.4; }
+.theory-output { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: 'metrics metrics' 'profile spatial' 'method spatial'; gap: 12px; }
+.theory-metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.theory-metrics > div { padding: 9px 12px; background: linear-gradient(125deg,#15252c,#111b25); border: 1px solid #293d45; border-radius: 8px; display: flex; flex-direction: column; gap: 2px; }
+.theory-metrics span { color: #a3b8c2; font-size: 11px; }
+.theory-metrics strong { font-size: 23px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: #e5f5ef; line-height: 1.15; }
+.theory-metrics small { font-size: 10px; color: #91a6b5; }
+.theory-profile-panel { grid-area: profile; padding: 12px; min-height: 0; display: flex; flex-direction: column; gap: 7px; }
+.theory-actions, .theory-detail-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.theory-actions .button, .theory-detail-actions .button { min-height: 28px; padding: 4px 7px; font-size: 10px; display: inline-flex; gap: 4px; align-items: center; }
+.theory-legend { display: flex; flex-wrap: wrap; gap: 7px 12px; font-size: 10px; color: #b1c3ce; flex: none; }
+.theory-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.theory-legend i { height: 2px; width: 13px; display: inline-block; }
+.theory-clear { cursor: pointer; padding: 1px; background: none; border: none; color: #c4b2fc; }
+.theory-chart-area { flex: 1; min-height: 0; position: relative; }
+.theory-density-chart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.theory-density-chart text { fill: #9bb1bf; font-size: 11px; }
+.theory-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; border-top: 1px solid #22323e; padding-top: 5px; font-size: 10px; flex: none; }
+.theory-comparison-note { margin: 0; color: #c4b2fc; font-size: 10px; line-height: 1.3; flex: none; }
+.theory-bottom-grid { display: contents; }
+.theory-spatial-panel { grid-area: spatial; display: flex; flex-direction: column; gap: 7px; padding: 12px; min-height: 0; min-width: 0; }
+.theory-extent { display: flex; align-items: center; gap: 6px; color: #91a6b5; font-size: 10px; }
+.theory-extent select { padding: 3px 4px; }
+.theory-view-buttons { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; flex: none; }
+.theory-view-buttons .button { min-height: 27px; font-size: 10px; padding: 4px 7px; }
+.theory-space-stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
+.theory-space-image { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); aspect-ratio: 1; overflow: hidden; background: #0a131d; border: 1px solid #203441; border-radius: 6px; }
+.theory-space-image canvas, .theory-space-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.theory-colorbar { height: 7px; border-radius: 2px; background: linear-gradient(to right,#070f19,#15394a,#28808b,#73d6ba,#f1e19e); flex: none; }
+.theory-scale-labels { display: flex; justify-content: space-between; color: #a3b8c2; font-size: 10px; }
+.theory-color-controls { display: flex; align-items: center; gap: 10px; color: #91a6b5; font-size: 10px; }
+.theory-color-controls select { margin-left: 4px; padding: 3px; }
+.theory-color-controls > span { margin-left: auto; }
+.theory-spatial-panel > .theory-explainer { margin: 0; flex: none; }
+.theory-method-panel { grid-area: method; padding: 12px; min-width: 0; }
+.theory-method-panel p { font-size: 11px; line-height: 1.4; color: #a7bac6; margin: 6px 0; }
+.theory-equation { background: #162b2d; border: 1px solid #2a4747; border-radius: 5px; padding: 6px 8px; font-size: 11px; color: #a9efda; line-height: 1.4; margin: 6px 0; }
+.theory-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; font-size: 10px; margin: 8px 0; }
+.theory-facts dt { color: #91a6b5; }
+.theory-facts dd { margin: 3px 0 0; color: #cfdee7; font-size: 11px; }
+.theory-panel-nav { display: none; }
+.theory-detail-dialog { width: min(720px,calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); gap: 10px; padding: 20px; }
+.theory-detail-body { font-size: 13px; line-height: 1.5; color: #b9cbd7; }
+.theory-detail-body p { margin: 10px 0; }
+.theory-detail-body ul { margin: 4px 0; padding-left: 20px; }
+.theory-detail-body li { margin: 8px 0; }
+.theory-detail-body a { color: #a9efda; text-decoration: underline; text-underline-offset: 3px; }
+.theory-detail-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+.theory-data-table table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12px; }
+.theory-data-table th, .theory-data-table td { padding: 7px 5px; border-bottom: 1px solid #253642; text-align: right; }
+.theory-data-table caption { text-align: left; font-size: 11px; color: #91a6b5; margin: 4px 0 8px; }
+@media (min-width:1060px) and (max-height:780px) {
+  .theory-page { gap: 9px; padding: 9px 12px; }
+  .theory-layout, .theory-output { gap: 9px; }
+  .theory-knob { margin: 4px 0; }
+  .theory-controls .theory-explainer { margin: 4px 0; }
+  .theory-intro .eyebrow { display: none; }
+  .theory-metrics > div { padding: 6px 10px; }
+  .theory-metrics strong { font-size: 20px; }
+  .theory-profile-panel, .theory-method-panel, .theory-spatial-panel { padding: 10px; }
+  .theory-method-panel p { margin: 4px 0; }
+}
+@media (max-width:1059px), (max-height:659px) {
+  .theory-page { padding: 10px; gap: 8px; }
+  .theory-intro { align-items: start; }
+  .theory-intro-actions { flex-direction: column; align-items: end; gap: 5px; }
+  .theory-intro h2 { font-size: 18px; }
+  .theory-intro p, .theory-intro .eyebrow { display: none; }
+  .theory-panel-nav { display: flex; gap: 6px; flex: none; }
+  .theory-panel-nav .button { flex: 1; min-height: 30px; font-size: 11px; padding: 4px 6px; }
+  .theory-layout { display: flex; flex-direction: column; gap: 8px; }
+  .theory-output { display: contents; }
+  .theory-metrics { order: 0; flex: none; gap: 5px; }
+  .theory-metrics > div { padding: 7px; }
+  .theory-metrics span, .theory-metrics small { font-size: 9px; }
+  .theory-metrics strong { font-size: 19px; }
+  .theory-controls, .theory-profile-panel, .theory-spatial-panel, .theory-method-panel { display: none; order: 1; }
+  .theory-page[data-compact-panel=profile] .theory-profile-panel,
+  .theory-page[data-compact-panel=source] .theory-controls,
+  .theory-page[data-compact-panel=spatial] .theory-spatial-panel,
+  .theory-page[data-compact-panel=method] .theory-method-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .theory-controls { display: none; }
+  .theory-source-note { margin-top: 6px; }
+  .theory-knob { margin: 5px 0; }
+  .theory-knob > label { font-size: 12px; }
+  .theory-method-panel { gap: 10px; }
+  .theory-method-panel p { font-size: 13px; }
+  .theory-facts { font-size: 12px; }
+  .theory-detail-dialog { padding: 16px; gap: 8px; }
+  .theory-detail-body { font-size: 12px; line-height: 1.4; }
+  .theory-detail-body li { margin: 6px 0; }
+}
+@media (max-width:650px) {
+  .theory-model-badge { font-size: 10px; }
+  .theory-intro h2 { font-size: 16px; }
+  .theory-actions .button { font-size: 10px; min-height: 25px; padding: 3px 5px; }
+  .theory-bar > .small { display: none; }
+  .theory-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .theory-page:not([data-compact-panel=profile]) .theory-metrics { display: none; }
+  .theory-facts { grid-template-columns: 1fr; }
+  .theory-facts > div { display: flex; justify-content: space-between; gap: 12px; }
+  .theory-detail-actions { gap: 8px; }
+  .theory-data-table th, .theory-data-table td { padding: 6px 3px; font-size: 11px; }
+  .app-shell .observation-bar .selection-tabs { width: 210px; }
+}

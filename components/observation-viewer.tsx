@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/popover';
 import type { Frame, ROI, Contours } from '@/lib/research';
 import {
-  api,
   roiError,
   snapPointToPixel,
   pairedSectors,
@@ -38,7 +37,7 @@ export function ObservationViewer({
   scale,
   roi,
   contours,
-  exclude,
+  isolines,
   zoom,
   onROI,
   onStep,
@@ -52,38 +51,13 @@ export function ObservationViewer({
   scale: [number, number];
   roi: ROI;
   contours: ContourMode;
-  exclude: boolean;
+  isolines: Contours | null;
   zoom: number;
   onROI: (r: ROI) => void;
   onStep: (n: number) => void;
   onTogglePlay: () => void;
   onReady: (id: string) => void;
 }) {
-  const [isolines, setIsolines] = useState<{
-    key: string;
-    value: Contours;
-  } | null>(null);
-  const [contourFailure, setContourFailure] = useState<string | null>(null);
-  const contourKey = `${frame.id}:${exclude}`;
-  const contourError =
-    contourFailure === contourKey ? 'Brightness contours unavailable' : '';
-  useEffect(() => {
-    if (contours !== 'radiance') return;
-    const controller = new AbortController();
-    api<Contours>(
-      `contours?id=${frame.id}&exclude=${exclude ? 1 : 0}`,
-      undefined,
-      controller.signal,
-    )
-      .then((value) => {
-        setIsolines({ key: contourKey, value });
-        setContourFailure(null);
-      })
-      .catch((e) => {
-        if (e.name !== 'AbortError') setContourFailure(contourKey);
-      });
-    return () => controller.abort();
-  }, [contourKey, contours, frame.id, exclude]);
   const canvas = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState<[number, number] | null>(null);
@@ -348,14 +322,14 @@ export function ObservationViewer({
                   opacity="1"
                 />
               </g>
-              {contours === 'radiance' && isolines?.key === contourKey && (
+              {contours === 'radiance' && isolines?.frame_id === frame.id && (
                 <g
                   fill="none"
                   stroke="#ffe5a4"
                   strokeWidth={0.8 / zoom}
                   opacity=".8"
                 >
-                  {isolines.value.contours.map((level, levelIndex) => (
+                  {isolines.contours.map((level, levelIndex) => (
                     <g key={level.level_kR}>
                       {level.paths.map((path, i) => (
                         <path
@@ -577,8 +551,7 @@ export function ObservationViewer({
         <div className="colorbar-caption">
           Brightness · kR{' '}
           <span>
-            {contourError ||
-              (contours === 'radiance'
+            {(contours === 'radiance'
                 ? 'Contours · kR'
                 : contours === 're'
                   ? 'Contours · Rᴇ'
