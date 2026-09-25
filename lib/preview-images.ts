@@ -1,9 +1,12 @@
+const PREVIEW_WINDOW_RADIUS = 100;
+const PREVIEW_CACHE_CAPACITY = PREVIEW_WINDOW_RADIUS * 2 + 1;
+
 /** Current frame first, then nearby future/past pairs, without wrapping the interval. */
 export function previewWindowIndices(count: number, index: number): number[] {
   if (count === 0) return [];
   const center = Math.min(Math.max(0, index), count - 1);
   const indices = [center];
-  for (let distance = 1; distance <= 5; distance++) {
+  for (let distance = 1; distance <= PREVIEW_WINDOW_RADIUS; distance++) {
     if (center + distance < count) indices.push(center + distance);
     if (center - distance >= 0) indices.push(center - distance);
   }
@@ -21,6 +24,8 @@ export class PreviewImageCache {
   private window = new Set<string>();
   private preloadQueue: string[] = [];
   private preloading = new Set<string>();
+  private preloadTimer: ReturnType<typeof setTimeout> | undefined;
+  private preloadIntervalMs: number;
 
   /** Stable until decoded cache membership changes; pending loads are excluded. */
   getSnapshot = (): ReadonlySet<string> => this.snapshot;
@@ -38,10 +43,12 @@ export class PreviewImageCache {
       await image.decode();
       return image;
     },
-    capacity = 12,
+    capacity = PREVIEW_CACHE_CAPACITY,
+    preloadIntervalMs = 150,
   ) {
     this.load = load;
     this.capacity = capacity;
+    this.preloadIntervalMs = preloadIntervalMs;
   }
 
   /** Protect the current window immediately; pause background work during selection. */
@@ -53,15 +60,25 @@ export class PreviewImageCache {
   }
 
   private preloadNext(): void {
+    if (this.preloadTimer !== undefined) return;
     // This limit spans window changes, including old requests still in flight.
     while (this.preloading.size < 2 && this.preloadQueue.length) {
       const url = this.preloadQueue.shift()!;
       if (this.images.has(url) || this.preloading.has(url)) continue;
       this.preloading.add(url);
+      // Pace even fast cached responses, leaving request capacity for interaction.
+      // Keep this cooldown across window changes so scrubbing cannot reset the limit.
+      if (this.preloadIntervalMs > 0) {
+        this.preloadTimer = setTimeout(() => {
+          this.preloadTimer = undefined;
+          this.preloadNext();
+        }, this.preloadIntervalMs);
+      }
       void this.get(url).catch(() => {}).finally(() => {
         this.preloading.delete(url);
         this.preloadNext();
       });
+      if (this.preloadTimer !== undefined) break;
     }
   }
 
