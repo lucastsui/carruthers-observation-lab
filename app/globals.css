@@ -745,6 +745,44 @@ h2 {
 .transport-note > span:last-child {
   margin-left: auto;
 }
+.frame-timeline {
+  position: relative;
+}
+.frame-slider [data-slot='slider-track'] {
+  height: 6px;
+  background: #263846;
+}
+.frame-slider [data-slot='slider-range'] {
+  background: transparent;
+}
+.frame-loaded-range {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #b6c5d2;
+  pointer-events: none;
+}
+.frame-slider [data-slot='slider-thumb'] {
+  background: var(--primary);
+}
+.frame-loaded-label {
+  position: absolute;
+  top: 13px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--muted-foreground);
+}
+.frame-loaded-swatch {
+  width: 9px;
+  height: 3px;
+  border-radius: 2px;
+  background: #b6c5d2;
+}
 .center-column > .chart-empty {
   flex: 1;
   min-height: 0;

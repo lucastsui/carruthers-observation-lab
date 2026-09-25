@@ -1,8 +1,70 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PreviewImageCache } from '../lib/preview-images.ts';
+import { loadedFrameRanges } from '../lib/loaded-frame-ranges.ts';
 
 const image = (src: string) => ({ src }) as HTMLImageElement;
+
+void test('loaded markers follow decode completion, eviction and exact brightness URLs', async () => {
+  const finishes = new Map<string, (value: HTMLImageElement) => void>();
+  const cache = new PreviewImageCache((url) => new Promise((resolve) => {
+    finishes.set(url, resolve);
+  }), 2);
+  let updates = 0;
+  const unsubscribe = cache.subscribe(() => { updates++; });
+  const initial = cache.getSnapshot();
+  const first = cache.get('a?low=1');
+  assert.equal(cache.getSnapshot(), initial);
+  assert.equal(updates, 0);
+  finishes.get('a?low=1')!(image('a'));
+  await first;
+  assert.deepEqual([...cache.getSnapshot()], ['a?low=1']);
+  const ready = cache.getSnapshot();
+  await cache.get('a?low=1');
+  assert.equal(cache.getSnapshot(), ready);
+  assert.equal(updates, 1);
+  for (const url of ['b?low=1', 'a?low=2']) {
+    const request = cache.get(url);
+    finishes.get(url)!(image(url));
+    await request;
+  }
+  assert.deepEqual([...cache.getSnapshot()], ['b?low=1', 'a?low=2']);
+  assert.deepEqual(loadedFrameRanges(['a?low=1', 'b?low=1'], cache.getSnapshot()).map(r => [r.start, r.end]), [[1, 1]]);
+  assert.deepEqual(loadedFrameRanges(['a?low=2', 'b?low=2'], cache.getSnapshot()).map(r => [r.start, r.end]), [[0, 0]]);
+  assert.equal(updates, 3);
+  unsubscribe();
+  const next = cache.get('c');
+  finishes.get('c')!(image('c'));
+  await next;
+  assert.equal(updates, 3);
+});
+
+void test('failed image decoding never marks a frame as loaded', async () => {
+  const cache = new PreviewImageCache(async () => { throw new Error('decode failed'); });
+  const initial = cache.getSnapshot();
+  await assert.rejects(cache.get('broken'), /decode failed/);
+  assert.equal(cache.getSnapshot(), initial);
+  assert.equal(cache.getSnapshot().size, 0);
+});
+
+void test('buffer ranges preserve gaps and match frame slider endpoints', () => {
+  const urls = ['a', 'b', 'c', 'd', 'e'];
+  assert.deepEqual(loadedFrameRanges(urls, new Set(['a', 'b', 'e'])), [
+    { start: 0, end: 1, left: 0, width: 37.5 },
+    { start: 4, end: 4, left: 87.5, width: 12.5 },
+  ]);
+  assert.deepEqual(loadedFrameRanges(urls, new Set(urls)), [
+    { start: 0, end: 4, left: 0, width: 100 },
+  ]);
+  assert.deepEqual(loadedFrameRanges(['e', 'a'], new Set(['a'])), [
+    { start: 1, end: 1, left: 50, width: 50 },
+  ]);
+  assert.deepEqual(loadedFrameRanges(['a'], new Set(['a'])), [
+    { start: 0, end: 0, left: 0, width: 100 },
+  ]);
+  assert.deepEqual(loadedFrameRanges([], new Set(['a'])), []);
+  assert.deepEqual(loadedFrameRanges(urls, new Set(['other-camera'])), []);
+});
 
 void test('preloading and selecting a frame share one request until it is decoded', async () => {
   let finish!: (value: HTMLImageElement) => void;

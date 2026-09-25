@@ -1,4 +1,5 @@
 import { Slider as SliderPrimitive } from '@base-ui/react/slider';
+import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -8,8 +9,9 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  trackContent,
   ...props
-}: SliderPrimitive.Root.Props) {
+}: SliderPrimitive.Root.Props & { trackContent?: ReactNode }) {
   const _values = Array.isArray(value)
     ? value
     : Array.isArray(defaultValue)
@@ -32,6 +34,7 @@ function Slider({
           data-slot="slider-track"
           className="bg-muted rounded-full data-horizontal:h-1 data-horizontal:w-full data-vertical:h-full data-vertical:w-1 relative grow overflow-hidden select-none"
         >
+          {trackContent}
           <SliderPrimitive.Indicator
             data-slot="slider-range"
             className="bg-primary select-none data-horizontal:h-full data-vertical:w-full"
@@ -40,6 +43,8 @@ function Slider({
         {Array.from({ length: _values.length }, (_, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
+            aria-label={props['aria-label']}
+            aria-describedby={props['aria-describedby']}
             key={index}
             index={index}
             className="border-ring ring-ring/50 relative size-3 rounded-full border bg-white transition-[color,box-shadow] after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50"

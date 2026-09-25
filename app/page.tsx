@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Slider } from '@/components/ui/slider';
+import { FrameSlider } from '@/components/frame-slider';
 import {
   Select,
   SelectTrigger,
@@ -404,21 +404,13 @@ export default function Home() {
                         <ChevronLeft />
                       </button>
                       <div className="transport-slider">
-                        <Slider
-                          aria-label="Selected frame"
-                          min={0}
-                          max={Math.max(1, frames.length - 1)}
-                          step={1}
-                          value={[index]}
-                          disabled={frames.length < 2}
-                          onValueChange={(v) => {
+                        <FrameSlider
+                          frames={frames}
+                          scale={scale}
+                          index={index}
+                          onChange={(next) => {
                             setPlaying(false);
-                            setIndex(
-                              Math.min(
-                                frames.length - 1,
-                                Array.isArray(v) ? v[0] : v,
-                              ),
-                            );
+                            setIndex(next);
                           }}
                         />
                       </div>

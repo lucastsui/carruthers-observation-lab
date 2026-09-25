@@ -4,6 +4,16 @@ export class PreviewImageCache {
   private pending = new Map<string, Promise<HTMLImageElement>>();
   private load: (url: string) => Promise<HTMLImageElement>;
   private capacity: number;
+  private listeners = new Set<() => void>();
+  private snapshot: ReadonlySet<string> = new Set();
+
+  /** Stable until decoded cache membership changes; pending loads are excluded. */
+  getSnapshot = (): ReadonlySet<string> => this.snapshot;
+
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  };
 
   constructor(
     load: (url: string) => Promise<HTMLImageElement> = async (url) => {
@@ -32,6 +42,8 @@ export class PreviewImageCache {
       this.images.set(url, image);
       while (this.images.size > this.capacity)
         this.images.delete(this.images.keys().next().value!);
+      this.snapshot = new Set(this.images.keys());
+      this.listeners.forEach((listener) => listener());
       return image;
     }).finally(() => this.pending.delete(url));
     this.pending.set(url, request);
