@@ -112,11 +112,17 @@ function DensityChart({ result, comparison }: { result: TheoryResult; comparison
   </>;
 }
 
-const PALETTE = [[7, 15, 25], [21, 57, 74], [40, 128, 139], [115, 214, 186], [241, 225, 158]];
+// Match Matplotlib's 256-entry gist_heat lookup used by WFI/NFI previews
+// and /api/colorbar, without requiring observation data to render THEORY.
+const DENSITY_PALETTE = Array.from({ length: 256 }, (_, i) => {
+  const x = i * (1 / 255);
+  return [1.5 * x, 2 * x - 1, 4 * x - 3]
+    .map(c => Math.floor(Math.max(0, Math.min(1, c)) * 255));
+});
+const DENSITY_GRADIENT = `linear-gradient(to right, ${DENSITY_PALETTE
+  .map((rgb, i) => `rgb(${rgb.join(',')}) ${i / 255 * 100}%`).join(',')})`;
 function densityColor(t: number) {
-  const v = Math.max(0, Math.min(1, t)) * (PALETTE.length - 1);
-  const i = Math.min(PALETTE.length - 2, Math.floor(v)), f = v - i;
-  return PALETTE[i].map((c, j) => Math.round(c + f * (PALETTE[i + 1][j] - c)));
+  return DENSITY_PALETTE[Math.min(255, Math.floor(Math.max(0, Math.min(1, t)) * 256))];
 }
 
 function DensitySlice({ result, extent, logRange }: { result: TheoryResult; extent: number; logRange: [number, number] }) {
@@ -323,7 +329,7 @@ export function TheoryExplorer() {
             </fieldset>
             <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} />}</div>
             {view === 'density' ? <>
-              <div className="theory-colorbar" /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
+              <div className="theory-colorbar" style={{ backgroundImage: DENSITY_GRADIENT }} /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
               <div className="theory-color-controls"><label>Min <select aria-label="Density color scale minimum" value={logMin} onChange={e => setLogMin(Number(e.target.value))}>
                 {[-4, -2, 0, 2].filter(v => v < logMax).map(v => <option key={v} value={v}>{expTick(10 ** v)}</option>)}</select></label>
                 <label>Max <select aria-label="Density color scale maximum" value={logMax} onChange={e => setLogMax(Number(e.target.value))}>

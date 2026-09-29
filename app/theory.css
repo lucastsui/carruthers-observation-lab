@@ -52,7 +52,7 @@
 .theory-space-stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
 .theory-space-image { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); aspect-ratio: 1; overflow: hidden; background: #0a131d; border: 1px solid #203441; border-radius: 6px; }
 .theory-space-image canvas, .theory-space-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
-.theory-colorbar { height: 7px; border-radius: 2px; background: linear-gradient(to right,#070f19,#15394a,#28808b,#73d6ba,#f1e19e); flex: none; }
+.theory-colorbar { height: 7px; border-radius: 2px; flex: none; }
 .theory-scale-labels { display: flex; justify-content: space-between; color: #a3b8c2; font-size: 10px; }
 .theory-color-controls { display: flex; align-items: center; gap: 10px; color: #91a6b5; font-size: 10px; }
 .theory-color-controls select { margin-left: 4px; padding: 3px; }

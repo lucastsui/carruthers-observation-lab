@@ -1,7 +1,7 @@
 # Carruthers Exploratory Data Analysis (CEDA)
 
 ## How to Read This
-- If you are an AI new to this project, read the section Introduction For AIs first and treat the rest as context.
+- If you are an AI new to this project, start with `AGENTS.md`. In the owner's Carruthers workspace, the concise project handoff is `../CURRENT_STATE.md`. Read the relevant sections below on demand; a full-folder or full-README read is unnecessary.
 - If you are a member of the science team, you should go to https://nightglow.tail2214e5.ts.net/ and explore right away.
 - If you want to assess the technical merit of the project and the thinking process behind the result, use AI to summarize and analyze this document and the code.
 
@@ -163,9 +163,12 @@ Start here, without assuming access to the previous conversation:
    development Mac the checkout is
    `/Users/tsuimingleong/Documents/My vault/Carruthers/research-app`; a fresh clone
    may be elsewhere.
-2. Read the [baseline](#last-verified-baseline), [feature requirements](#expected-features)
-   and [scientific rules](#scientific-rules-to-preserve). Use the
-   [task map](#task-map) to locate the implementation and existing tests.
+2. For orientation or continuing work, read the workspace's `../CURRENT_STATE.md`
+   when available. Use the [task map](#task-map) to locate implementation/tests.
+   Consult the [baseline](#last-verified-baseline), [feature requirements](#expected-features)
+   and [scientific rules](#scientific-rules-to-preserve) only as relevant to the task.
+   In a standalone clone without the private workspace handoff, use these sections
+   for the context you need.
 3. Establish which environment the task concerns: local checkout, local running
    app, or deployed Nightglow service. A Git commit or successful local build does
    not establish what code is running in production.
@@ -234,6 +237,12 @@ symmetric, source-fed neutral-H model in Earth's inverse-square gravity.
 Launch radius is 6,370 km plus the selected altitude. Source flux is in
 atoms/cm²/s; the hot fraction partitions that outward flux, not reservoir density
 or the population already aloft. Default values are illustrative, not fitted.
+
+The density slice and its legend use the same 256-color `gist_heat` palette as
+the WFI/NFI images (black through red and yellow to white). The browser builds
+that lookup locally, so THEORY does not need the observation API for its colors.
+Its adjustable logarithmic scale remains density in atoms/cm³; sharing the
+palette does not equate density with the cameras' brightness in kR.
 
 Each of the two source components uses the Maxwell **surface-crossing** speed
 law `p(s) = s exp(-s)`, with `s = m_H v² / (2 k_B T)`. The cosine direction law
