@@ -1,9 +1,8 @@
-/** A finite-volume, steady-state tracer ensemble for the THEORY model.
- * Orbits are weighted by source flux × residence time inside 30 R_E.
- * Random orbital frames cover the whole source sphere; random time phases
- * give a stationary population, including inbound bound atoms from outside.
- * A display slot is recycled at the source or domain boundary. Time outside
- * the domain is omitted, never replaced by a chord through the domain.
+/** A finite orbit catalogue for the steady-state THEORY particle display.
+ * Bound tracers follow their complete source-to-source flight, with no radius
+ * cutoff or skipped time. Only escaping tracers recycle at 30 R_E.
+ * Source flux × full flight time weights the catalogue's random time phases.
+ * Quantitative density remains the independent analytic calculation.
  */
 import {
   EARTH_GM as GM, EARTH_RADIUS_KM as RE, K_OVER_H_MASS, THEORY_OUTER_RE,
@@ -11,17 +10,20 @@ import {
 } from './theory.ts';
 
 export const PARTICLE_SAMPLES = 128;
+export const PARTICLE_TRAIL_COUNT = 24;
+export const PARTICLE_TRAIL_FRACTION = 0.5;
+export const PARTICLE_TRAIL_SECONDS = 14400;
 export const PARTICLE_MIN = 1000;
 export const PARTICLE_MAX = 500000;
 export type ParticleOrbit = {
   a: number; e: number; omega: number; bound: boolean; hot: boolean;
   start: number; end: number; frequency: number; outwardTime: number;
-  sourceRadius: number; endRadius: number; fluxWeight: number; weight: number;
+  sourceRadius: number; endRadius: number; fluxWeight: number; weight: number; timeWarp: number;
 };
 export type ParticleAtlas = {
   positions: Float32Array; width: number; height: number;
-  cumulative: Float64Array; durations: Float32Array; bound: Uint8Array;
-  hot: Uint8Array; totalAtoms: number;
+  cumulative: Float64Array; durations: Float32Array; timeWarps: Float32Array; bound: Uint8Array;
+  hot: Uint8Array;
 };
 
 function quadrature(n: number): [number, number][] {
@@ -62,12 +64,14 @@ export function particleOrbit(p: TheoryParameters, temperature: number, s: numbe
   const a = GM / (2 * Math.abs(energy));
   const ex = sourceRadius * vt * vt / GM - 1, ey = -sourceRadius * vr * vt / GM;
   const e = Math.hypot(ex, ey), omega = Math.atan2(ey, ex);
-  const endRadius = Math.min(THEORY_OUTER_RE * RE, bound ? a * (1 + e) : Infinity);
+  const endRadius = bound ? a * (1 + e) : THEORY_OUTER_RE * RE;
   const start = anomalyAtRadius(a, e, sourceRadius, bound);
-  const end = anomalyAtRadius(a, e, endRadius, bound);
+  const end = bound ? Math.PI : anomalyAtRadius(a, e, endRadius, false);
   const frequency = Math.sqrt(GM / a ** 3);
   const outwardTime = (meanAnomaly(e, end, bound) - meanAnomaly(e, start, bound)) / frequency;
-  return { a, e, omega, bound, hot, start, end, frequency, outwardTime,
+  // Resolve near-source motion even when a near-escape bound flight lasts years.
+  const timeWarp = Math.log1p(outwardTime / (0.05 * Math.sqrt(sourceRadius ** 3 / GM)));
+  return { a, e, omega, bound, hot, start, end, frequency, outwardTime, timeWarp,
     sourceRadius, endRadius, fluxWeight, weight: fluxWeight * outwardTime * (bound ? 2 : 1) };
 }
 
@@ -82,7 +86,12 @@ export function particleOrbits(p: TheoryParameters): ParticleOrbit[] {
   for (const [temperature, fraction, hot] of [[p.coldK, 1 - p.hotFraction, false], [p.hotK, p.hotFraction, true]] as const) {
     if (!fraction) continue;
     const lambda = GM / ((RE + p.altitudeKm) * K_OVER_H_MASS * temperature);
-    const cuts = [...new Set([0, 1, 2, 4, 8, 16, 32, 48, lambda])].sort((a, b) => a - b);
+    // Avoid a vanishing interval when escape energy almost coincides with a
+    // quadrature knot. Its artificial near-parabolic node would dominate the
+    // full-flight display catalogue (the unbounded continuum has no finite
+    // total inventory). Finite-radius density is checked independently.
+    const cuts = [0, 1, 2, 4, 8, 16, 32, 48].filter(cut => cut === 0 || Math.abs(cut - lambda) > 0.05 * lambda);
+    cuts.push(lambda); cuts.sort((a, b) => a - b);
     for (let i = 1; i < cuts.length; i++) for (const [u, weight] of speedRule) {
       const span = cuts[i] - cuts[i - 1], s = cuts[i - 1] + span * u;
       for (const [mu2, angleWeight] of angleRule) {
@@ -103,7 +112,7 @@ export function timeToRadius(orbit: ParticleOrbit, radiusKm: number) {
     - meanAnomaly(orbit.e, orbit.start, orbit.bound)) / orbit.frequency;
 }
 
-/** Position at a fraction of the outward/inward visible passage time.
+/** Position at a fraction of the full outward/inward passage time.
  * Solve Kepler's equation in a bracket, including highly eccentric orbits.
  */
 export function orbitPosition(orbit: ParticleOrbit, fraction: number, inbound = false): [number, number] {
@@ -131,18 +140,19 @@ export function orbitPosition(orbit: ParticleOrbit, fraction: number, inbound = 
 export function buildParticleAtlas(p: TheoryParameters): ParticleAtlas {
   const orbits = particleOrbits(p), width = PARTICLE_SAMPLES * 2, height = orbits.length;
   const positions = new Float32Array(width * height * 4);
-  const cumulative = new Float64Array(height), durations = new Float32Array(height);
+  const cumulative = new Float64Array(height), durations = new Float32Array(height), timeWarps = new Float32Array(height);
   const bound = new Uint8Array(height), hot = new Uint8Array(height);
   let total = 0;
   orbits.forEach((orbit, row) => {
     cumulative[row] = total += orbit.weight;
-    durations[row] = orbit.outwardTime * (orbit.bound ? 2 : 1);
+    durations[row] = orbit.outwardTime * (orbit.bound ? 2 : 1); timeWarps[row] = orbit.timeWarp;
     bound[row] = Number(orbit.bound); hot[row] = Number(orbit.hot);
     for (let branch = 0; branch < (orbit.bound ? 2 : 1); branch++) {
       for (let j = 0; j < PARTICLE_SAMPLES; j++) {
-        // Concentrate samples near the source, where motion is fastest.
+        // Logarithmic time knots keep long bound paths resolved near the source.
         const u = j / (PARTICLE_SAMPLES - 1);
-        const fraction = branch ? 1 - (1 - u) ** 3 : u ** 3;
+        const elapsed = Math.expm1(orbit.timeWarp * (branch ? 1 - u : u)) / Math.expm1(orbit.timeWarp);
+        const fraction = branch ? 1 - elapsed : elapsed;
         const [x, y] = orbitPosition(orbit, fraction, branch === 1);
         const index = (row * width + branch * PARTICLE_SAMPLES + j) * 4;
         positions[index] = x; positions[index + 1] = y;
@@ -150,8 +160,7 @@ export function buildParticleAtlas(p: TheoryParameters): ParticleAtlas {
     }
   });
   for (let i = 0; i < height; i++) cumulative[i] /= total;
-  return { positions, width, height, cumulative, durations, bound, hot,
-    totalAtoms: total * p.flux * 4 * Math.PI * ((RE + p.altitudeKm) * 1e5) ** 2 };
+  return { positions, width, height, cumulative, durations, timeWarps, bound, hot };
 }
 
 export function selectParticleOrbit(cumulative: Float64Array, quantile: number) {

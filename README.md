@@ -261,6 +261,8 @@ The default **Atoms** view shows a clearly labeled **3D projection** of one-pixe
 representative particles in the spherical source population. Its particle budget ranges
 from 1,000 to 500,000. Automatic quality starts with up to 25,000 and adjusts toward a
 30 FPS target within the selected budget; manual mode uses the selected count.
+Changing the budget applies the new count immediately, including while paused;
+Auto can then tune the count during playback after measuring frame rate.
 Playback speed (simulated seconds/minutes per real second), pause, opacity,
 trail visibility and extent are separate display controls. Animation pauses while its
 panel or browser tab is hidden. Performance varies with the browser and GPU.
@@ -268,32 +270,40 @@ Extent uses a slider from ±2 to ±30 R_E; playback speed uses a logarithmic sli
 from 1 to 1,800 simulated seconds per real second, with a live value readout.
 The four sliders occupy two rows: particle budget/extent, then speed/opacity.
 Scrolling over the atom view zooms in/out and updates the same extent slider;
-dragging rotates the 3D projection. Twelve existing dots have fading trails,
+dragging rotates the 3D projection. Twenty-four existing dots have fading trails,
 computed from the same time samples as their moving heads. Trails follow up to
-one quarter of a passage (at most two simulated hours); they stop at recycling
-or omitted off-domain flight, never drawing a connecting jump. The trail
-checkbox hides them without changing the cloud or simulation.
+half a complete flight (at most four simulated hours), twice the previous length.
+They continue through bound apogees and clear only when the atom is recycled.
+The trail checkbox hides them without changing the cloud or simulation.
 
 `lib/theory-particles.ts` integrates the crossing-flux speed/direction laws into
-a deterministic orbit catalogue. An orbit's sampling weight is its source flux
-weight multiplied by residence time inside 30 R_E. Uniform random source
-normals, tangent azimuths and time phases produce a steady population across the
-whole sphere. Cold/hot residence fractions consequently need not match their
-launch-flux fractions. A worker solves Kepler's equation and prepares paths;
-WebGL interpolates time along them in a single point cloud. The sampled display
-is approximate; the analytic density curves, metrics and exports are unchanged.
+a finite orbit catalogue. Bound paths follow the complete launch-to-exobase
+flight through apogee, even beyond 30 R_E, with the full outside flight time.
+Only escaping paths end at 30 R_E. An orbit's display weight is its source flux
+weight multiplied by this complete flight time. Uniform random source normals,
+tangent azimuths and time phases sample that catalogue across the whole sphere.
+A worker solves Kepler's equation; logarithmic time knots resolve fast motion
+near the source even for very long bound flights. Exobase-centered shader phases
+and double-precision clock rebasing preserve the final seconds of long returns.
+WebGL interpolates these paths.
 
-Display slots recycle at the source shell or the 30 R_E boundary. Both visible
-branches of bound paths extending beyond 30 R_E are retained, but the unobserved
-time between exit and reentry is omitted. This is a stationary tracer display,
-not a record of individual atom identities or a finite-age launch experiment.
-Every tracer has the same atom weight within the current sample; changing the
-budget changes that weight, which is shown below the view. Positions stay outside
-the source shell. The particle and example-trajectory views use only a **3D
-projection**. Foreground atoms can appear over Earth's disk; the opaque planet
-hides atoms behind it. The projection does not calculate Lyman-alpha brightness.
-The existing **Density slice** remains an exact evaluation of local model density
-on the central plane, with its own logarithmic color scale.
+Bound dots recycle only on returning to the exobase; escaping dots recycle at
+30 R_E. A dot can move out of the zoomed frame or behind Earth while remaining
+tracked. The orthographic projection has no depth cutoff: explicit sphere
+occlusion hides far-side dots and trail fragments without clipping distant
+foreground atoms. The budget counts all tracked dots, including outside the
+frame. Display count changes and source-parameter resets can still change the
+sample. The particle and example-trajectory views use only a **3D projection**.
+The separate **Density slice** evaluates local density on the central plane.
+
+The cloud is an illustrative finite-catalogue sample. Near-escape bound flights
+can last years; the infinite-age, gravity-only continuum has no finite global
+bound-atom inventory. Accordingly the UI no longer infers a global atoms-per-dot
+number from a 30 R_E residence time. Catalogue quadrature knots near escape
+energy are merged to prevent a vanishing integration interval from creating an
+artificially dominant sample. Finite-radius shell populations are checked against
+the independent analytic density. Quantitative density curves, metrics and
+exports remain unchanged; the projection does not calculate Lyman-alpha brightness.
 
 The example-trajectory count slider ranges from 1 to 100. Until adjusted, it
 keeps the original count for the selected source: 18 for two cosine-law
@@ -323,8 +333,8 @@ not its adequacy for the real exosphere.
 `tests/theory-particles.test.ts` additionally checks uniform 3D source frames,
 energy/angular-momentum conservation, radial shell counts against the analytic
 density (within 3% for the tested default and extreme populations), GPU path-table
-sampling, source/domain boundaries, both passages of
-far-reaching bound orbits, and automatic-quality bounds. Browser checks must include the built worker,
+sampling, source/escape boundaries, full flight times and apogee continuity of
+far-reaching bound orbits, near-escape numerical stability and automatic-quality bounds. Browser checks must include the built worker,
 count/speed/pause controls, source changes, visibility and narrow layouts.
 
 [Comparison with Clarke’s September 2026 slides](docs/theory-slide-comparison.md)

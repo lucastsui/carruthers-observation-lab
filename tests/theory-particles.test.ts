@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   adaptParticleCount, buildParticleAtlas, orbitPosition, particleFrame, particleOrbit,
-  particleOrbits, particleRandom, PARTICLE_MAX, PARTICLE_MIN, selectParticleOrbit, timeToRadius,
+  particleOrbits, particleRandom, PARTICLE_MAX, PARTICLE_MIN, PARTICLE_SAMPLES, selectParticleOrbit, timeToRadius,
+  type ParticleAtlas,
 } from '../lib/theory-particles.ts';
 import { DEFAULT_THEORY, densityAt, EARTH_GM as GM, EARTH_RADIUS_KM as RE, K_OVER_H_MASS } from '../lib/theory.ts';
 
@@ -71,13 +72,56 @@ void test('residence-weighted shell populations agree with the independent analy
   }
 });
 
-void test('off-domain bound particles retain both passages without a connecting chord', () => {
+void test('bound atoms cross 30 R_E continuously, spend full time outside, and recycle only at the exobase', () => {
   const orbits = particleOrbits(DEFAULT_THEORY);
-  const crossing = orbits.find(orbit => orbit.bound && orbit.a * (1 + orbit.e) > 31 * RE)!;
+  const crossing = orbits.find(orbit => orbit.bound && orbit.endRadius > 60 * RE && orbit.endRadius < 120 * RE)!;
   assert.ok(crossing);
-  near(Math.hypot(...orbitPosition(crossing, 1)), 30);
-  near(Math.hypot(...orbitPosition(crossing, 0, true)), 30);
-  near(crossing.weight, 2 * crossing.fluxWeight * crossing.outwardTime);
+  const exitTime = timeToRadius(crossing, 30 * RE), halfFlight = crossing.outwardTime;
+  assert.ok(halfFlight > exitTime * 2, 'outside flight must not be skipped');
+  near(halfFlight, (Math.PI - crossing.start + crossing.e * Math.sin(crossing.start)) / crossing.frequency);
+  near(Math.hypot(...orbitPosition(crossing, exitTime / halfFlight)), 30);
+  near(Math.hypot(...orbitPosition(crossing, 1 - exitTime / halfFlight, true)), 30);
+  const apogee = orbitPosition(crossing, 1), inwardStart = orbitPosition(crossing, 0, true);
+  near(Math.hypot(...apogee), crossing.a * (1 + crossing.e) / RE);
+  apogee.forEach((value, i) => near(value, inwardStart[i]));
+  near(Math.hypot(...orbitPosition(crossing, 1, true)), crossing.sourceRadius / RE);
+  near(crossing.weight, 2 * crossing.fluxWeight * halfFlight);
+  for (const orbit of orbits.filter(orbit => !orbit.bound)) {
+    near(orbit.endRadius / RE, 30);
+    near(Math.hypot(...orbitPosition(orbit, 1)), 30);
+    near(orbit.weight, orbit.fluxWeight * orbit.outwardTime);
+  }
+});
+
+function atlasPosition(atlas: ParticleAtlas, row: number, fraction: number, inbound = false) {
+  const warp = atlas.timeWarps[row];
+  const outward = Math.log1p((inbound ? 1 - fraction : fraction) * Math.expm1(warp)) / warp;
+  const index = (inbound ? 1 - outward : outward) * (PARTICLE_SAMPLES - 1);
+  const lo = Math.min(PARTICLE_SAMPLES - 2, Math.floor(index)), f = index - lo;
+  const offset = (row * atlas.width + (inbound ? PARTICLE_SAMPLES : 0) + lo) * 4;
+  return [atlas.positions[offset] * (1 - f) + atlas.positions[offset + 4] * f,
+    atlas.positions[offset + 1] * (1 - f) + atlas.positions[offset + 5] * f];
+}
+
+void test('long bound GPU paths resolve source motion and join continuously at apogee', () => {
+  for (const launchLaw of ['cosine', 'radial'] as const) {
+    const p = { ...DEFAULT_THEORY, launchLaw }, atlas = buildParticleAtlas(p), orbits = particleOrbits(p);
+    const rows = orbits.map((orbit, row) => ({ orbit, row }))
+      .filter(({ orbit }) => orbit.bound && orbit.endRadius > 30 * RE);
+    assert.ok(rows.length > 0);
+    for (const { orbit, row } of rows) {
+      near(atlas.durations[row], orbit.outwardTime * 2, 1e-7);
+      for (const fraction of [0, 1e-10, 1e-8, 1e-6, 1e-4, 0.01, 0.1, 0.5, 0.9, 1]) {
+        for (const inbound of [false, true]) {
+          const actual = atlasPosition(atlas, row, fraction, inbound), exact = orbitPosition(orbit, fraction, inbound);
+          assert.ok(Math.hypot(actual[0] - exact[0], actual[1] - exact[1]) / Math.hypot(...exact) < 0.006,
+            `${launchLaw} row ${row}, fraction ${fraction}, inbound ${inbound}`);
+        }
+      }
+      const outward = atlasPosition(atlas, row, 1), inward = atlasPosition(atlas, row, 0, true);
+      outward.forEach((value, i) => near(value, inward[i]));
+    }
+  }
 });
 
 void test('GPU atlas and randomly phased display slots preserve shell populations', () => {
@@ -88,18 +132,15 @@ void test('GPU atlas and randomly phased display slots preserve shell population
   const expected = bins.map(radius => orbits.reduce((sum, orbit) => sum
     + orbit.fluxWeight * timeToRadius(orbit, radius * RE) * (orbit.bound ? 2 : 1), 0) / totalWeight);
   // Read the actual GPU path table at independently sampled times.
-  const counts = bins.map(() => 0), sampleCount = 200000;
+  const counts = bins.map(() => 0), sampleCount = 1000000;
   for (let i = 0; i < sampleCount; i++) {
     const row = selectParticleOrbit(atlas.cumulative, particleRandom(i, 0)), phase = particleRandom(i, 1);
     const returning = atlas.bound[row] && phase >= 0.5;
     const time = atlas.bound[row] ? (phase * 2) % 1 : phase;
-    const u = returning ? 1 - Math.cbrt(1 - time) : Math.cbrt(time);
-    const index = u * 127, lo = Math.min(126, Math.floor(index)), f = index - lo;
-    const offset = (row * atlas.width + (returning ? 128 : 0) + lo) * 4;
-    const x = atlas.positions[offset] * (1 - f) + atlas.positions[offset + 4] * f;
-    const y = atlas.positions[offset + 1] * (1 - f) + atlas.positions[offset + 5] * f;
+    const [x, y] = atlasPosition(atlas, row, time, !!returning);
     const radius = Math.hypot(x, y);
-    assert.ok(radius >= (RE + DEFAULT_THEORY.altitudeKm) / RE - 1e-4 && radius <= 30.001);
+    assert.ok(radius >= (RE + DEFAULT_THEORY.altitudeKm) / RE - 1e-4);
+    assert.ok(radius <= orbits[row].endRadius / RE + 0.01);
     bins.forEach((edge, j) => { if (radius <= edge + 1e-4) counts[j]++; });
   }
   counts.forEach((count, i) => near(count / sampleCount, expected[i], 0.02));
@@ -111,7 +152,23 @@ void test('boundary source settings produce finite positive residence times and 
     assert.ok(atlas.positions.every(Number.isFinite));
     assert.ok(atlas.durations.every(value => value > 0 && Number.isFinite(value)));
     near(atlas.cumulative.at(-1)!, 1);
-    assert.ok(atlas.totalAtoms > 0 && Number.isFinite(atlas.totalAtoms));
+    assert.ok(atlas.timeWarps.every(value => value > 0 && Number.isFinite(value)));
+  }
+});
+
+void test('escape energies near catalogue knots do not create singular bound flights', () => {
+  const factor = GM / ((RE + DEFAULT_THEORY.altitudeKm) * K_OVER_H_MASS);
+  for (const lambda of [1, 2, 4, 8, 16, 32]) for (const shift of [-1e-9, 0, 1e-9]) {
+    const temperature = factor / (lambda + shift);
+    const p = lambda <= 2 ? { ...DEFAULT_THEORY, hotK: temperature, hotFraction: 1 }
+      : { ...DEFAULT_THEORY, coldK: temperature, hotFraction: 0 };
+    const orbits = particleOrbits(p);
+    near(orbits.reduce((sum, orbit) => sum + orbit.fluxWeight, 0), 1, 1e-9);
+    for (const orbit of orbits) {
+      assert.ok(orbit.outwardTime > 0 && Number.isFinite(orbit.outwardTime));
+      assert.ok(orbit.endRadius / RE < 100000);
+      assert.ok(Number.isFinite(orbit.weight + orbit.timeWarp));
+    }
   }
 });
 
