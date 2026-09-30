@@ -270,7 +270,7 @@ Extent uses a slider from ±2 to ±30 R_E; playback speed uses a logarithmic sli
 from 1 to 1,800 simulated seconds per real second, with a live value readout.
 The four sliders occupy two rows: particle budget/extent, then speed/opacity.
 Scrolling over the atom view zooms in/out and updates the same extent slider;
-dragging rotates the 3D projection. Twenty-four existing dots have fading trails,
+dragging rotates the 3D projection. 120 existing dots have fading trails,
 computed from the same time samples as their moving heads. Trails follow up to
 half a complete flight (at most four simulated hours), twice the previous length.
 They continue through bound apogees and clear only when the atom is recycled.

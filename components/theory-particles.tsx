@@ -108,7 +108,7 @@ export default function TheoryParticles({ parameters, extent, overlay, extentCon
     queueMicrotask(() => { if (!disposed) { setError(''); setStats(null); setStatus('Preparing steady-state cloud…'); } });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor('#0a131d');
-    renderer.domElement.setAttribute('aria-label', '3D hydrogen projection with trails following 24 moving atoms');
+    renderer.domElement.setAttribute('aria-label', `3D hydrogen projection with trails following ${PARTICLE_TRAIL_COUNT} moving atoms`);
     renderer.domElement.tabIndex = 0;
     element.insertBefore(renderer.domElement, element.firstChild);
     const scene = new THREE.Scene();

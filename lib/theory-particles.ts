@@ -10,7 +10,7 @@ import {
 } from './theory.ts';
 
 export const PARTICLE_SAMPLES = 128;
-export const PARTICLE_TRAIL_COUNT = 24;
+export const PARTICLE_TRAIL_COUNT = 120;
 export const PARTICLE_TRAIL_FRACTION = 0.5;
 export const PARTICLE_TRAIL_SECONDS = 14400;
 export const PARTICLE_MIN = 1000;
