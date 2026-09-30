@@ -45,8 +45,10 @@
 .theory-comparison-note { margin: 0; color: #c4b2fc; font-size: 10px; line-height: 1.3; flex: none; }
 .theory-bottom-grid { display: contents; }
 .theory-spatial-panel { grid-area: spatial; display: flex; flex-direction: column; gap: 7px; padding: 12px; min-height: 0; min-width: 0; }
-.theory-extent { display: flex; align-items: center; gap: 6px; color: #91a6b5; font-size: 10px; }
-.theory-extent select { padding: 3px 4px; }
+.theory-extent { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 6px; color: #91a6b5; font-size: 10px; }
+.theory-card-heading > .theory-extent { width: 155px; }
+.theory-extent input { width: 100%; height: 19px; padding: 0; accent-color: #91e5cd; background: none; border: none; box-shadow: none; cursor: pointer; }
+.theory-extent output { min-width: 49px; font-variant-numeric: tabular-nums; text-align: right; }
 .theory-view-buttons { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; flex: none; }
 .theory-view-buttons .button { min-height: 27px; font-size: 10px; padding: 4px 7px; }
 .theory-geometry { display: flex; justify-content: space-between; align-items: center; gap: 6px; color: #a3b8c2; font-size: 10px; flex: none; }
@@ -65,6 +67,10 @@
 .theory-particle-image[data-projection=false] canvas { cursor: default; touch-action: auto; }
 .theory-particle-image canvas:focus-visible { outline: 2px solid #a9efda; outline-offset: -3px; }
 .theory-particle-controls { display: flex; flex-direction: column; gap: 5px; flex: none; }
+.theory-particle-sliders { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px 14px; }
+.theory-particle-sliders > label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 6px; min-width: 0; margin: 0; color: #a3b8c2; font-size: 10px; }
+.theory-particle-sliders > label input[type=range] { width: 100%; flex: 0 0 100%; margin: 0; }
+.theory-particle-sliders output { font-variant-numeric: tabular-nums; color: #e3edf4; }
 .theory-dot-limit { display: flex; flex-wrap: wrap; justify-content: space-between; color: #a3b8c2; font-size: 11px; }
 .theory-dot-limit output { color: #e3edf4; font-variant-numeric: tabular-nums; }
 .theory-particle-controls input[type=range] { accent-color: #91e5cd; background: none; border: none; box-shadow: none; height: 19px; padding: 0; cursor: pointer; }

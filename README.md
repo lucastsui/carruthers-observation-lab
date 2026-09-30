@@ -264,6 +264,11 @@ from 1,000 to 500,000. Automatic quality starts with up to 25,000 and adjusts to
 Playback speed (simulated seconds/minutes per real second), pause, opacity,
 geometry and extent are separate display controls. Animation pauses while its
 panel or browser tab is hidden. Performance varies with the browser and GPU.
+Extent uses a slider from ±2 to ±30 R_E; playback speed uses a logarithmic slider
+from 1 to 1,800 simulated seconds per real second, with a live value readout.
+The four sliders occupy two rows: particle budget/extent, then speed/opacity.
+Scrolling over the atom view zooms in/out and updates the same extent slider;
+dragging rotates only in 3D projection mode.
 
 `lib/theory-particles.ts` integrates the crossing-flux speed/direction laws into
 a deterministic orbit catalogue. An orbit's sampling weight is its source flux

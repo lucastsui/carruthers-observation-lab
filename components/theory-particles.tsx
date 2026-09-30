@@ -56,8 +56,9 @@ const fragmentShader = `
 type Options = { limit: number; automatic: boolean; speed: number; paused: boolean; opacity: number; extent: number; projection: boolean };
 type Stats = { count: number; fps: number; atomsPerDot: number; simulatedSeconds: number };
 
-export default function TheoryParticles({ parameters, extent, overlay, projection }: {
-  parameters: TheoryParameters; extent: number; overlay: ReactNode; projection: boolean;
+export default function TheoryParticles({ parameters, extent, overlay, projection, extentControl, onExtentChange }: {
+  parameters: TheoryParameters; extent: number; overlay: ReactNode; projection: boolean; extentControl: ReactNode;
+  onExtentChange: (extent: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(100000), [automatic, setAutomatic] = useState(true);
@@ -107,8 +108,16 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
     let capacity = 0, count = Math.min(25000, options.current.limit), phaseTime = 0, elapsed = 0;
     let visible = true, width = 0, animation = 0, last = 0, frames = 0, windowTime = 0, stableWindows = 0;
     let lastExtent = initial.extent, lastProjection = initial.projection, lost = false;
+    let wheelExtent = initial.extent;
     controls.enabled = initial.projection;
     renderer.domElement.style.touchAction = initial.projection ? 'none' : 'auto';
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1);
+      wheelExtent = Math.max(2, Math.min(30, wheelExtent * Math.exp(pixels * 0.002)));
+      onExtentChange(Math.round(wheelExtent * 10) / 10);
+    };
+    element.addEventListener('wheel', onWheel, { passive: false });
     const resize = new ResizeObserver(([entry]) => {
       width = entry.contentRect.width;
       if (width > 0) renderer.setSize(width, entry.contentRect.height, false);
@@ -206,6 +215,7 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       }
       if (current.extent !== lastExtent) {
         lastExtent = current.extent;
+        if (Math.abs(lastExtent - Math.round(wheelExtent * 10) / 10) > 1e-6) wheelExtent = lastExtent;
         camera.left = -lastExtent; camera.right = lastExtent;
         camera.top = lastExtent; camera.bottom = -lastExtent; camera.updateProjectionMatrix();
       }
@@ -227,29 +237,37 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
     return () => {
       disposed = true; cancelAnimationFrame(animation); worker?.terminate();
       resize.disconnect(); visibility.disconnect(); document.removeEventListener('visibilitychange', onVisibility);
+      element.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       controls.dispose(); geometry.dispose(); material.dispose(); texture?.dispose();
       earthGeometry.dispose(); earthMaterial.dispose(); renderer.dispose(); renderer.domElement.remove();
     };
     // Display controls use refs so they never rebuild or restart the cloud.
-  }, [parameters, retry]);
+  }, [parameters, retry, onExtentChange]);
 
   return <div className="theory-particle-view">
     <div className="theory-particle-controls">
-      <label className="theory-dot-limit">{automatic ? 'Particle budget' : 'Particles'} <output>{limit.toLocaleString()}</output>
+      <div className="theory-particle-sliders">
+      <label className="theory-dot-limit">{automatic ? 'Particle limit' : 'Particles'} <output>{limit.toLocaleString()}</output>
         <input type="range" aria-label="Particle dot limit" min={Math.log10(PARTICLE_MIN)} max={Math.log10(PARTICLE_MAX)}
+          aria-valuetext={`${limit.toLocaleString()} particles`}
           step="any" value={Math.log10(limit)} onChange={event => setLimit(Math.max(PARTICLE_MIN,
             Math.min(PARTICLE_MAX, Math.round(10 ** Number(event.target.value) / 1000) * 1000)))} />
       </label>
+      {extentControl}
+      <label className="theory-speed-control">Speed
+        <output>{speed < 60 ? `${speed} s/s` : `${(speed / 60).toLocaleString('en-US', { maximumFractionDigits: 1 })} min/s`}</output>
+        <input type="range" aria-label="Particle playback speed" min="0" max={Math.log10(1800)} step="any"
+          value={Math.log10(speed)} aria-valuetext={`${speed} simulated seconds per real second`}
+          onChange={event => setSpeed(Math.max(1, Math.min(1800, Math.round(10 ** Number(event.target.value)))))} />
+      </label>
+      <label className="theory-opacity-control">Opacity <output>{Math.round(opacity * 100)}%</output>
+        <input type="range" aria-label="Particle opacity" min="0.05" max="1" step="0.05" value={opacity}
+          onChange={event => setOpacity(Number(event.target.value))} /></label>
+      </div>
       <div className="theory-particle-toolbar">
         <label><input type="checkbox" checked={automatic} onChange={event => setAutomatic(event.target.checked)} />Auto · 30 FPS target</label>
         <button className="button" onClick={() => setPaused(value => !value)}>{paused ? 'Resume' : 'Pause'}</button>
-      </div>
-      <div className="theory-particle-toolbar">
-        <label>Speed <select aria-label="Particle playback speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}>
-          {[1, 10, 60, 300, 1800].map(value => <option key={value} value={value}>{value < 60 ? `${value} s/s` : `${value / 60} min/s`}</option>)}</select></label>
-        <label>Opacity <input type="range" aria-label="Particle opacity" min="0.05" max="1" step="0.05" value={opacity}
-          onChange={event => setOpacity(Number(event.target.value))} /></label>
       </div>
     </div>
     <div className="theory-space-stage"><div ref={host} className="theory-space-image theory-particle-image" data-projection={projection}>
@@ -263,8 +281,8 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       <span>{stats ? `${(stats.simulatedSeconds / 3600).toFixed(2)} simulated hours` : ''}</span>
     </div>
     <p className="theory-explainer">Blue: cold · orange: hot. {projection
-      ? '3D projection: dots over Earth’s disk are in front of the planet. Drag to rotate.'
-      : 'Thin cross-section: only atoms within ±0.05 R_E of the plane are visible. Earth and the source interior are empty; atoms enter and leave the slice.'}</p>
+      ? '3D projection: dots over Earth’s disk are in front of the planet. Drag to rotate; scroll to zoom.'
+      : 'Thin cross-section: only atoms within ±0.05 R_E of the plane are visible. Earth and the source interior are empty. Scroll to zoom.'}</p>
     <p className="theory-explainer theory-particle-weight">{stats ? `Each dot ≈ ${stats.atomsPerDot.toExponential(2)} atoms within 30 R_E. ` : ''}
       Steady-state launches across the full sphere; slots recycle at the source or 30 R_E. Returning bound atoms are included.</p>
   </div>;

@@ -228,6 +228,13 @@ function TrajectoryView({ result, extent, count, projection }: { result: TheoryR
   </div>;
 }
 
+function ExtentSlider({ extent, onChange }: { extent: number; onChange: (value: number) => void }) {
+  return <label className="theory-extent">Extent <output>±{extent} R_E</output>
+    <input type="range" aria-label="Spatial view extent" min="2" max="30" step="0.1" value={extent}
+      aria-valuetext={`Plus or minus ${extent} Earth radii`} onChange={event => onChange(Number(event.target.value))} />
+  </label>;
+}
+
 function download(text: string, type: string, extension: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement('a');
@@ -350,8 +357,7 @@ export function TheoryExplorer() {
         <div className="theory-bottom-grid">
           <section className="panel theory-spatial-panel">
             <div className="theory-card-heading"><h3>Spatial view</h3>
-              <label className="theory-extent">Extent <select aria-label="Spatial view extent" value={extent} onChange={e => setExtent(Number(e.target.value))}>
-                {[2, 5, 10, 20, 30].map(v => <option key={v} value={v}>±{v} R_E</option>)}</select></label></div>
+              {view !== 'particles' && <ExtentSlider extent={extent} onChange={setExtent} />}</div>
             <fieldset className="theory-view-buttons" aria-label="Theory spatial view">
               <button className={`button ${view === 'particles' ? 'primary' : ''}`} aria-pressed={view === 'particles'} onClick={() => setView('particles')}>Atoms</button>
               <button className={`button ${view === 'density' ? 'primary' : ''}`} aria-pressed={view === 'density'} onClick={() => setView('density')}>Density slice</button>
@@ -367,7 +373,10 @@ export function TheoryExplorer() {
                 onChange={e => setTrajectoryCount(Number(e.target.value))} />
             </div>}
             {view === 'particles' ? <Suspense fallback={<p className="theory-explainer">Loading particle view…</p>}>
-              <TheoryParticles parameters={parameters} extent={extent} projection={projection} overlay={<SpaceGrid extent={extent} altitude={parameters.altitudeKm} earth={false} />} />
+              <TheoryParticles parameters={parameters} extent={extent} projection={projection}
+                onExtentChange={setExtent}
+                extentControl={<ExtentSlider extent={extent} onChange={setExtent} />}
+                overlay={<SpaceGrid extent={extent} altitude={parameters.altitudeKm} earth={false} />} />
             </Suspense> : <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} projection={projection} />}</div>}
             {view === 'density' ? <>
               <div className="theory-colorbar" style={{ backgroundImage: DENSITY_GRADIENT }} /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
