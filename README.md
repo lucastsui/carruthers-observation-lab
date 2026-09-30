@@ -262,13 +262,17 @@ representative particles in the spherical source population. Its particle budget
 from 1,000 to 500,000. Automatic quality starts with up to 25,000 and adjusts toward a
 30 FPS target within the selected budget; manual mode uses the selected count.
 Playback speed (simulated seconds/minutes per real second), pause, opacity,
-geometry and extent are separate display controls. Animation pauses while its
+trail visibility and extent are separate display controls. Animation pauses while its
 panel or browser tab is hidden. Performance varies with the browser and GPU.
 Extent uses a slider from ±2 to ±30 R_E; playback speed uses a logarithmic slider
 from 1 to 1,800 simulated seconds per real second, with a live value readout.
 The four sliders occupy two rows: particle budget/extent, then speed/opacity.
 Scrolling over the atom view zooms in/out and updates the same extent slider;
-dragging rotates only in 3D projection mode.
+dragging rotates the 3D projection. Twelve existing dots have fading trails,
+computed from the same time samples as their moving heads. Trails follow up to
+one quarter of a passage (at most two simulated hours); they stop at recycling
+or omitted off-domain flight, never drawing a connecting jump. The trail
+checkbox hides them without changing the cloud or simulation.
 
 `lib/theory-particles.ts` integrates the crossing-flux speed/direction laws into
 a deterministic orbit catalogue. An orbit's sampling weight is its source flux
@@ -285,24 +289,16 @@ time between exit and reentry is omitted. This is a stationary tracer display,
 not a record of individual atom identities or a finite-age launch experiment.
 Every tracer has the same atom weight within the current sample; changing the
 budget changes that weight, which is shown below the view. Positions stay outside
-the source shell. **2D cross-section** displays only atoms within ±0.05 R_E of a
-fixed central plane, and masks the projected source interior. The budget counts
-the entire ensemble; only a fraction is visible in the slab. Atoms enter and
-leave the slice during their full 3D motion. This finite, 637-km-thick slab
-approximates a mathematical slice; its radial sampling follows area × local
-density, unlike a projection of the whole cloud. Earth's disk is always empty.
-
-The explicit **3D projection** option shows the whole cloud and allows rotation.
-Only in this mode can foreground atoms appear over Earth's disk; the opaque
-planet hides atoms behind it. Neither mode calculates Lyman-alpha brightness.
+the source shell. The particle and example-trajectory views use only a **3D
+projection**. Foreground atoms can appear over Earth's disk; the opaque planet
+hides atoms behind it. The projection does not calculate Lyman-alpha brightness.
 The existing **Density slice** remains an exact evaluation of local model density
 on the central plane, with its own logarithmic color scale.
 
 The example-trajectory count slider ranges from 1 to 100. Until adjusted, it
 keeps the original count for the selected source: 18 for two cosine-law
 components, 9 for one, or 6/3 in radial mode. Those original speed/angle examples
-are retained, with deterministic random launch sites around the source circle
-in cross-section mode, or across the source sphere in 3D projection mode.
+are retained, with deterministic random launch sites across the source sphere.
 Increasing the count adds examples without moving existing paths. In 3D mode,
 foreground paths can project over Earth's disk; far-side paths are occluded.
 This display
@@ -327,7 +323,7 @@ not its adequacy for the real exosphere.
 `tests/theory-particles.test.ts` additionally checks uniform 3D source frames,
 energy/angular-momentum conservation, radial shell counts against the analytic
 density (within 3% for the tested default and extreme populations), GPU path-table
-sampling, thin-slice radial density, source/domain boundaries, both passages of
+sampling, source/domain boundaries, both passages of
 far-reaching bound orbits, and automatic-quality bounds. Browser checks must include the built worker,
 count/speed/pause controls, source changes, visibility and narrow layouts.
 

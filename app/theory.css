@@ -51,8 +51,6 @@
 .theory-extent output { min-width: 49px; font-variant-numeric: tabular-nums; text-align: right; }
 .theory-view-buttons { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; flex: none; }
 .theory-view-buttons .button { min-height: 27px; font-size: 10px; padding: 4px 7px; }
-.theory-geometry { display: flex; justify-content: space-between; align-items: center; gap: 6px; color: #a3b8c2; font-size: 10px; flex: none; }
-.theory-geometry select { padding: 3px 5px; }
 .theory-trajectory-controls { flex: none; }
 .theory-trajectory-controls label { display: flex; justify-content: space-between; gap: 8px; color: #a3b8c2; font-size: 11px; }
 .theory-trajectory-controls output { color: #e3edf4; font-variant-numeric: tabular-nums; }
@@ -64,7 +62,6 @@
 .theory-particle-image .theory-space-overlay { pointer-events: none; }
 .theory-particle-image canvas { touch-action: none; cursor: grab; }
 .theory-particle-image canvas:active { cursor: grabbing; }
-.theory-particle-image[data-projection=false] canvas { cursor: default; touch-action: auto; }
 .theory-particle-image canvas:focus-visible { outline: 2px solid #a9efda; outline-offset: -3px; }
 .theory-particle-controls { display: flex; flex-direction: column; gap: 5px; flex: none; }
 .theory-particle-sliders { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px 14px; }

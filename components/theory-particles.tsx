@@ -4,27 +4,39 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   adaptParticleCount, particleFrame, particleRandom, PARTICLE_MAX, PARTICLE_MIN,
-  PARTICLE_SAMPLES, PARTICLE_SLICE_HALF_RE, selectParticleOrbit, type ParticleAtlas,
+  PARTICLE_SAMPLES, selectParticleOrbit, type ParticleAtlas,
 } from '@/lib/theory-particles';
-import { EARTH_RADIUS_KM, type TheoryParameters } from '@/lib/theory';
+import type { TheoryParameters } from '@/lib/theory';
 // Vite supplies the default constructor for this virtual worker module.
 // oxlint-disable-next-line import/default
 import ParticleWorker from '../lib/theory-particles.worker.ts?worker';
 
+const TRAIL_COUNT = 12, TRAIL_SEGMENTS = 96;
 const vertexShader = `
   uniform sampler2D paths;
   uniform vec2 atlasSize;
   uniform float clockSeconds;
   uniform float pointSize;
-  uniform float sliceHalfWidth;
-  uniform float sourceRadius;
   attribute vec3 normalAxis;
   attribute vec3 tangentAxis;
   // row, signed inverse duration (positive = bound), time phase, hot flag
   attribute vec4 orbit;
   varying vec3 dotColor;
+  varying float fade;
+  #ifdef PARTICLE_TRAIL
+    attribute float trailAge;
+    attribute float branchGap;
+  #endif
   void main() {
     float phase = fract(orbit.z + clockSeconds * abs(orbit.y));
+    fade = 1.0;
+    #ifdef PARTICLE_TRAIL
+      // Never join a recycled atom to its replacement, or bridge an omitted
+      // flight outside 30 R_E. Ordinary bound turnarounds stay continuous.
+      float start = branchGap > 0.5 && phase >= 0.5 ? 0.5 : 0.0;
+      phase = max(start, phase - trailAge * min(0.25, 7200.0 * abs(orbit.y)));
+      fade = pow(1.0 - trailAge, 0.7);
+    #endif
     bool bound = orbit.y > 0.0;
     bool inbound = bound && phase >= 0.5;
     float t = bound ? fract(phase * 2.0) : phase;
@@ -37,37 +49,36 @@ const vertexShader = `
     vec2 b = texture2D(paths, uv + vec2(1.0 / atlasSize.x, 0.0)).xy;
     vec2 xy = mix(a, b, sampleIndex - left);
     vec3 point = normalAxis * xy.x + tangentAxis * xy.y;
-    // A thin slab approximates the mathematical plane. Mask the unmodeled
-    // source interior in the plane too, so the Earth disk is always empty.
-    if (sliceHalfWidth > 0.0 && (abs(point.z) > sliceHalfWidth || length(point.xy) < sourceRadius)) {
-      gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 1.0;
-      dotColor = vec3(0.0); return;
-    }
     gl_Position = projectionMatrix * modelViewMatrix * vec4(point, 1.0);
     gl_PointSize = pointSize;
     dotColor = mix(vec3(0.412, 0.722, 1.0), vec3(1.0, 0.729, 0.471), orbit.w);
+    #ifdef PARTICLE_TRAIL
+      dotColor = mix(dotColor, vec3(1.0), 0.55);
+    #endif
   }
 `;
 const fragmentShader = `
   uniform float opacity;
   varying vec3 dotColor;
-  void main() { gl_FragColor = vec4(dotColor, opacity); }
+  varying float fade;
+  void main() { gl_FragColor = vec4(dotColor, opacity * fade); }
 `;
-type Options = { limit: number; automatic: boolean; speed: number; paused: boolean; opacity: number; extent: number; projection: boolean };
+type Options = { limit: number; automatic: boolean; speed: number; paused: boolean; opacity: number; extent: number; trails: boolean };
 type Stats = { count: number; fps: number; atomsPerDot: number; simulatedSeconds: number };
 
-export default function TheoryParticles({ parameters, extent, overlay, projection, extentControl, onExtentChange }: {
-  parameters: TheoryParameters; extent: number; overlay: ReactNode; projection: boolean; extentControl: ReactNode;
+export default function TheoryParticles({ parameters, extent, overlay, extentControl, onExtentChange }: {
+  parameters: TheoryParameters; extent: number; overlay: ReactNode; extentControl: ReactNode;
   onExtentChange: (extent: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(100000), [automatic, setAutomatic] = useState(true);
   const [speed, setSpeed] = useState(60), [paused, setPaused] = useState(false), [opacity, setOpacity] = useState(0.65);
+  const [trails, setTrails] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null), [status, setStatus] = useState('Preparing steady-state cloud…');
   const [error, setError] = useState(''), [retry, setRetry] = useState(0);
-  const options = useRef<Options>({ limit, automatic, speed, paused, opacity, extent, projection });
-  useEffect(() => { options.current = { limit, automatic, speed, paused, opacity, extent, projection }; },
-    [limit, automatic, speed, paused, opacity, extent, projection]);
+  const options = useRef<Options>({ limit, automatic, speed, paused, opacity, extent, trails });
+  useEffect(() => { options.current = { limit, automatic, speed, paused, opacity, extent, trails }; },
+    [limit, automatic, speed, paused, opacity, extent, trails]);
 
   useEffect(() => {
     const element = host.current;
@@ -82,7 +93,7 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
     queueMicrotask(() => { if (!disposed) { setError(''); setStats(null); setStatus('Preparing steady-state cloud…'); } });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor('#0a131d');
-    renderer.domElement.setAttribute('aria-label', 'Animated hydrogen atoms outside the source shell');
+    renderer.domElement.setAttribute('aria-label', '3D hydrogen projection with trails following twelve moving atoms');
     renderer.domElement.tabIndex = 0;
     element.insertBefore(renderer.domElement, element.firstChild);
     const scene = new THREE.Scene();
@@ -98,19 +109,25 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
     const material = new THREE.ShaderMaterial({
       vertexShader, fragmentShader, transparent: true, depthWrite: false,
       uniforms: { paths: { value: null }, atlasSize: { value: new THREE.Vector2() },
-        clockSeconds: { value: 0 }, pointSize: { value: renderer.getPixelRatio() }, opacity: { value: initial.opacity },
-        sliceHalfWidth: { value: initial.projection ? 0 : PARTICLE_SLICE_HALF_RE }, sourceRadius: { value: 1 + parameters.altitudeKm / EARTH_RADIUS_KM } },
+        clockSeconds: { value: 0 }, pointSize: { value: renderer.getPixelRatio() }, opacity: { value: initial.opacity } },
     });
     const points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
     scene.add(points);
+    const trailGeometry = new THREE.BufferGeometry();
+    const trailMaterial = new THREE.ShaderMaterial({
+      vertexShader, fragmentShader, defines: { PARTICLE_TRAIL: 1 },
+      uniforms: { ...material.uniforms, opacity: { value: 0.95 } }, transparent: true, depthWrite: false,
+    });
+    const trailLines = new THREE.LineSegments(trailGeometry, trailMaterial);
+    trailLines.frustumCulled = false;
+    scene.add(trailLines);
     let atlas: ParticleAtlas | null = null, texture: THREE.DataTexture | null = null;
     let capacity = 0, count = Math.min(25000, options.current.limit), phaseTime = 0, elapsed = 0;
     let visible = true, width = 0, animation = 0, last = 0, frames = 0, windowTime = 0, stableWindows = 0;
-    let lastExtent = initial.extent, lastProjection = initial.projection, lost = false;
+    let lastExtent = initial.extent, lost = false;
     let wheelExtent = initial.extent;
-    controls.enabled = initial.projection;
-    renderer.domElement.style.touchAction = initial.projection ? 'none' : 'auto';
+    renderer.domElement.style.touchAction = 'none';
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1);
@@ -159,6 +176,33 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       capacity = nextCapacity;
     }
 
+    function populateTrails() {
+      if (!atlas) return;
+      const vertices = TRAIL_COUNT * TRAIL_SEGMENTS * 2;
+      const normals = new Float32Array(vertices * 3), tangents = new Float32Array(vertices * 3);
+      const slots = new Float32Array(vertices * 4), ages = new Float32Array(vertices), gaps = new Float32Array(vertices);
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        const row = geometry.getAttribute('orbit').getX(i);
+        const end = (row * atlas.width + PARTICLE_SAMPLES - 1) * 4, next = end + 4;
+        const gap = atlas.bound[row] && Math.hypot(atlas.positions[end] - atlas.positions[next],
+          atlas.positions[end + 1] - atlas.positions[next + 1]) > 1e-4;
+        for (let j = 0; j < TRAIL_SEGMENTS * 2; j++) {
+          const vertex = i * TRAIL_SEGMENTS * 2 + j;
+          normals.set(geometry.getAttribute('normalAxis').array.slice(i * 3, i * 3 + 3), vertex * 3);
+          tangents.set(geometry.getAttribute('tangentAxis').array.slice(i * 3, i * 3 + 3), vertex * 3);
+          slots.set(geometry.getAttribute('orbit').array.slice(i * 4, i * 4 + 4), vertex * 4);
+          ages[vertex] = (Math.floor(j / 2) + j % 2) / TRAIL_SEGMENTS;
+          gaps[vertex] = Number(gap);
+        }
+      }
+      trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices * 3), 3));
+      trailGeometry.setAttribute('normalAxis', new THREE.BufferAttribute(normals, 3));
+      trailGeometry.setAttribute('tangentAxis', new THREE.BufferAttribute(tangents, 3));
+      trailGeometry.setAttribute('orbit', new THREE.BufferAttribute(slots, 4));
+      trailGeometry.setAttribute('trailAge', new THREE.BufferAttribute(ages, 1));
+      trailGeometry.setAttribute('branchGap', new THREE.BufferAttribute(gaps, 1));
+    }
+
     let worker: Worker | null = null;
     try {
       worker = new ParticleWorker();
@@ -174,7 +218,7 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
         texture.generateMipmaps = false; texture.needsUpdate = true;
         material.uniforms.paths.value = texture;
         material.uniforms.atlasSize.value.set(atlas.width, atlas.height);
-        populate(count); geometry.setDrawRange(0, count);
+        populate(count); geometry.setDrawRange(0, count); populateTrails();
         setStatus('');
         setStats({ count, fps: 0, atomsPerDot: atlas.totalAtoms / count, simulatedSeconds: 0 });
         worker?.terminate(); worker = null;
@@ -202,24 +246,22 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
         const attribute = geometry.getAttribute('orbit') as THREE.BufferAttribute;
         for (let i = 0; i < capacity; i++) attribute.setZ(i,
           (attribute.getZ(i) + phaseTime * Math.abs(attribute.getY(i))) % 1);
-        attribute.needsUpdate = true; phaseTime = 0;
+        attribute.needsUpdate = true;
+        const trailOrbits = trailGeometry.getAttribute('orbit') as THREE.BufferAttribute;
+        for (let i = 0; i < trailOrbits.count; i++)
+          trailOrbits.setZ(i, attribute.getZ(Math.floor(i / (TRAIL_SEGMENTS * 2))));
+        trailOrbits.needsUpdate = true; phaseTime = 0;
       }
       material.uniforms.clockSeconds.value = phaseTime;
       material.uniforms.opacity.value = current.opacity;
-      material.uniforms.sliceHalfWidth.value = current.projection ? 0 : PARTICLE_SLICE_HALF_RE;
-      if (lastProjection !== current.projection) {
-        lastProjection = current.projection; controls.enabled = current.projection;
-        renderer.domElement.style.touchAction = current.projection ? 'none' : 'auto';
-        controls.reset(); camera.position.set(0, 0, 80); camera.up.set(0, 1, 0);
-        camera.lookAt(0, 0, 0);
-      }
+      trailLines.visible = current.trails;
       if (current.extent !== lastExtent) {
         lastExtent = current.extent;
         if (Math.abs(lastExtent - Math.round(wheelExtent * 10) / 10) > 1e-6) wheelExtent = lastExtent;
         camera.left = -lastExtent; camera.right = lastExtent;
         camera.top = lastExtent; camera.bottom = -lastExtent; camera.updateProjectionMatrix();
       }
-      if (current.projection) controls.update();
+      controls.update();
       renderer.render(scene, camera);
       frames++; windowTime += dt;
       if (windowTime >= 1) {
@@ -240,6 +282,7 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       element.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       controls.dispose(); geometry.dispose(); material.dispose(); texture?.dispose();
+      trailGeometry.dispose(); trailMaterial.dispose();
       earthGeometry.dispose(); earthMaterial.dispose(); renderer.dispose(); renderer.domElement.remove();
     };
     // Display controls use refs so they never rebuild or restart the cloud.
@@ -267,10 +310,11 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       </div>
       <div className="theory-particle-toolbar">
         <label><input type="checkbox" checked={automatic} onChange={event => setAutomatic(event.target.checked)} />Auto · 30 FPS target</label>
+        <label><input type="checkbox" checked={trails} onChange={event => setTrails(event.target.checked)} />12 trails</label>
         <button className="button" onClick={() => setPaused(value => !value)}>{paused ? 'Resume' : 'Pause'}</button>
       </div>
     </div>
-    <div className="theory-space-stage"><div ref={host} className="theory-space-image theory-particle-image" data-projection={projection}>
+    <div className="theory-space-stage"><div ref={host} className="theory-space-image theory-particle-image">
       {overlay}
       {(status || error) && <output className="theory-particle-status">{error || status}
         {error && <button className="button" onClick={() => setRetry(value => value + 1)}>Retry particles</button>}</output>}
@@ -280,9 +324,8 @@ export default function TheoryParticles({ parameters, extent, overlay, projectio
       <span>{paused ? 'Paused' : stats?.fps ? `${Math.round(stats.fps)} FPS` : 'Measuring FPS…'}</span>
       <span>{stats ? `${(stats.simulatedSeconds / 3600).toFixed(2)} simulated hours` : ''}</span>
     </div>
-    <p className="theory-explainer">Blue: cold · orange: hot. {projection
-      ? '3D projection: dots over Earth’s disk are in front of the planet. Drag to rotate; scroll to zoom.'
-      : 'Thin cross-section: only atoms within ±0.05 R_E of the plane are visible. Earth and the source interior are empty. Scroll to zoom.'}</p>
+    <p className="theory-explainer">3D projection · Blue: cold; orange: hot. Fading trails follow twelve moving dots.
+      Dots over Earth’s disk are in front of the planet. Drag to rotate; scroll to zoom.</p>
     <p className="theory-explainer theory-particle-weight">{stats ? `Each dot ≈ ${stats.atomsPerDot.toExponential(2)} atoms within 30 R_E. ` : ''}
       Steady-state launches across the full sphere; slots recycle at the source or 30 R_E. Returning bound atoms are included.</p>
   </div>;

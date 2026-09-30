@@ -8,7 +8,7 @@ import {
 } from '@/lib/theory';
 import type { TheoryParameters, TheoryResult, Trajectory } from '@/lib/theory';
 import { THEORY_CONTEXT } from '@/lib/theory-context';
-import { particleFrame, particleRandom } from '@/lib/theory-particles';
+import { particleFrame } from '@/lib/theory-particles';
 
 const TheoryEquationPage = lazy(() => import('@/components/theory-equation-page'));
 const TheoryParticles = lazy(() => import('@/components/theory-particles'));
@@ -179,7 +179,7 @@ function SpaceGrid({ extent, altitude, children, earth = true }: { extent: numbe
   </svg>;
 }
 
-function TrajectoryView({ result, extent, count, projection }: { result: TheoryResult; extent: number; count: number; projection: boolean }) {
+function TrajectoryView({ result, extent, count }: { result: TheoryResult; extent: number; count: number }) {
   const paths = useMemo(() => {
     const p = result.parameters;
     const sets: { temperature: number; label: string; color: string }[] = [];
@@ -198,13 +198,10 @@ function TrajectoryView({ result, extent, count, projection }: { result: TheoryR
         angle: p.launchLaw === 'radial' ? 0 : Math.acos(Math.sqrt((extra * Math.SQRT2) % 1)) * 180 / Math.PI,
       };
       const speed = launchSpeed(set.temperature, sample.q);
-      const phi = particleRandom(i, 3) * 2 * Math.PI, sign = particleRandom(i, 4) < 0.5 ? 1 : -1;
-      const frame = projection ? particleFrame(i) : {
-        normal: [Math.cos(phi), Math.sin(phi), 0], tangent: [-Math.sin(phi) * sign, Math.cos(phi) * sign, 0],
-      };
+      const frame = particleFrame(i);
       return { ...set, frame, ...trajectory(p.altitudeKm, speed, sample.angle, extent * 1.5) };
     });
-  }, [result, extent, count, projection]);
+  }, [result, extent, count]);
   const draw = (t: Trajectory & { frame: ReturnType<typeof particleFrame> }) => {
     let open = false;
     return t.points.map(([x, y]) => {
@@ -280,7 +277,6 @@ export function TheoryExplorer() {
   const [parameters, setParameters] = useState<TheoryParameters>({ ...DEFAULT_THEORY });
   const [comparison, setComparison] = useState<TheoryResult | null>(null);
   const [view, setView] = useState<'density' | 'trajectories' | 'particles'>('particles');
-  const [projection, setProjection] = useState(true);
   const [trajectoryCount, setTrajectoryCount] = useState<number | null>(null);
   const trajectoryCountId = useId();
   const defaultTrajectoryCount = (parameters.hotFraction > 0 && parameters.hotFraction < 1 ? 2 : 1)
@@ -363,21 +359,17 @@ export function TheoryExplorer() {
               <button className={`button ${view === 'density' ? 'primary' : ''}`} aria-pressed={view === 'density'} onClick={() => setView('density')}>Density slice</button>
               <button className={`button ${view === 'trajectories' ? 'primary' : ''}`} aria-pressed={view === 'trajectories'} onClick={() => setView('trajectories')}>Example trajectories</button>
             </fieldset>
-            {view !== 'density' && <label className="theory-geometry">Geometry
-              <select aria-label="Particle and trajectory geometry" value={projection ? 'projection' : 'slice'} onChange={event => setProjection(event.target.value === 'projection')}>
-                <option value="slice">2D cross-section</option><option value="projection">3D projection</option>
-              </select></label>}
             {view === 'trajectories' && <div className="theory-trajectory-controls">
               <label htmlFor={trajectoryCountId}>Number of trajectories <output htmlFor={trajectoryCountId}>{shownTrajectoryCount}</output></label>
               <input id={trajectoryCountId} type="range" min={1} max={100} step={1} value={shownTrajectoryCount}
                 onChange={e => setTrajectoryCount(Number(e.target.value))} />
             </div>}
             {view === 'particles' ? <Suspense fallback={<p className="theory-explainer">Loading particle view…</p>}>
-              <TheoryParticles parameters={parameters} extent={extent} projection={projection}
+              <TheoryParticles parameters={parameters} extent={extent}
                 onExtentChange={setExtent}
                 extentControl={<ExtentSlider extent={extent} onChange={setExtent} />}
                 overlay={<SpaceGrid extent={extent} altitude={parameters.altitudeKm} earth={false} />} />
-            </Suspense> : <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} projection={projection} />}</div>}
+            </Suspense> : <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} />}</div>}
             {view === 'density' ? <>
               <div className="theory-colorbar" style={{ backgroundImage: DENSITY_GRADIENT }} /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
               <div className="theory-color-controls"><label>Min <select aria-label="Density color scale minimum" value={logMin} onChange={e => setLogMin(Number(e.target.value))}>
@@ -385,7 +377,7 @@ export function TheoryExplorer() {
                 <label>Max <select aria-label="Density color scale maximum" value={logMax} onChange={e => setLogMax(Number(e.target.value))}>
                   {[3, 5, 7, 9].filter(v => v > logMin).map(v => <option key={v} value={v}>{expTick(10 ** v)}</option>)}</select></label><span>Display only</span></div>
               <p className="theory-explainer">Local density slice, not brightness. Dashed ring: source shell; its interior is not modeled. Colors saturate beyond the displayed limits.</p>
-            </> : view === 'trajectories' ? <p className="theory-explainer">{projection ? 'Random launch sites across the whole source shell, projected in 3D. Paths over Earth’s disk are foreground paths.' : 'Random launch sites around the source circle, with trajectories in the slice plane.'} Blue: cold; orange: hot. Dashed paths escape; solid paths return. These examples are not a density sample.</p> : null}
+            </> : view === 'trajectories' ? <p className="theory-explainer">Random launch sites across the whole source shell, projected in 3D. Paths over Earth’s disk are foreground paths. Blue: cold; orange: hot. Dashed paths escape; solid paths return. These examples are not a density sample.</p> : null}
           </section>
           <section className="panel theory-method-panel">
             <h3>How density is calculated</h3>

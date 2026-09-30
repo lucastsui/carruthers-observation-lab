@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   adaptParticleCount, buildParticleAtlas, orbitPosition, particleFrame, particleOrbit,
-  particleOrbits, particleRandom, PARTICLE_MAX, PARTICLE_MIN, PARTICLE_SLICE_HALF_RE, selectParticleOrbit, timeToRadius,
+  particleOrbits, particleRandom, PARTICLE_MAX, PARTICLE_MIN, selectParticleOrbit, timeToRadius,
 } from '../lib/theory-particles.ts';
 import { DEFAULT_THEORY, densityAt, EARTH_GM as GM, EARTH_RADIUS_KM as RE, K_OVER_H_MASS } from '../lib/theory.ts';
 
@@ -88,8 +88,7 @@ void test('GPU atlas and randomly phased display slots preserve shell population
   const expected = bins.map(radius => orbits.reduce((sum, orbit) => sum
     + orbit.fluxWeight * timeToRadius(orbit, radius * RE) * (orbit.bound ? 2 : 1), 0) / totalWeight);
   // Read the actual GPU path table at independently sampled times.
-  const counts = bins.map(() => 0), sliceCounts = bins.map(() => 0), sampleCount = 200000;
-  let sliceTotal = 0;
+  const counts = bins.map(() => 0), sampleCount = 200000;
   for (let i = 0; i < sampleCount; i++) {
     const row = selectParticleOrbit(atlas.cumulative, particleRandom(i, 0)), phase = particleRandom(i, 1);
     const returning = atlas.bound[row] && phase >= 0.5;
@@ -102,27 +101,8 @@ void test('GPU atlas and randomly phased display slots preserve shell population
     const radius = Math.hypot(x, y);
     assert.ok(radius >= (RE + DEFAULT_THEORY.altitudeKm) / RE - 1e-4 && radius <= 30.001);
     bins.forEach((edge, j) => { if (radius <= edge + 1e-4) counts[j]++; });
-    const frame = particleFrame(i), xyz = frame.normal.map((n, j) => n * x + frame.tangent[j] * y);
-    const rho = Math.hypot(xyz[0], xyz[1]);
-    if (Math.abs(xyz[2]) <= PARTICLE_SLICE_HALF_RE && rho >= (RE + DEFAULT_THEORY.altitudeKm) / RE) {
-      sliceTotal++;
-      sliceCounts.forEach((_, j) => { if (rho <= bins[j]) sliceCounts[j]++; });
-    }
   }
   counts.forEach((count, i) => near(count / sampleCount, expected[i], 0.02));
-  // A thin cross-section samples area × local density (2π r n(r) dr),
-  // unlike the sphere's 4π r² n(r) dr. Its finite thickness is explicit in UI.
-  const integrated = bins.map(edge => {
-    const start = 1 + DEFAULT_THEORY.altitudeKm / RE, steps = 4000, dr = (edge - start) / steps;
-    let sum = 0;
-    for (let i = 0; i <= steps; i++) {
-      const r = start + i * dr;
-      sum += (i === 0 || i === steps ? 1 : i % 2 ? 4 : 2) * r * densityAt(r, DEFAULT_THEORY).total;
-    }
-    return sum * dr / 3;
-  });
-  assert.ok(sliceTotal > 1000);
-  sliceCounts.forEach((count, i) => assert.ok(Math.abs(count / sliceTotal - integrated[i] / integrated.at(-1)!) < 0.025));
 });
 
 void test('boundary source settings produce finite positive residence times and atlas data', () => {

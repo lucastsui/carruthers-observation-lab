@@ -13,7 +13,6 @@ import {
 export const PARTICLE_SAMPLES = 128;
 export const PARTICLE_MIN = 1000;
 export const PARTICLE_MAX = 500000;
-export const PARTICLE_SLICE_HALF_RE = 0.05;
 export type ParticleOrbit = {
   a: number; e: number; omega: number; bound: boolean; hot: boolean;
   start: number; end: number; frequency: number; outwardTime: number;
