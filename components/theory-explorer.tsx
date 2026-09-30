@@ -8,8 +8,10 @@ import {
 } from '@/lib/theory';
 import type { TheoryParameters, TheoryResult, Trajectory } from '@/lib/theory';
 import { THEORY_CONTEXT } from '@/lib/theory-context';
+import { particleFrame, particleRandom } from '@/lib/theory-particles';
 
 const TheoryEquationPage = lazy(() => import('@/components/theory-equation-page'));
+const TheoryParticles = lazy(() => import('@/components/theory-particles'));
 
 const COLORS = { total: '#a9efda', cold: '#69b8ff', hot: '#ffba78', reference: '#c4b2fc' };
 const number = (v: number) => v === 0 ? '0' : v >= 1e5 || v < 0.01
@@ -159,7 +161,7 @@ function DensitySlice({ result, extent, logRange }: { result: TheoryResult; exte
   </div>;
 }
 
-function SpaceGrid({ extent, altitude, children }: { extent: number; altitude: number; children?: React.ReactNode }) {
+function SpaceGrid({ extent, altitude, children, earth = true }: { extent: number; altitude: number; children?: React.ReactNode; earth?: boolean }) {
   const scale = 210 / extent, r0 = 1 + altitude / EARTH_RADIUS_KM;
   return <svg viewBox="0 0 420 420" className="theory-space-overlay" aria-hidden="true">
     <defs><radialGradient id="theory-earth"><stop offset="0" stopColor="#4d85a5" /><stop offset="1" stopColor="#163c59" /></radialGradient></defs>
@@ -168,15 +170,16 @@ function SpaceGrid({ extent, altitude, children }: { extent: number; altitude: n
       <circle cx="210" cy="210" r={r * scale} fill="none" stroke="#c7d8df" strokeDasharray="2 6" opacity="0.25" />
       <text x={215 + r * scale} y="205" fill="#c7d8df" fontSize="11">{r}</text>
     </g>)}
-    {children}
     <circle cx="210" cy="210" r={r0 * scale} fill="none" stroke="#b9ddfb" strokeWidth="1" strokeDasharray="3 3" />
-    <circle cx="210" cy="210" r={scale} fill="url(#theory-earth)" stroke="#8bc7f1" strokeWidth="0.7" />
+    <circle cx="210" cy="210" r={scale} fill={earth ? 'url(#theory-earth)' : 'none'} stroke="#8bc7f1" strokeWidth="0.7" />
+    {children}
+    {!earth && <text x="210" y="214" textAnchor="middle" fill="#e3edf4" stroke="#0a131d" strokeWidth="2" paintOrder="stroke" fontSize="10">Earth</text>}
     <text x="10" y="20" fill="#cad6df" fontSize="11">+{extent} R_E</text>
     <text x="410" y="405" fill="#cad6df" textAnchor="end" fontSize="11">±{extent} R_E from center</text>
   </svg>;
 }
 
-function TrajectoryView({ result, extent, count }: { result: TheoryResult; extent: number; count: number }) {
+function TrajectoryView({ result, extent, count, projection }: { result: TheoryResult; extent: number; count: number; projection: boolean }) {
   const paths = useMemo(() => {
     const p = result.parameters;
     const sets: { temperature: number; label: string; color: string }[] = [];
@@ -195,15 +198,24 @@ function TrajectoryView({ result, extent, count }: { result: TheoryResult; exten
         angle: p.launchLaw === 'radial' ? 0 : Math.acos(Math.sqrt((extra * Math.SQRT2) % 1)) * 180 / Math.PI,
       };
       const speed = launchSpeed(set.temperature, sample.q);
-      return { ...set, ...trajectory(p.altitudeKm, speed, sample.angle, extent * 1.5) };
+      const phi = particleRandom(i, 3) * 2 * Math.PI, sign = particleRandom(i, 4) < 0.5 ? 1 : -1;
+      const frame = projection ? particleFrame(i) : {
+        normal: [Math.cos(phi), Math.sin(phi), 0], tangent: [-Math.sin(phi) * sign, Math.cos(phi) * sign, 0],
+      };
+      return { ...set, frame, ...trajectory(p.altitudeKm, speed, sample.angle, extent * 1.5) };
     });
-  }, [result, extent, count]);
-  const draw = (t: Trajectory) => {
+  }, [result, extent, count, projection]);
+  const draw = (t: Trajectory & { frame: ReturnType<typeof particleFrame> }) => {
     let open = false;
     return t.points.map(([x, y]) => {
       if (!Number.isFinite(x + y)) { open = false; return ''; }
+      const [px, py, pz] = t.frame.normal.map((n, j) => n * x + t.frame.tangent[j] * y);
+      // Orthographic 3D projection: Earth hides paths on its far side;
+      // foreground paths can cross the disk while remaining above the surface.
+      const disk = px * px + py * py;
+      if (disk < 1 && pz < Math.sqrt(1 - disk)) { open = false; return ''; }
       const code = open ? 'L' : 'M'; open = true;
-      return `${code}${(210 + x / extent * 210).toFixed(2)},${(210 - y / extent * 210).toFixed(2)}`;
+      return `${code}${(210 + px / extent * 210).toFixed(2)},${(210 - py / extent * 210).toFixed(2)}`;
     }).join(' ');
   };
   return <div className="theory-space-image theory-trajectories">
@@ -260,7 +272,8 @@ function TheoryDetails({ kind, result }: { kind: TheoryDetail; result: TheoryRes
 export function TheoryExplorer() {
   const [parameters, setParameters] = useState<TheoryParameters>({ ...DEFAULT_THEORY });
   const [comparison, setComparison] = useState<TheoryResult | null>(null);
-  const [view, setView] = useState<'density' | 'trajectories'>('density');
+  const [view, setView] = useState<'density' | 'trajectories' | 'particles'>('particles');
+  const [projection, setProjection] = useState(true);
   const [trajectoryCount, setTrajectoryCount] = useState<number | null>(null);
   const trajectoryCountId = useId();
   const defaultTrajectoryCount = (parameters.hotFraction > 0 && parameters.hotFraction < 1 ? 2 : 1)
@@ -338,17 +351,24 @@ export function TheoryExplorer() {
           <section className="panel theory-spatial-panel">
             <div className="theory-card-heading"><h3>Spatial view</h3>
               <label className="theory-extent">Extent <select aria-label="Spatial view extent" value={extent} onChange={e => setExtent(Number(e.target.value))}>
-                {[5, 10, 20].map(v => <option key={v} value={v}>±{v} R_E</option>)}</select></label></div>
+                {[2, 5, 10, 20, 30].map(v => <option key={v} value={v}>±{v} R_E</option>)}</select></label></div>
             <fieldset className="theory-view-buttons" aria-label="Theory spatial view">
+              <button className={`button ${view === 'particles' ? 'primary' : ''}`} aria-pressed={view === 'particles'} onClick={() => setView('particles')}>Atoms</button>
               <button className={`button ${view === 'density' ? 'primary' : ''}`} aria-pressed={view === 'density'} onClick={() => setView('density')}>Density slice</button>
               <button className={`button ${view === 'trajectories' ? 'primary' : ''}`} aria-pressed={view === 'trajectories'} onClick={() => setView('trajectories')}>Example trajectories</button>
             </fieldset>
+            {view !== 'density' && <label className="theory-geometry">Geometry
+              <select aria-label="Particle and trajectory geometry" value={projection ? 'projection' : 'slice'} onChange={event => setProjection(event.target.value === 'projection')}>
+                <option value="slice">2D cross-section</option><option value="projection">3D projection</option>
+              </select></label>}
             {view === 'trajectories' && <div className="theory-trajectory-controls">
               <label htmlFor={trajectoryCountId}>Number of trajectories <output htmlFor={trajectoryCountId}>{shownTrajectoryCount}</output></label>
               <input id={trajectoryCountId} type="range" min={1} max={100} step={1} value={shownTrajectoryCount}
                 onChange={e => setTrajectoryCount(Number(e.target.value))} />
             </div>}
-            <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} />}</div>
+            {view === 'particles' ? <Suspense fallback={<p className="theory-explainer">Loading particle view…</p>}>
+              <TheoryParticles parameters={parameters} extent={extent} projection={projection} overlay={<SpaceGrid extent={extent} altitude={parameters.altitudeKm} earth={false} />} />
+            </Suspense> : <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} projection={projection} />}</div>}
             {view === 'density' ? <>
               <div className="theory-colorbar" style={{ backgroundImage: DENSITY_GRADIENT }} /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
               <div className="theory-color-controls"><label>Min <select aria-label="Density color scale minimum" value={logMin} onChange={e => setLogMin(Number(e.target.value))}>
@@ -356,7 +376,7 @@ export function TheoryExplorer() {
                 <label>Max <select aria-label="Density color scale maximum" value={logMax} onChange={e => setLogMax(Number(e.target.value))}>
                   {[3, 5, 7, 9].filter(v => v > logMin).map(v => <option key={v} value={v}>{expTick(10 ** v)}</option>)}</select></label><span>Display only</span></div>
               <p className="theory-explainer">Local density slice, not brightness. Dashed ring: source shell; its interior is not modeled. Colors saturate beyond the displayed limits.</p>
-            </> : <p className="theory-explainer">Example paths, not a weighted cloud. Blue: cold; orange: hot. Dashed paths escape; solid paths return, possibly outside this view. Radial paths overlap.</p>}
+            </> : view === 'trajectories' ? <p className="theory-explainer">{projection ? 'Random launch sites across the whole source shell, projected in 3D. Paths over Earth’s disk are foreground paths.' : 'Random launch sites around the source circle, with trajectories in the slice plane.'} Blue: cold; orange: hot. Dashed paths escape; solid paths return. These examples are not a density sample.</p> : null}
           </section>
           <section className="panel theory-method-panel">
             <h3>How density is calculated</h3>

@@ -49,6 +49,8 @@
 .theory-extent select { padding: 3px 4px; }
 .theory-view-buttons { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; flex: none; }
 .theory-view-buttons .button { min-height: 27px; font-size: 10px; padding: 4px 7px; }
+.theory-geometry { display: flex; justify-content: space-between; align-items: center; gap: 6px; color: #a3b8c2; font-size: 10px; flex: none; }
+.theory-geometry select { padding: 3px 5px; }
 .theory-trajectory-controls { flex: none; }
 .theory-trajectory-controls label { display: flex; justify-content: space-between; gap: 8px; color: #a3b8c2; font-size: 11px; }
 .theory-trajectory-controls output { color: #e3edf4; font-variant-numeric: tabular-nums; }
@@ -56,6 +58,27 @@
 .theory-space-stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
 .theory-space-image { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); aspect-ratio: 1; overflow: hidden; background: #0a131d; border: 1px solid #203441; border-radius: 6px; }
 .theory-space-image canvas, .theory-space-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.theory-particle-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 7px; }
+.theory-particle-image .theory-space-overlay { pointer-events: none; }
+.theory-particle-image canvas { touch-action: none; cursor: grab; }
+.theory-particle-image canvas:active { cursor: grabbing; }
+.theory-particle-image[data-projection=false] canvas { cursor: default; touch-action: auto; }
+.theory-particle-image canvas:focus-visible { outline: 2px solid #a9efda; outline-offset: -3px; }
+.theory-particle-controls { display: flex; flex-direction: column; gap: 5px; flex: none; }
+.theory-dot-limit { display: flex; flex-wrap: wrap; justify-content: space-between; color: #a3b8c2; font-size: 11px; }
+.theory-dot-limit output { color: #e3edf4; font-variant-numeric: tabular-nums; }
+.theory-particle-controls input[type=range] { accent-color: #91e5cd; background: none; border: none; box-shadow: none; height: 19px; padding: 0; cursor: pointer; }
+.theory-dot-limit input { display: block; width: 100%; margin: 2px 0 0; }
+.theory-particle-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10px; color: #a3b8c2; }
+.theory-particle-toolbar label { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.theory-particle-toolbar input[type=checkbox] { accent-color: #91e5cd; width: 13px; height: 13px; margin: 0; }
+.theory-particle-toolbar input[type=range] { width: 70px; }
+.theory-particle-toolbar select { font-size: 10px; padding: 3px; }
+.theory-particle-toolbar .button { font-size: 10px; min-height: 25px; padding: 3px 8px; }
+.theory-particle-stats { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 10px; color: #b1c3ce; font-variant-numeric: tabular-nums; flex: none; }
+.theory-particle-view > .theory-explainer { margin: 0; font-size: 10px; flex: none; }
+.theory-particle-weight { color: #819aa8; }
+.theory-particle-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 18px; background: #0a131ded; color: #b9cbd7; font-size: 12px; line-height: 1.5; text-align: center; }
 .theory-colorbar { height: 7px; border-radius: 2px; flex: none; }
 .theory-scale-labels { display: flex; justify-content: space-between; color: #a3b8c2; font-size: 10px; }
 .theory-color-controls { display: flex; align-items: center; gap: 10px; color: #91a6b5; font-size: 10px; }

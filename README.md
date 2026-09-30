@@ -257,10 +257,50 @@ ones contribute one passage. Gaussian moments evaluate the reduced velocity and
 angle integrals deterministically. The plotted trajectory examples are exact
 Kepler conics, not the numerical samples used to calculate density.
 
+The default **Atoms** view shows a clearly labeled **3D projection** of one-pixel
+representative particles in the spherical source population. Its particle budget ranges
+from 1,000 to 500,000. Automatic quality starts with up to 25,000 and adjusts toward a
+30 FPS target within the selected budget; manual mode uses the selected count.
+Playback speed (simulated seconds/minutes per real second), pause, opacity,
+geometry and extent are separate display controls. Animation pauses while its
+panel or browser tab is hidden. Performance varies with the browser and GPU.
+
+`lib/theory-particles.ts` integrates the crossing-flux speed/direction laws into
+a deterministic orbit catalogue. An orbit's sampling weight is its source flux
+weight multiplied by residence time inside 30 R_E. Uniform random source
+normals, tangent azimuths and time phases produce a steady population across the
+whole sphere. Cold/hot residence fractions consequently need not match their
+launch-flux fractions. A worker solves Kepler's equation and prepares paths;
+WebGL interpolates time along them in a single point cloud. The sampled display
+is approximate; the analytic density curves, metrics and exports are unchanged.
+
+Display slots recycle at the source shell or the 30 R_E boundary. Both visible
+branches of bound paths extending beyond 30 R_E are retained, but the unobserved
+time between exit and reentry is omitted. This is a stationary tracer display,
+not a record of individual atom identities or a finite-age launch experiment.
+Every tracer has the same atom weight within the current sample; changing the
+budget changes that weight, which is shown below the view. Positions stay outside
+the source shell. **2D cross-section** displays only atoms within ±0.05 R_E of a
+fixed central plane, and masks the projected source interior. The budget counts
+the entire ensemble; only a fraction is visible in the slab. Atoms enter and
+leave the slice during their full 3D motion. This finite, 637-km-thick slab
+approximates a mathematical slice; its radial sampling follows area × local
+density, unlike a projection of the whole cloud. Earth's disk is always empty.
+
+The explicit **3D projection** option shows the whole cloud and allows rotation.
+Only in this mode can foreground atoms appear over Earth's disk; the opaque
+planet hides atoms behind it. Neither mode calculates Lyman-alpha brightness.
+The existing **Density slice** remains an exact evaluation of local model density
+on the central plane, with its own logarithmic color scale.
+
 The example-trajectory count slider ranges from 1 to 100. Until adjusted, it
 keeps the original count for the selected source: 18 for two cosine-law
 components, 9 for one, or 6/3 in radial mode. Those original speed/angle examples
-are retained; increasing the count adds deterministic examples. This display
+are retained, with deterministic random launch sites around the source circle
+in cross-section mode, or across the source sphere in 3D projection mode.
+Increasing the count adds examples without moving existing paths. In 3D mode,
+foreground paths can project over Earth's disk; far-side paths are occluded.
+This display
 setting does not change the density calculation, plotted curves, or exports.
 
 There is no independently trapped satellite population, finite source age,
@@ -278,6 +318,13 @@ residence-time integral in cm units, and tests Jeans escape fractions, flux and
 mixture linearity, source half-space normalization, angular momentum, parameter
 extremes and export metadata. These validate this specified mathematical model,
 not its adequacy for the real exosphere.
+
+`tests/theory-particles.test.ts` additionally checks uniform 3D source frames,
+energy/angular-momentum conservation, radial shell counts against the analytic
+density (within 3% for the tested default and extreme populations), GPU path-table
+sampling, thin-slice radial density, source/domain boundaries, both passages of
+far-reaching bound orbits, and automatic-quality bounds. Browser checks must include the built worker,
+count/speed/pause controls, source changes, visibility and narrow layouts.
 
 [Comparison with Clarke’s September 2026 slides](docs/theory-slide-comparison.md)
 records the shared gravity physics, distinct particle/flux weighting and the
@@ -497,7 +544,7 @@ claim that this new data volume has a configured backup policy.
 | Task | Start with | Relevant existing checks |
 | --- | --- | --- |
 | Selection, playback, layout, image overlays | `app/page.tsx`, `components/observation-viewer.tsx`, `components/display-controls.tsx`, `components/analysis-controls.tsx`, `app/globals.css` | TypeScript check/build, `tests/research.test.ts`, `tests/display.test.ts`, browser interaction checks. |
-| Theory source populations, density and trajectories | `lib/theory.ts`, `components/theory-explorer.tsx`, `app/theory.css` | `tests/theory.test.ts`, TypeScript check/build, browser knob/comparison/export and WFI/NFI navigation checks. |
+| Theory source populations, density, atoms and trajectories | `lib/theory.ts`, `lib/theory-particles.ts`, `lib/theory-particles.worker.ts`, `components/theory-particles.tsx`, `components/theory-explorer.tsx`, `app/theory.css` | `tests/theory.test.ts`, `tests/theory-particles.test.ts`, TypeScript check/build, browser particle controls, worker loading, knob/comparison/export and WFI/NFI navigation checks. |
 | Job submission, cancellation, stale results, saved results | `hooks/use-analysis.ts`, `lib/auto-analysis.ts`, `lib/saved.ts` | `tests/manual-analysis.test.ts`, `tests/auto-analysis.test.ts`, restore/save/cancel checks in the browser. |
 | Geometry, units, masking, profiles, paired regions | `science.py`, `lib/research.ts`, `server.py` | `tests/test_science.py`, `tests/test_service.py`, independent WFI fixture and both-camera checks. |
 | Contour circularity or exports | `circularity.py`, `components/circularity-chart.tsx`, `lib/circularity-export.ts`, `lib/analysis-export.ts` | `tests/test_circularity.py`, `tests/circularity-export.test.ts`, `tests/analysis-export.test.ts`, `tests/plot-bands.test.ts`; compare exported rows with calculated results. |
