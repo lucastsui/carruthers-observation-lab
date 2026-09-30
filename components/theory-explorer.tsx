@@ -7,7 +7,7 @@ import {
   THEORY_ASSUMPTIONS, THEORY_VERSION, theoryCSV, theoryJSON, trajectory,
 } from '@/lib/theory';
 import type { TheoryParameters, TheoryResult, Trajectory } from '@/lib/theory';
-import { THEORY_CONTEXT_SECTIONS } from '@/lib/theory-context';
+import { THEORY_CONTEXT } from '@/lib/theory-context';
 
 const TheoryEquationPage = lazy(() => import('@/components/theory-equation-page'));
 
@@ -227,42 +227,33 @@ type TheoryDetail = 'assumptions' | 'equations' | 'values';
 function TheoryDetails({ kind, result }: { kind: TheoryDetail; result: TheoryResult }) {
   const [page, setPage] = useState(0);
   const body = useRef<HTMLElement>(null);
-  const sectionId = useId();
-  const headingId = useId();
   useEffect(() => { if (body.current) body.current.scrollTop = 0; }, [page]);
   const titles = { assumptions: 'Assumptions and limits', equations: 'Equations and scientific context', values: 'Model density values' };
   const rows = result.profile.filter((_, i) => i % 15 === 0);
-  const pages = kind === 'equations' ? THEORY_CONTEXT_SECTIONS.length : kind === 'values' ? Math.ceil(rows.length / 7) : 2;
+  const pages = kind === 'values' ? Math.ceil(rows.length / 7) : 2;
   return <>
     <DialogTitle>{titles[kind]}</DialogTitle>
     <DialogDescription>Steady spherical hydrogen model · {THEORY_VERSION}</DialogDescription>
-    {kind === 'equations' && <div className="theory-section-picker">
-      <label htmlFor={sectionId}>Section</label>
-      <select id={sectionId} value={page} onChange={e => setPage(Number(e.target.value))}>
-        {THEORY_CONTEXT_SECTIONS.map((section, index) => <option key={section.title} value={index}>{index + 1}. {section.title}</option>)}
-      </select>
-    </div>}
     {/* The scroll region needs keyboard focus so its prose can be scrolled without a pointer. */}
     {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-    <section ref={body} className="theory-detail-body" tabIndex={0} aria-label={kind === 'equations' ? undefined : titles[kind]} aria-labelledby={kind === 'equations' ? headingId : undefined}>
+    <section ref={body} className="theory-detail-body" tabIndex={0} aria-label={titles[kind]}>
       {kind === 'assumptions' && <>
         <ul>{THEORY_ASSUMPTIONS.slice(page * 5, page * 5 + 5).map(note => <li key={note}>{note}</li>)}</ul>
         <p>Hotter does not necessarily mean denser: atoms can travel farther, pass faster, or escape. The return and escape fractions describe launch flux.</p>
       </>}
-      {kind === 'equations' && <>
-        <h3 id={headingId}>{THEORY_CONTEXT_SECTIONS[page].title}</h3>
+      {kind === 'equations' &&
         <Suspense fallback={<output>Loading equations…</output>}>
-          <TheoryEquationPage markdown={THEORY_CONTEXT_SECTIONS[page].markdown} />
+          <TheoryEquationPage markdown={THEORY_CONTEXT} />
         </Suspense>
-      </>}
+      }
       {kind === 'values' && <div className="theory-data-table"><table><caption>Sampled densities · atoms/cm³. CSV and JSON include all 181 radii.</caption><thead><tr><th>R_E</th><th>Cold</th><th>Hot</th><th>Total</th></tr></thead>
         <tbody>{rows.slice(page * 7, page * 7 + 7).map(row => <tr key={row.radiusRe}><td>{row.radiusRe.toFixed(2)}</td><td>{number(row.cold)}</td><td>{number(row.hot)}</td><td>{number(row.total)}</td></tr>)}</tbody></table></div>}
     </section>
-    <nav className="theory-detail-pagination" aria-label="Theory detail pages">
+    {kind !== 'equations' && <nav className="theory-detail-pagination" aria-label="Theory detail pages">
       <button className="button" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
       <span aria-live="polite">Page {page + 1} of {pages}</span>
       <button className="button" disabled={page + 1 === pages} onClick={() => setPage(page + 1)}>Next</button>
-    </nav>
+    </nav>}
   </>;
 }
 

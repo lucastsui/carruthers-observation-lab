@@ -77,20 +77,19 @@
 .theory-detail-body li { margin: 8px 0; }
 .theory-detail-body a { color: #a9efda; text-decoration: underline; text-underline-offset: 3px; }
 .theory-detail-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
-.theory-detail-pagination, .theory-section-picker { flex-shrink: 0; }
+.theory-detail-pagination { flex-shrink: 0; }
 .theory-equations-dialog { width: min(940px,calc(100vw - 24px)); height: min(800px,calc(100dvh - 24px)); }
 .theory-equations-dialog .theory-detail-body { flex: 1; padding: 4px 12px 8px 2px; font-size: 14px; line-height: 1.65; scrollbar-gutter: stable; }
 .theory-equations-dialog .theory-detail-body h3 { margin: 0 0 14px; color: #e3edf4; font-size: 17px; font-weight: 600; }
+.theory-equations-dialog .theory-detail-body h3:not(:first-child) { margin-top: 28px; padding-top: 20px; border-top: 1px solid #30404c; }
 .theory-equations-dialog .theory-detail-body p { margin: 12px 0; }
 .theory-equations-dialog .theory-detail-body ul { list-style: disc; }
 .theory-equations-dialog .theory-detail-body strong { color: #e3edf4; }
 .theory-equations-dialog .theory-detail-body code { color: #a9efda; font-size: .9em; overflow-wrap: anywhere; }
-.theory-section-picker { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #30404c; font-size: 12px; }
-.theory-section-picker select { width: 100%; min-width: 0; padding: 8px; border: 1px solid #405564; border-radius: 6px; background: #15232e; color: #e3edf4; font: inherit; }
 .theory-equations-dialog .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 6px 2px 12px; text-align: left; }
 .theory-equations-dialog .katex-display > .katex { text-align: left; }
 .theory-equations-dialog .katex { font-size: 1.08em; }
-.theory-detail-body:focus-visible, .theory-section-picker select:focus-visible, .theory-equations-dialog .katex-display:focus-visible { outline: 2px solid #a9efda; outline-offset: -2px; }
+.theory-detail-body:focus-visible, .theory-equations-dialog .katex-display:focus-visible { outline: 2px solid #a9efda; outline-offset: -2px; }
 .theory-data-table table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12px; }
 .theory-data-table th, .theory-data-table td { padding: 7px 5px; border-bottom: 1px solid #253642; text-align: right; }
 .theory-data-table caption { text-align: left; font-size: 11px; color: #91a6b5; margin: 4px 0 8px; }
