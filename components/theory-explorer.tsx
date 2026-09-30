@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Download, RotateCcw, Pin, X, FlaskConical } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -7,6 +7,9 @@ import {
   THEORY_ASSUMPTIONS, THEORY_VERSION, theoryCSV, theoryJSON, trajectory,
 } from '@/lib/theory';
 import type { TheoryParameters, TheoryResult, Trajectory } from '@/lib/theory';
+import { THEORY_CONTEXT_SECTIONS } from '@/lib/theory-context';
+
+const TheoryEquationPage = lazy(() => import('@/components/theory-equation-page'));
 
 const COLORS = { total: '#a9efda', cold: '#69b8ff', hot: '#ffba78', reference: '#c4b2fc' };
 const number = (v: number) => v === 0 ? '0' : v >= 1e5 || v < 0.01
@@ -173,18 +176,28 @@ function SpaceGrid({ extent, altitude, children }: { extent: number; altitude: n
   </svg>;
 }
 
-function TrajectoryView({ result, extent }: { result: TheoryResult; extent: number }) {
+function TrajectoryView({ result, extent, count }: { result: TheoryResult; extent: number; count: number }) {
   const paths = useMemo(() => {
     const p = result.parameters;
     const sets: { temperature: number; label: string; color: string }[] = [];
     if (p.hotFraction < 1) sets.push({ temperature: p.coldK, label: 'Cold', color: COLORS.cold });
     if (p.hotFraction > 0) sets.push({ temperature: p.hotK, label: 'Hot', color: COLORS.hot });
-    return sets.flatMap(set => [0.2, 0.5, 0.85].flatMap(q => {
-      const speed = launchSpeed(set.temperature, q);
-      const angles = p.launchLaw === 'radial' ? [0] : [25, 55, 75];
-      return angles.map(angle => ({ ...set, ...trajectory(p.altitudeKm, speed, angle, extent * 1.5) }));
-    }));
-  }, [result, extent]);
+    const angles = p.launchLaw === 'radial' ? [0] : [25, 55, 75];
+    const original = [0.2, 0.5, 0.85].flatMap(q => angles.map(angle => ({ q, angle })));
+    return Array.from({ length: count }, (_, i) => {
+      // Interleave components so small counts show both, retaining the original
+      // examples at the default count. Extra examples form a stable sequence:
+      // moving the slider adds/removes paths without changing the existing ones.
+      const set = sets[i % sets.length], index = Math.floor(i / sets.length);
+      const extra = index - original.length + 1;
+      const sample = original[index] ?? {
+        q: (extra * 0.6180339887498949) % 1,
+        angle: p.launchLaw === 'radial' ? 0 : Math.acos(Math.sqrt((extra * Math.SQRT2) % 1)) * 180 / Math.PI,
+      };
+      const speed = launchSpeed(set.temperature, sample.q);
+      return { ...set, ...trajectory(p.altitudeKm, speed, sample.angle, extent * 1.5) };
+    });
+  }, [result, extent, count]);
   const draw = (t: Trajectory) => {
     let open = false;
     return t.points.map(([x, y]) => {
@@ -197,7 +210,7 @@ function TrajectoryView({ result, extent }: { result: TheoryResult; extent: numb
     <SpaceGrid extent={extent} altitude={result.parameters.altitudeKm}>
       {paths.map((t, i) => <path key={i} d={draw(t)} stroke={t.color} fill="none" strokeWidth="1.4"
         strokeDasharray={t.escapes ? '5 3' : undefined} opacity="0.75">
-        <title>{t.label}: {t.speed.toFixed(2)} km/s, {t.angle}° from radial; {t.escapes ? 'escapes' : `returns, apogee ${t.apexRe?.toFixed(2)} R_E`}</title>
+        <title>{t.label}: {t.speed.toFixed(2)} km/s, {number(t.angle)}° from radial; {t.escapes ? 'escapes' : `returns, apogee ${t.apexRe?.toFixed(2)} R_E`}</title>
       </path>)}
     </SpaceGrid>
   </div>;
@@ -213,31 +226,38 @@ function download(text: string, type: string, extension: string) {
 type TheoryDetail = 'assumptions' | 'equations' | 'values';
 function TheoryDetails({ kind, result }: { kind: TheoryDetail; result: TheoryResult }) {
   const [page, setPage] = useState(0);
+  const body = useRef<HTMLElement>(null);
+  const sectionId = useId();
+  const headingId = useId();
+  useEffect(() => { if (body.current) body.current.scrollTop = 0; }, [page]);
   const titles = { assumptions: 'Assumptions and limits', equations: 'Equations and scientific context', values: 'Model density values' };
   const rows = result.profile.filter((_, i) => i % 15 === 0);
-  const pages = kind === 'values' ? Math.ceil(rows.length / 7) : 2;
+  const pages = kind === 'equations' ? THEORY_CONTEXT_SECTIONS.length : kind === 'values' ? Math.ceil(rows.length / 7) : 2;
   return <>
     <DialogTitle>{titles[kind]}</DialogTitle>
     <DialogDescription>Steady spherical hydrogen model · {THEORY_VERSION}</DialogDescription>
-    <div className="theory-detail-body">
+    {kind === 'equations' && <div className="theory-section-picker">
+      <label htmlFor={sectionId}>Section</label>
+      <select id={sectionId} value={page} onChange={e => setPage(Number(e.target.value))}>
+        {THEORY_CONTEXT_SECTIONS.map((section, index) => <option key={section.title} value={index}>{index + 1}. {section.title}</option>)}
+      </select>
+    </div>}
+    {/* The scroll region needs keyboard focus so its prose can be scrolled without a pointer. */}
+    {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+    <section ref={body} className="theory-detail-body" tabIndex={0} aria-label={kind === 'equations' ? undefined : titles[kind]} aria-labelledby={kind === 'equations' ? headingId : undefined}>
       {kind === 'assumptions' && <>
         <ul>{THEORY_ASSUMPTIONS.slice(page * 5, page * 5 + 5).map(note => <li key={note}>{note}</li>)}</ul>
         <p>Hotter does not necessarily mean denser: atoms can travel farther, pass faster, or escape. The return and escape fractions describe launch flux.</p>
       </>}
-      {kind === 'equations' && (page === 0 ? <>
-        <p>Conserved specific energy ε = v²/2 − GM/r₀ and angular momentum h = r₀v sin θ give radial speed² = 2ε + 2GM/r − h²/r².</p>
-        <p>Local density: n(r) = F(r₀/r)² ⟨passes / vᵣ(r)⟩. Bound orbits contribute two passages and escaping orbits one. The average includes only trajectories that reach the shell.</p>
-        <p>The launch speed law is p(s) = s exp(−s), s = m_Hv²/(2k_BT). Cosine directions have p(μ) = 2μ, μ = cos θ. Radial mode uses μ = 1.</p>
-        <p>Escaping outward flux fraction = (1 + λ)exp(−λ), λ = GMm_H/(r₀k_BT). This differs from the fraction of atoms above escape speed in a bulk Maxwell distribution.</p>
-      </> : <>
-        <p>Residence-time integrals use deterministic quadrature of Gaussian moments. Example trajectories are exact Kepler conics. They do not use a stepwise vertical-only approximation.</p>
-        <p>The source components are exploratory assumptions. This does not implement the density inversion or energization mechanisms of <a href="https://www.nature.com/articles/ncomms13655" target="_blank" rel="noreferrer">Qin &amp; Waldrop (2016)</a>. Crossing-speed and angular weights follow <a href="https://molflow.docs.cern.ch/guide/molflow/general/attachments/molflow_algorithm.pdf" target="_blank" rel="noreferrer">kinetic flux sampling</a>.</p>
-        <p>Earth radius: 6,370 km. GM: 398,600.4418 km³/s². Source altitude is measured from the surface; plotted radius is measured from Earth’s center.</p>
-        <p>Density is in atoms/cm³, not Lyman-alpha brightness. The model has no time-dependent storm evolution or radiative transfer.</p>
-      </>)}
+      {kind === 'equations' && <>
+        <h3 id={headingId}>{THEORY_CONTEXT_SECTIONS[page].title}</h3>
+        <Suspense fallback={<output>Loading equations…</output>}>
+          <TheoryEquationPage markdown={THEORY_CONTEXT_SECTIONS[page].markdown} />
+        </Suspense>
+      </>}
       {kind === 'values' && <div className="theory-data-table"><table><caption>Sampled densities · atoms/cm³. CSV and JSON include all 181 radii.</caption><thead><tr><th>R_E</th><th>Cold</th><th>Hot</th><th>Total</th></tr></thead>
         <tbody>{rows.slice(page * 7, page * 7 + 7).map(row => <tr key={row.radiusRe}><td>{row.radiusRe.toFixed(2)}</td><td>{number(row.cold)}</td><td>{number(row.hot)}</td><td>{number(row.total)}</td></tr>)}</tbody></table></div>}
-    </div>
+    </section>
     <nav className="theory-detail-pagination" aria-label="Theory detail pages">
       <button className="button" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
       <span aria-live="polite">Page {page + 1} of {pages}</span>
@@ -250,6 +270,11 @@ export function TheoryExplorer() {
   const [parameters, setParameters] = useState<TheoryParameters>({ ...DEFAULT_THEORY });
   const [comparison, setComparison] = useState<TheoryResult | null>(null);
   const [view, setView] = useState<'density' | 'trajectories'>('density');
+  const [trajectoryCount, setTrajectoryCount] = useState<number | null>(null);
+  const trajectoryCountId = useId();
+  const defaultTrajectoryCount = (parameters.hotFraction > 0 && parameters.hotFraction < 1 ? 2 : 1)
+    * (parameters.launchLaw === 'radial' ? 3 : 9);
+  const shownTrajectoryCount = trajectoryCount ?? defaultTrajectoryCount;
   const [extent, setExtent] = useState(10);
   const [logMin, setLogMin] = useState(0), [logMax, setLogMax] = useState(5);
   const [details, setDetails] = useState<TheoryDetail | null>(null);
@@ -327,7 +352,12 @@ export function TheoryExplorer() {
               <button className={`button ${view === 'density' ? 'primary' : ''}`} aria-pressed={view === 'density'} onClick={() => setView('density')}>Density slice</button>
               <button className={`button ${view === 'trajectories' ? 'primary' : ''}`} aria-pressed={view === 'trajectories'} onClick={() => setView('trajectories')}>Example trajectories</button>
             </fieldset>
-            <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} />}</div>
+            {view === 'trajectories' && <div className="theory-trajectory-controls">
+              <label htmlFor={trajectoryCountId}>Number of trajectories <output htmlFor={trajectoryCountId}>{shownTrajectoryCount}</output></label>
+              <input id={trajectoryCountId} type="range" min={1} max={100} step={1} value={shownTrajectoryCount}
+                onChange={e => setTrajectoryCount(Number(e.target.value))} />
+            </div>}
+            <div className="theory-space-stage">{view === 'density' ? <DensitySlice result={result} extent={extent} logRange={logRange} /> : <TrajectoryView result={result} extent={extent} count={shownTrajectoryCount} />}</div>
             {view === 'density' ? <>
               <div className="theory-colorbar" style={{ backgroundImage: DENSITY_GRADIENT }} /><div className="theory-scale-labels"><span>{expTick(10 ** logMin)}</span><span>H atoms/cm³ · log color scale</span><span>{expTick(10 ** logMax)}</span></div>
               <div className="theory-color-controls"><label>Min <select aria-label="Density color scale minimum" value={logMin} onChange={e => setLogMin(Number(e.target.value))}>
@@ -354,7 +384,7 @@ export function TheoryExplorer() {
       </section>
     </div>
     <Dialog open={details !== null} onOpenChange={open => { if (!open) setDetails(null); }}>
-      <DialogContent className="theory-detail-dialog">
+      <DialogContent className={`theory-detail-dialog${details === 'equations' ? ' theory-equations-dialog' : ''}`}>
         {details && <TheoryDetails key={details} kind={details} result={result} />}
       </DialogContent>
     </Dialog>

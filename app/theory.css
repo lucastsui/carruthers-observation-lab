@@ -49,6 +49,10 @@
 .theory-extent select { padding: 3px 4px; }
 .theory-view-buttons { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; flex: none; }
 .theory-view-buttons .button { min-height: 27px; font-size: 10px; padding: 4px 7px; }
+.theory-trajectory-controls { flex: none; }
+.theory-trajectory-controls label { display: flex; justify-content: space-between; gap: 8px; color: #a3b8c2; font-size: 11px; }
+.theory-trajectory-controls output { color: #e3edf4; font-variant-numeric: tabular-nums; }
+.theory-trajectory-controls input { display: block; width: 100%; height: 22px; margin: 3px 0 0; padding: 0; accent-color: #91e5cd; cursor: pointer; background: none; border: none; box-shadow: none; }
 .theory-space-stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
 .theory-space-image { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); aspect-ratio: 1; overflow: hidden; background: #0a131d; border: 1px solid #203441; border-radius: 6px; }
 .theory-space-image canvas, .theory-space-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -65,13 +69,28 @@
 .theory-facts dt { color: #91a6b5; }
 .theory-facts dd { margin: 3px 0 0; color: #cfdee7; font-size: 11px; }
 .theory-panel-nav { display: none; }
-.theory-detail-dialog { width: min(720px,calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); gap: 10px; padding: 20px; }
-.theory-detail-body { font-size: 13px; line-height: 1.5; color: #b9cbd7; }
+.theory-detail-dialog { display: flex; flex-direction: column; width: min(720px,calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); gap: 10px; padding: 20px; }
+.theory-detail-dialog > [data-slot="dialog-title"] { padding-right: 26px; line-height: 1.3; }
+.theory-detail-body { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; color: #b9cbd7; }
 .theory-detail-body p { margin: 10px 0; }
 .theory-detail-body ul { margin: 4px 0; padding-left: 20px; }
 .theory-detail-body li { margin: 8px 0; }
 .theory-detail-body a { color: #a9efda; text-decoration: underline; text-underline-offset: 3px; }
 .theory-detail-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+.theory-detail-pagination, .theory-section-picker { flex-shrink: 0; }
+.theory-equations-dialog { width: min(940px,calc(100vw - 24px)); height: min(800px,calc(100dvh - 24px)); }
+.theory-equations-dialog .theory-detail-body { flex: 1; padding: 4px 12px 8px 2px; font-size: 14px; line-height: 1.65; scrollbar-gutter: stable; }
+.theory-equations-dialog .theory-detail-body h3 { margin: 0 0 14px; color: #e3edf4; font-size: 17px; font-weight: 600; }
+.theory-equations-dialog .theory-detail-body p { margin: 12px 0; }
+.theory-equations-dialog .theory-detail-body ul { list-style: disc; }
+.theory-equations-dialog .theory-detail-body strong { color: #e3edf4; }
+.theory-equations-dialog .theory-detail-body code { color: #a9efda; font-size: .9em; overflow-wrap: anywhere; }
+.theory-section-picker { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #30404c; font-size: 12px; }
+.theory-section-picker select { width: 100%; min-width: 0; padding: 8px; border: 1px solid #405564; border-radius: 6px; background: #15232e; color: #e3edf4; font: inherit; }
+.theory-equations-dialog .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 6px 2px 12px; text-align: left; }
+.theory-equations-dialog .katex-display > .katex { text-align: left; }
+.theory-equations-dialog .katex { font-size: 1.08em; }
+.theory-detail-body:focus-visible, .theory-section-picker select:focus-visible, .theory-equations-dialog .katex-display:focus-visible { outline: 2px solid #a9efda; outline-offset: -2px; }
 .theory-data-table table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 12px; }
 .theory-data-table th, .theory-data-table td { padding: 7px 5px; border-bottom: 1px solid #253642; text-align: right; }
 .theory-data-table caption { text-align: left; font-size: 11px; color: #91a6b5; margin: 4px 0 8px; }

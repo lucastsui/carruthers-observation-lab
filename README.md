@@ -257,6 +257,12 @@ ones contribute one passage. Gaussian moments evaluate the reduced velocity and
 angle integrals deterministically. The plotted trajectory examples are exact
 Kepler conics, not the numerical samples used to calculate density.
 
+The example-trajectory count slider ranges from 1 to 100. Until adjusted, it
+keeps the original count for the selected source: 18 for two cosine-law
+components, 9 for one, or 6/3 in radial mode. Those original speed/angle examples
+are retained; increasing the count adds deterministic examples. This display
+setting does not change the density calculation, plotted curves, or exports.
+
 There is no independently trapped satellite population, finite source age,
 ionization/lifetime, charge exchange, collisions or solar radiation pressure.
 The plotted domain ends at 30 Earth radii, but returning orbits with apogees
