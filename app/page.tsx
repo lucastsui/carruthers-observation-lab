@@ -299,7 +299,7 @@ export default function Home() {
       {theory ? null : !catalogue ? (
         <main className="empty-page">
           <h2>{error ? 'Unable to open observations' : 'Reading observation catalogue…'}</h2>
-          <p className="muted">{error || 'Preparing the local March 2026 collection.'}</p>
+          {error && <p className="muted">{error}</p>}
         </main>
       ) : (
         <>
