@@ -19,7 +19,7 @@ Install `argon2-cffi==25.1.0` in the existing application virtualenv. Never put
 the credential file in Git, `dist/client`, or the upload payload. Startup fails
 if the file is missing, malformed, or has unsafe ownership/permissions.
 
-Anonymous visitors receive the black sign-in page. All application assets and
+Anonymous visitors are redirected to the black `/login` page. All application assets and
 data APIs require authentication; `/health` and `/api/health` remain available
 for the watchdog. Successful login creates a random, server-held eight-hour
 session with an HttpOnly, Secure, SameSite=Lax cookie on the HTTPS site. Sign out

@@ -84,6 +84,19 @@ def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(
 
         def authenticate_request(self, path, post):
             name, token, secure = self.auth_cookie()
+            def redirect(destination):
+                self.send_response(303)
+                self.send_header('Location', destination)
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+
+            if not post and path == '/login':
+                if auth.authenticated(token):
+                    redirect('/')
+                else:
+                    self.send_data(200, (BASE / 'login.html').read_bytes(), 'text/html; charset=utf-8')
+                return False
             if path in ('/api/auth/login', '/api/auth/logout'):
                 if not post:
                     self.send_json({'error': 'POST required'}, 405)
@@ -131,7 +144,7 @@ def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(
                 return False
             if not auth.authenticated(token):
                 if not post and path in ('/', '/index.html'):
-                    self.send_data(200, (BASE / 'login.html').read_bytes(), 'text/html; charset=utf-8')
+                    redirect('/login')
                 else:
                     self.send_json({'error': 'Please sign in to continue.'}, 401)
                 return False

@@ -49,7 +49,7 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Unable to sign in. Please try again.');
         form.password.value = '';
-        window.location.reload();
+        window.location.replace('/' + window.location.hash);
       } catch (failure) {
         error.textContent = failure.message || 'Unable to connect. Please try again.';
         form.password.value = '';

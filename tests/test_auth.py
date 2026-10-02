@@ -74,6 +74,9 @@ class AuthenticationTests(unittest.TestCase):
 
     def test_gate_login_logout_and_expiry(self):
         status, headers, body = self.request('/')
+        self.assertEqual(status, 303)
+        self.assertIn(('Location', '/login'), headers)
+        status, headers, body = self.request('/login')
         self.assertEqual(status, 200)
         self.assertIn(b'Carruthers Exploratory Data Analysis (CEDA)', body)
         self.assertNotIn(b'protected application', body)
@@ -87,6 +90,7 @@ class AuthenticationTests(unittest.TestCase):
         self.assertEqual(self.request('/api/auth/login', dict(username='test-user', password='wrong'))[0], 401)
         self.assertEqual(self.request('/api/auth/login', dict(username='unknown', password=self.password))[0], 401)
         cookie = self.login()
+        self.assertEqual(self.request('/login', cookie=cookie)[0], 303)
         self.assertEqual(self.request('/', cookie=cookie)[2], b'protected application')
         self.assertEqual(self.request('/script.js', cookie=cookie)[0], 200)
         self.assertEqual(self.request('/api/auth/session', cookie=cookie)[0], 200)
