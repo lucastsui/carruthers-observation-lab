@@ -10,6 +10,30 @@ Spark relay SSH key has been revoked; other SSH access remains unchanged.
 
 ## Runtime and storage
 
+### Application sign-in
+
+The public server requires `--auth-file`; Nightglow's supervisor supplies
+`/Users/lucastsui/Applications/ObservationLab/private/auth.json`. This private,
+service-owned 0600 JSON contains `username` and an Argon2id `password_hash`.
+Install `argon2-cffi==25.1.0` in the existing application virtualenv. Never put
+the credential file in Git, `dist/client`, or the upload payload. Startup fails
+if the file is missing, malformed, or has unsafe ownership/permissions.
+
+Anonymous visitors receive the black sign-in page. All application assets and
+data APIs require authentication; `/health` and `/api/health` remain available
+for the watchdog. Successful login creates a random, server-held eight-hour
+session with an HttpOnly, Secure, SameSite=Lax cookie on the HTTPS site. Sign out
+revokes the session. Restarting the backend revokes all sessions; changing the
+credential file requires a backend restart. Login verification is bounded to two
+concurrent hashes and ten attempts per minute globally (token-bucket refill).
+The existing visitor cookie still isolates analysis jobs between browsers.
+
+The loopback-only `server.py` development launcher remains login-free. To test
+authentication locally, run `public_server.py` with a private temporary
+credential file and a separate state directory. HTTP loopback uses a separate
+non-Secure cookie; the production cookie uses the `__Host-` prefix. Existing
+public validation tools require an authenticated session for data checks.
+
 Application root: `/Users/lucastsui/Applications/ObservationLab`.
 Python is isolated in `runtime/venv`; nginx 1.30.5 is in `runtime/nginx`.
 The nginx release archive's official detached signature was verified before use.

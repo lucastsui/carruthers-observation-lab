@@ -281,6 +281,7 @@ export async function api<T>(
         }),
   });
   if (!response.ok) {
+    if (response.status === 401) window.location.reload();
     let message = `Service returned ${response.status}`;
     try {
       message =

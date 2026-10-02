@@ -11,6 +11,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { CollectionDialog } from '@/components/collection-dialog';
+import { SessionControls } from '@/components/session-controls';
 import { ObservationViewer } from '@/components/observation-viewer';
 import { DisplayControls } from '@/components/display-controls';
 import {
@@ -227,6 +228,7 @@ export default function Home() {
           <h1>Carruthers Exploratory Data Analysis (CEDA)</h1>
         </div>
         <div className="header-actions">
+          <SessionControls />
           {catalogue && !theory && (
             <CollectionDialog
               catalogue={catalogue}

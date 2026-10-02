@@ -176,6 +176,7 @@ def main():
         '--data', 'carruthers/L1C', '--port', '8766',
         '--job-timeout', '300',
         '--state', 'carruthers/state', '--origin-file', str(origin),
+        '--auth-file', str(ROOT / 'private/auth.json'),
         '--extra-origin', 'https://nightglow.tail2214e5.ts.net',
     ], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
        start_new_session=True)

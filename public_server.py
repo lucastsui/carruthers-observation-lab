@@ -65,13 +65,81 @@ def valid_public_origin(value):
                 or value == 'https://nightglow.tail2214e5.ts.net')
 
 
-def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=()):
+def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(), auth=None):
     parent = make_handler(catalogue, jobs, static)
     limits = Limits()
     compute = threading.BoundedSemaphore(2)
     waiting = threading.BoundedSemaphore(10)
     context_slots = threading.BoundedSemaphore(2)
     class Handler(parent):
+        def auth_cookie(self):
+            local = self.headers.get('Host', '').split(':')[0] in ('localhost', '127.0.0.1')
+            name = 'ceda_auth' if local else '__Host-ceda_auth'
+            try:
+                cookie = SimpleCookie(self.headers.get('Cookie', ''))
+                token = cookie[name].value if name in cookie else ''
+            except Exception:
+                token = ''
+            return name, token, '' if local else '; Secure'
+
+        def authenticate_request(self, path, post):
+            name, token, secure = self.auth_cookie()
+            if path in ('/api/auth/login', '/api/auth/logout'):
+                if not post:
+                    self.send_json({'error': 'POST required'}, 405)
+                    return False
+                if (self.headers.get('X-Carruthers-Local') != '1'
+                        or self.headers.get('Content-Type', '').split(';')[0] != 'application/json'):
+                    self.send_json({'error': 'JSON request required'}, 400)
+                    return False
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < length <= 8192:
+                        raise ValueError()
+                    body = json.loads(self.rfile.read(length))
+                    if not isinstance(body, dict):
+                        raise ValueError()
+                except (ValueError, UnicodeError):
+                    self.send_json({'error': 'Invalid login request'}, 400)
+                    return False
+                if path == '/api/auth/logout':
+                    auth.revoke(token)
+                    self.auth_set_cookie = f'{name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}'
+                    self.send_json({'ok': True})
+                    return False
+                username, password = body.get('username'), body.get('password')
+                if (not isinstance(username, str) or not isinstance(password, str)
+                        or not 1 <= len(username) <= 256 or not 1 <= len(password) <= 1024):
+                    self.send_json({'error': 'Enter your user and password.'}, 400)
+                    return False
+                # Global budget: a caller cannot evade it by discarding cookies.
+                if not limits.take('login', 10) or not auth.verifiers.acquire(False):
+                    self.limited = True
+                    self.send_json({'error': 'Too many sign-in attempts. Please wait a minute and try again.'}, 429)
+                    return False
+                try:
+                    valid = auth.verify(username, password)
+                finally:
+                    auth.verifiers.release()
+                if not valid:
+                    self.send_json({'error': 'Incorrect user or password.'}, 401)
+                    return False
+                auth.revoke(token)
+                token = auth.create_session()
+                self.auth_set_cookie = f'{name}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={auth.lifetime}{secure}'
+                self.send_json({'ok': True})
+                return False
+            if not auth.authenticated(token):
+                if not post and path in ('/', '/index.html'):
+                    self.send_data(200, (BASE / 'login.html').read_bytes(), 'text/html; charset=utf-8')
+                else:
+                    self.send_json({'error': 'Please sign in to continue.'}, 401)
+                return False
+            if path == '/api/auth/session':
+                self.send_json({'authenticated': True, 'username': auth.username})
+                return False
+            return True
+
         def allowed(self):
             if getattr(self, '_checked', False): return True
             self.new_cookie = None
@@ -107,18 +175,22 @@ def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(
 
         def end_headers(self):
             if getattr(self,'new_cookie',None): self.send_header('Set-Cookie',self.new_cookie)
+            if getattr(self,'auth_set_cookie',None): self.send_header('Set-Cookie',self.auth_set_cookie)
             if getattr(self,'limited',False): self.send_header('Retry-After','10')
             super().end_headers()
 
         def dispatch(self, post=False):
             self._checked = False
             self.limited = False
+            self.auth_set_cookie = None
             if not self.allowed(): return
             path = urlparse(self.path).path
             if path in ('/health','/api/health'):
                 health = jobs.health()
                 ready = bool(catalogue.frames) and catalogue.root.is_dir() and health['worker_alive'] and not health['stuck']
                 return self.send_json(dict(app='carruthers-observation-lab', status='ok' if ready else 'unhealthy', frames=len(catalogue.frames), **health),200 if ready else 503)
+            if auth is not None and not self.authenticate_request(path, post):
+                return
             if path in ('/api/save','/api/saved') or path=='/api/export' and parse_qs(urlparse(self.path).query).get('saved')==['1']:
                 return self.send_json({'error':'Saved analyses are stored in your browser.'},404)
             category = 'submit' if path=='/api/jobs' and post else 'measure' if path=='/api/measure' else 'browse'
@@ -159,6 +231,7 @@ def main():
     parser.add_argument('--port',type=int,default=8766)
     parser.add_argument('--state',type=Path,default=Path('/var/lib/carruthers'))
     parser.add_argument('--origin-file',default='/run/carruthers-tunnel/public-url')
+    parser.add_argument('--auth-file',type=Path,required=True,help='Private 0600 JSON with username and Argon2id password_hash')
     parser.add_argument('--extra-origin',action='append',default=[],help='Additional approved origin during migration')
     parser.add_argument('--job-timeout',type=float,default=120,help='Analysis deadline in seconds (1–600; default 120)')
     args=parser.parse_args()
@@ -166,6 +239,8 @@ def main():
         parser.error('--job-timeout must be between 1 and 600 seconds')
     if any(not valid_public_origin(value) for value in args.extra_origin):
         parser.error('--extra-origin must be an approved HTTPS website origin')
+    from auth import Authentication
+    auth = Authentication(args.auth_file)
     args.state.mkdir(parents=True,exist_ok=True)
     key=args.state/'session-key'
     if not key.exists():
@@ -174,7 +249,7 @@ def main():
     catalogue=Catalogue(args.data)
     if not catalogue.frames: raise RuntimeError('No validated observation frames found')
     jobs=PublicJobs(catalogue,args.state/'analyses',METHOD,timeout=args.job_timeout)
-    server=BoundedServer(('127.0.0.1',args.port),public_handler(catalogue,jobs,BASE/'dist/client',args.origin_file,key.read_bytes(),args.extra_origin))
+    server=BoundedServer(('127.0.0.1',args.port),public_handler(catalogue,jobs,BASE/'dist/client',args.origin_file,key.read_bytes(),args.extra_origin,auth))
     print(f'Ready: {len(catalogue.frames)} frames on 127.0.0.1:{args.port}',flush=True)
     try: server.serve_forever()
     finally: server.server_close(); jobs.close()

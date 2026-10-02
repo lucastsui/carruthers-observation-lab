@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · CEDA</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #000; color: #f3f4f6; font: 15px/1.5 system-ui, sans-serif; }
+    main { width: 100%; max-width: 460px; padding: 36px; border: 1px solid #303036; border-radius: 16px; background: #111114; box-shadow: 0 24px 80px #0008; }
+    h1 { margin: 0 0 30px; font-size: 24px; font-weight: 600; line-height: 1.35; letter-spacing: -.5px; }
+    label { display: block; margin-bottom: 7px; color: #c8c8d0; }
+    input { width: 100%; margin: 0 0 20px; padding: 12px 14px; border: 1px solid #41414b; border-radius: 7px; background: #08080b; color: #fff; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 2px solid #b9c9f5; outline-offset: 3px; }
+    button { width: 100%; padding: 12px; border: 0; border-radius: 7px; background: #e4e9f7; color: #151822; font: inherit; font-weight: 600; cursor: pointer; }
+    button:hover { background: #fff; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #error { min-height: 23px; margin: 0 0 16px; color: #ffabab; font-size: 14px; }
+    @media (max-width: 480px) { main { padding: 26px; } h1 { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <main aria-labelledby="title">
+    <h1 id="title">Carruthers Exploratory Data Analysis (CEDA)</h1>
+    <form>
+      <label for="user">user</label>
+      <input id="user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="256" required autofocus>
+      <label for="password">password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+      <p id="error" role="alert" aria-live="polite"></p>
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+  <script>
+    const form = document.querySelector('form');
+    const button = document.querySelector('button');
+    const error = document.querySelector('#error');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Signing in…';
+      error.textContent = '';
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Carruthers-Local': '1' },
+          body: JSON.stringify({ username: form.username.value, password: form.password.value }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to sign in. Please try again.');
+        form.password.value = '';
+        window.location.reload();
+      } catch (failure) {
+        error.textContent = failure.message || 'Unable to connect. Please try again.';
+        form.password.value = '';
+        form.password.focus();
+        button.disabled = false;
+        button.textContent = 'Sign in';
+      }
+    });
+  </script>
+</body>
+</html>

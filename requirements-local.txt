@@ -3,3 +3,4 @@ netCDF4==1.7.4
 Pillow==12.3.0
 matplotlib==3.11.1
 astropy==8.0.1
+argon2-cffi==25.1.0
