@@ -22,6 +22,7 @@ from PIL import Image
 from science import Catalogue, METHOD_VERSION, PAIRED_KINDS, measure_frame, validate_roi, frame_baseline, radiance_contours
 from space_weather import SpaceWeather
 from circularity import CIRCULARITY_METHOD
+from zoennchen import ModelOverlays
 
 BASE = Path(__file__).resolve().parent
 DEFAULT_DATA = BASE.parent / 'code and data' / 'L1C'
@@ -177,6 +178,7 @@ def export_csv(result):
 
 
 def make_handler(catalogue, jobs, static_root):
+    model_overlays = ModelOverlays(catalogue)
     weather = SpaceWeather(Path(os.environ.get('CARRUTHERS_WEATHER_CACHE', jobs.local_dir.parent / 'space-weather')))
     baseline_cached = lru_cache(maxsize=128)(lambda fid, exclude: frame_baseline(catalogue, fid, exclude))
     contours_cached = lru_cache(maxsize=24)(lambda fid, exclude: radiance_contours(catalogue, fid, exclude))
@@ -234,6 +236,9 @@ def make_handler(catalogue, jobs, static_root):
                     return self.send_json(baseline_cached(query.get('id'), query.get('exclude', '1') == '1'))
                 if path == '/api/contours':
                     return self.send_json(contours_cached(query.get('id'), query.get('exclude', '1') == '1'))
+                if path == '/api/model-contours':
+                    return self.send_json(model_overlays.get(query.get('id'), query.get('model', 'Z15MAX'),
+                        float(query.get('irradiance', '6')), query.get('exclude', '1') == '1'))
                 if path == '/api/context':
                     return self.send_json(weather.series(query.get('kind'), query.get('start', ''), query.get('end', '')))
                 if path == '/api/colorbar':

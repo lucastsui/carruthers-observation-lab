@@ -28,6 +28,7 @@ import {
 
 import { radianceTicks, radianceLabel } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
+import type { ModelContours } from '@/lib/model-overlay';
 
 export function ObservationViewer({
   actions,
@@ -38,6 +39,8 @@ export function ObservationViewer({
   roi,
   contours,
   isolines,
+  modelContours,
+  modelOpacity,
   zoom,
   onROI,
   onStep,
@@ -52,6 +55,8 @@ export function ObservationViewer({
   roi: ROI;
   contours: ContourMode;
   isolines: Contours | null;
+  modelContours: ModelContours | null;
+  modelOpacity: number;
   zoom: number;
   onROI: (r: ROI) => void;
   onStep: (n: number) => void;
@@ -365,6 +370,23 @@ export function ObservationViewer({
                             </text>
                           );
                         })}
+                    </g>
+                  ))}
+                </g>
+              )}
+              {modelContours?.frame_id === frame.id && (
+                <g data-model-frame={modelContours.frame_id} data-model={modelContours.model}
+                  fill="none" stroke="#67e8f9" opacity={modelOpacity}
+                  strokeWidth={1.5 * overlayScale} strokeDasharray={`${5 * overlayScale} ${3 * overlayScale}`}>
+                  {modelContours.contours.map((level, levelIndex) => (
+                    <g key={level.level_kR}>
+                      {level.paths.map((path, i) => <path key={i} d={`M ${path.map((xy) => xy.join(' ')).join(' L ')}`} />)}
+                      {level.paths.filter((path) => path.length > 20).slice(0, 1).map((path, i) => {
+                        const [x, y] = path[Math.floor(path.length*((.1+levelIndex*.23)%1))];
+                        return <text key={i} x={x} y={y} fill="#67e8f9" stroke="#080e15"
+                          strokeDasharray="none" strokeWidth={3*overlayScale} paintOrder="stroke"
+                          fontSize={12*overlayScale} fontWeight={600}>M {level.level_kR} kR</text>;
+                      })}
                     </g>
                   ))}
                 </g>

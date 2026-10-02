@@ -81,7 +81,7 @@ class AuthenticationTests(unittest.TestCase):
         self.assertIn(b'Carruthers Exploratory Data Analysis (CEDA)', body)
         self.assertNotIn(b'protected application', body)
         self.assertIn(('Cache-Control', 'no-store'), headers)
-        for path in ('/api/catalogue', '/api/preview?id=x', '/api/export?id=x',
+        for path in ('/api/catalogue', '/api/preview?id=x', '/api/export?id=x', '/api/model-contours?id=x',
                      '/script.js', '/index.rsc', '/private/auth.json', '/auth.json'):
             self.assertEqual(self.request(path)[0], 401, path)
         self.assertEqual(self.request('/api/jobs', {})[0], 401)

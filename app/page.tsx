@@ -14,6 +14,9 @@ import { CollectionDialog } from '@/components/collection-dialog';
 import { SessionControls } from '@/components/session-controls';
 import { ObservationViewer } from '@/components/observation-viewer';
 import { DisplayControls } from '@/components/display-controls';
+import { ModelOverlayControls } from '@/components/model-overlay-controls';
+import { useModelOverlay } from '@/hooks/use-model-overlay';
+import type { ModelChoice } from '@/lib/model-overlay';
 import {
   AnalysisControls,
   AnalysisResults,
@@ -49,6 +52,9 @@ export default function Home() {
   const [scale, setScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]),
     [draftScale, setDraftScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]);
   const [exclude, setExclude] = useState(true);
+  const [model, setModel] = useState<ModelChoice>('Z15MAX');
+  const [modelOpacity, setModelOpacity] = useState(.85);
+  const [modelIrradiance, setModelIrradiance] = useState(6);
   const [compactPanel, setCompactPanel] = useState('viewer');
   const preferredTime = useRef<number | null>(null);
   useEffect(() => {
@@ -89,6 +95,8 @@ export default function Home() {
   const { preview, pending: previewPending, message: previewMessage, error: previewError, retry: retryPreview } =
     useFramePreview(frame, scale, contours, exclude);
   const displayedFrame = preview?.frame || frame;
+  const modelOverlay = useModelOverlay(displayedFrame?.id, model, modelIrradiance, preview?.exclude ?? exclude,
+    !!frame && !!preview && viewerMode === 'image' && !theory);
   const measurementFrame = frame ? displayedFrame : undefined;
   useEffect(() => {
     setPlaying(false);
@@ -321,6 +329,7 @@ export default function Home() {
                 setExclude={setExclude}
                 playing={playing}
                 displayControls={
+                  <>
                   <DisplayControls
                     zoom={zoom}
                     setZoom={setZoom}
@@ -343,6 +352,9 @@ export default function Home() {
                       setDraftScale(value);
                     }}
                   />
+                  <ModelOverlayControls model={model} setModel={setModel} opacity={modelOpacity}
+                    setOpacity={setModelOpacity} irradiance={modelIrradiance} setIrradiance={setModelIrradiance} />
+                  </>
                 }
               />
             </aside>
@@ -399,6 +411,8 @@ export default function Home() {
                           roi={roi}
                           contours={preview?.contours ?? contours}
                           isolines={preview?.isolines ?? null}
+                          modelContours={modelOverlay.value}
+                          modelOpacity={modelOpacity}
                           zoom={Number(zoom)}
                           onROI={changeROI}
                           onStep={step}
@@ -412,6 +426,14 @@ export default function Home() {
                           {preview && ' Current frame retained.'}
                           {previewError && <button className="button ghost" onClick={retryPreview}>Retry</button>}
                         </output>
+                      )}
+                      {viewerMode === 'image' && model !== 'off' && (
+                        <div className="model-legend" role="status">
+                          <span className="model-swatch" />Zoennchen 2015 · {model === 'Z15MAX' ? 'solar maximum' : 'solar minimum'} · 3–8 Rᴇ contribution
+                          {modelOverlay.pending ? ' · Calculating…' : modelOverlay.error ? <>
+                            <span>{modelOverlay.error}</span><button className="button ghost" onClick={modelOverlay.retry}>Retry model</button>
+                          </> : modelOverlay.value && !modelOverlay.value.contours.length ? ' · No contour levels in the valid image area' : ' · kR'}
+                        </div>
                       )}
                     </div>
                   </div>

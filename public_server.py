@@ -217,7 +217,7 @@ def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(
                 if not context_slots.acquire(False):
                     self.limited=True
                     return self.send_json({'error':'Reference data are busy; retry shortly.'},429)
-            is_compute = path in ('/api/measure','/api/preview','/api/baseline','/api/contours')
+            is_compute = path in ('/api/measure','/api/preview','/api/baseline','/api/contours','/api/model-contours')
             acquired = False
             if is_compute:
                 if not waiting.acquire(False):

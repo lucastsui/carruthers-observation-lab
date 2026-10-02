@@ -1238,6 +1238,17 @@ h2 {
 /* Brightness comparisons and observation geometry share the existing workbench. */
 .contour-control { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:5px; font-size:13px; margin:8px 0; }
 .contour-control [data-slot='select-trigger'] { font-size:13px; min-width:135px; }
+.model-controls { border-top:1px solid var(--border, #25313f); padding-top:12px; margin-top:12px; font-size:12px; }
+.model-controls h3 { display:flex; align-items:center; gap:7px; font-size:13px; margin:0 0 10px; }
+.model-controls label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; margin:10px 0; }
+.model-controls select, .model-controls input[type='number'] { background:#0c1521; color:#dbe7f4; border:1px solid #354353; border-radius:5px; padding:5px; max-width:100%; }
+.model-controls input[type='number'] { width:75px; }
+.model-controls input[type='range'] { flex-basis:100%; width:100%; accent-color:#67e8f9; }
+.model-controls p { line-height:1.5; color:#a9bacb; margin:8px 0; }
+.model-controls summary { cursor:pointer; color:#bdeaf0; }
+.model-controls a { color:#67e8f9; text-decoration:underline; }
+.model-swatch { display:inline-block; width:18px; flex-shrink:0; border-top:2px dashed #67e8f9; vertical-align:middle; }
+.model-legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:7px 12px; font-size:11px; color:#bdeaf0; background:#0b1720; }
 .slider-scale-ticks, .radiance-ticks { position:relative; height:24px; margin:0 6px; color:#afbecc; font:12px var(--font-mono); }
 .slider-scale-ticks span, .radiance-ticks span { position:absolute; transform:translateX(-50%); padding-top:7px; white-space:nowrap; }
 .slider-scale-ticks span::before, .radiance-ticks span::before { content:''; position:absolute; left:50%; top:0; height:5px; border-left:1px solid #a5b7c9; }
