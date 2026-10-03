@@ -165,8 +165,8 @@ class ModelOverlays:
         self.catalogue.get(fid)
         if model not in MODELS:
             raise ValueError('Choose Z15MIN or Z15MAX')
-        if not np.isfinite(irradiance_mw) or not 1 <= irradiance_mw <= 15:
-            raise ValueError('Solar Lyman-alpha irradiance must be 1–15 mW/m²')
+        if not np.isfinite(irradiance_mw) or not 1 <= irradiance_mw <= 30:
+            raise ValueError('Solar Lyman-alpha irradiance must be 1–30 mW/m²')
         # Check file identity on cache hits too.
         frame = self.catalogue.get(fid)
         stat = self.catalogue.paths[fid].stat()

@@ -155,14 +155,14 @@ class ZoennchenFrameTests(unittest.TestCase):
             position = basis @ np.array(f['spacecraft_position_km'])/RE_KM
             # Check contour locations against direct finer LOS integration,
             # including faint levels at the strongest allowed illumination.
-            for irradiance in [6., 15.]:
+            for irradiance in [6., 15., 30.]:
                 contour_result = self.overlays.get(f['id'], irradiance_mw=irradiance)
                 for level in contour_result['contours']:
                     xy = np.concatenate([np.array(p) for p in level['paths']])[::4]-.5
                     rays = pixel_rays(geometry, xy[:, 0], xy[:, 1]) @ basis.T
                     exact = shell_column(position, rays, 'Z15MAX', samples=128)*scattering_rate(irradiance)/1e9
                     np.testing.assert_allclose(exact, level['level_kR'], rtol=.02)
-        for model, irradiance in [('bad', 6), ('Z15MIN', float('nan')), ('Z15MIN', 0), ('Z15MIN', 100)]:
+        for model, irradiance in [('bad', 6), ('Z15MIN', float('nan')), ('Z15MIN', 0), ('Z15MIN', 30.1)]:
             with self.assertRaises(ValueError):
                 self.overlays.get(f['id'], model, irradiance)
 

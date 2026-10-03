@@ -54,7 +54,7 @@ export function ModelOverlayControls({
               aria-label="Model solar Lyman-alpha irradiance"
               type="range"
               min="1"
-              max="15"
+              max="30"
               step="0.1"
               value={irradiance}
               onChange={(e) => setIrradiance(Number(e.target.value))}

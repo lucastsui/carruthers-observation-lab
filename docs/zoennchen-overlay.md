@@ -3,7 +3,7 @@
 The WFI/NFI **2D image** view can display dashed cyan model contours independently
 of the observed brightness/radius contours. Controls select solar maximum,
 solar minimum or Off, set opacity, and set reference solar Lyman-alpha irradiance
-(1–15 mW/m², default 6). The irradiance slider shows its value, steps by 0.1,
+(1–30 mW/m², default 6). The irradiance slider shows its value, steps by 0.1,
 and updates contours after a short debounce while dragging. The density presets
 are empirical reference states, not fits to Carruthers data. Irradiance is a fixed
 user input, not automatically taken from the observation date's LISIRD series.

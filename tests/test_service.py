@@ -134,14 +134,15 @@ class LocalServiceTests(unittest.TestCase):
 
     def test_model_contour_endpoint(self):
         fid = self.frames[0]['id']
-        result = self.jrequest('/api/model-contours?id='+fid+'&model=Z15MIN&irradiance=6&exclude=0')
+        result = self.jrequest('/api/model-contours?id='+fid+'&model=Z15MIN&irradiance=30&exclude=0')
         self.assertEqual(result['frame_id'], fid)
         self.assertEqual(result['model'], 'Z15MIN')
         self.assertFalse(result['exclude_interpolated'])
         self.assertEqual(result['units'], 'kR')
         self.assertEqual(result['brightness_scale'], 1.)
+        self.assertEqual(result['irradiance_mw'], 30.)
         self.assertTrue(result['contours'])
-        for query in ('id=missing', 'id='+fid+'&model=bad', 'id='+fid+'&irradiance=nan'):
+        for query in ('id=missing', 'id='+fid+'&model=bad', 'id='+fid+'&irradiance=nan', 'id='+fid+'&irradiance=30.1'):
             with self.assertRaises(urllib.error.HTTPError) as error:
                 self.jrequest('/api/model-contours?'+query)
             self.assertEqual(error.exception.code, 400)
