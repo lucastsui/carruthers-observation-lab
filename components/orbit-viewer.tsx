@@ -25,11 +25,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import type { Frame } from '@/lib/research';
-import {
-  formatPointingAngle,
-  sunAligned,
-  RE_KM,
-} from '@/lib/orbit';
+import { formatPointingAngle, sunAligned, RE_KM } from '@/lib/orbit';
 import type { Vec3 } from '@/lib/orbit';
 import {
   createSpacecraftModel,
@@ -44,11 +40,16 @@ type Runtime = {
   group: THREE.Group;
   satellite: THREE.Group;
 };
+const L1_DISTANCE_RE = 1500000 / RE_KM;
+const SUN_ARROW_LENGTH_FACTOR = 1.4;
 function frameOverview(r: Runtime, mode: string) {
   r.camera.up.set(0, 1, 0);
   const factor = mode === 'overview' ? 0.45 : 1;
   const extent =
-    Math.max((1500000 / RE_KM) * factor, r.satellite.position.x) + 20;
+    Math.max(
+      L1_DISTANCE_RE * factor * SUN_ARROW_LENGTH_FACTOR,
+      r.satellite.position.x,
+    ) + 20;
   const bounds = r.renderer.domElement.parentElement?.getBoundingClientRect();
   if (bounds?.width && bounds.height) {
     r.camera.aspect = bounds.width / bounds.height;
@@ -88,12 +89,7 @@ function disposeGroup(group: THREE.Group) {
   geometries.forEach((geometry) => geometry.dispose());
   group.clear();
 }
-function label(
-  text: string,
-  color: string,
-  position: THREE.Vector3,
-  width = 35,
-) {
+function label(text: string, position: THREE.Vector3) {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 96;
@@ -104,7 +100,7 @@ function label(
   ctx.strokeStyle = '#050b16';
   ctx.lineWidth = 8;
   ctx.strokeText(text, 384, 48);
-  ctx.fillStyle = color;
+  ctx.fillStyle = '#ffffff';
   ctx.fillText(text, 384, 48);
   const map = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(
@@ -116,7 +112,8 @@ function label(
     }),
   );
   sprite.position.copy(position);
-  sprite.scale.set(width * 0.008, width * 0.001, 1);
+  // Identical canvas font and sprite scale keep every scene label the same size.
+  sprite.scale.set(0.28, 0.035, 1);
   return sprite;
 }
 function line(points: THREE.Vector3[], color: number, opacity = 1) {
@@ -239,22 +236,23 @@ export function OrbitViewer({
       }),
     );
     r.group.add(earth);
-    const l1 = new THREE.Vector3((1500000 / RE_KM) * factor, 0, 0);
+    const l1 = new THREE.Vector3(L1_DISTANCE_RE * factor, 0, 0);
     const sunArrowOrigin = new THREE.Vector3(1.2, 0, 0);
+    const sunArrowEnd = l1.x * SUN_ARROW_LENGTH_FACTOR;
     // Sun-aligned coordinates put Earth → Sun along +X in both distance modes.
     // Keep the arrowhead beyond L1 so the shaft passes through its marker.
     r.group.add(
       new THREE.ArrowHelper(
         convert(frame.sun_position_km).normalize(),
         sunArrowOrigin,
-        l1.x + 12 - sunArrowOrigin.x,
+        sunArrowEnd - sunArrowOrigin.x,
         0xffbd55,
         4,
         2,
       ),
     );
     r.group.add(
-      label('Sun direction', '#ffd590', new THREE.Vector3(l1.x / 2, 9, 0), 30),
+      label('Sun direction', new THREE.Vector3(sunArrowEnd, 9, 0)),
     );
     const l1dot = new THREE.Mesh(
       new THREE.SphereGeometry(0.75, 12, 8),
@@ -265,9 +263,7 @@ export function OrbitViewer({
     r.group.add(
       label(
         'L1 Lagrangian Point',
-        '#b5c6db',
         l1.clone().add(new THREE.Vector3(0, -8, 0)),
-        49,
       ),
     );
     const orbit = frames
@@ -294,17 +290,6 @@ export function OrbitViewer({
           frame.sun_position_km,
         ),
       );
-    r.group.add(
-      label(
-        'Carruthers',
-        '#f8dfa5',
-        spacecraft.clone().add(new THREE.Vector3(0, 9, 0)),
-        40,
-      ),
-    );
-    r.group.add(
-      label('Earth · 1 Rᴇ', '#91c0ff', new THREE.Vector3(0, -8, 0), 30),
-    );
     // Select the opposite camera nearest in time for its true calibrated FOV geometry.
     let other: Frame | undefined;
     for (const f of frames)
@@ -382,12 +367,10 @@ export function OrbitViewer({
       r!.group.add(
         label(
           `${frame.channel} image plane`,
-          '#f6c0be',
           corners[2]
             .clone()
             .lerp(corners[3], 0.5)
             .add(new THREE.Vector3(0, -5, 0)),
-          43,
         ),
       );
     }

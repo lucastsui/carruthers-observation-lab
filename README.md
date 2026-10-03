@@ -129,6 +129,9 @@ Pending problems:
 | 2026-09-16 | Lucas and John discussed shared-machine/storage access; John requested a room key for Lucas; Brian supplied a potential collaborator’s contact.                                                                                                                                                           |
 | 2026-09-17 | Lucas met John for Carruthers setup; John confirmed that Nightglow was operational and began coordinating Brian’s account with him.                                                                                                                                                                       |
 | 2026-09-18 | Lucas did the following:<ul><li>Sever deployment:<ul><li>Migrated data and server to BU's machine</li><li>Launched server.</li><li>Set up server monitoring (Betterstack) and incident reporting.</li></ul></li><li>User interface improvements:<ul><li>Changed the name "radiance" to brightness.</li><li>Fixed frame flicker by implementing decoded-image swaps and adjacent-frame preloading for both 2D and 3D.</li></ul></li><li>Improvements on scientific information:<ul><li>Replaced SYM-H with hourly Kyoto DST.</li><li>Added the ecliptic-north indicator.</li><li>Added quaternion-driven spacecraft model.</li><li>Added Earth–Sun pointing deviation and direction .arrow, and orientation-assumption explanation.</li></ul></li><li>Documentation:<ul><li>Renamed the app Carruthers Exploratory Data Analysis (CEDA).</li><li>Reorganized the README for human and AI readers.</li><li>Documented mission roles and project history for auditing.</li></ul></li></ul> |
+| 2026-10-01 | Lucas added the Zoennchen 2015 model overlay and reported lower brightness than the L1C images. He asked how to handle the WFI regions outside the model's range. |
+| 2026-10-02 | John recommended keeping the overlay within its intended range, checking whether the brightness difference came from a factor of 4π, and replacing the Sun in the 3D view with an Earth-to-Sun direction arrow. Lucas limited the overlay to 3–8 Rᴇ and added the arrow. |
+| 2026-10-03 | Lucas checked the Rayleigh conversion and removed the extra 4π multiplier. He made solar Lyman-alpha irradiance adjustable and asked whether COSSMo measurements could supply it. He changed the deviation angle to compare the camera boresight with the spacecraft-to-Earth direction, kept the value as four-decimal text, and removed the angle drawing and lower caption. He extended the Sun arrow beyond L1, moved its label to the tip, removed the Earth and Carruthers labels, and made the remaining scene labels white and the same size. |
 
 ## Introduction For AIs
 
@@ -399,7 +402,9 @@ not change the THEORY equations or constants.
   other-camera frame within two hours. Do not extrapolate the measured March
   trajectory into a complete halo orbit. Overview compresses spacecraft distance
   by 0.45; True spacecraft distance uses a shared scale. Sun distance and object
-  glyph sizes remain schematic.
+  glyph sizes remain schematic. The Sun-direction arrow extends to 1.4 times the
+  displayed Earth–L1 distance, with its label at the tip. Scene labels use the
+  same font size and white color; Earth and spacecraft have no text labels.
 - Below the 3D navigation hint, display the selected camera's Earth-pointing
   deviation (off-nadir angle) with a source-linked explanation. For March v1.3,
   stored quaternions are scalar-last JPL/passive; the outward boresight is
