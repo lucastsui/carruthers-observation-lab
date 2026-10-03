@@ -69,7 +69,7 @@ export function ModelOverlayControls({
             />
           </label>
           <p>
-            Model shown only within 3–8 Rᴇ · kR. Fixed reference illumination;
+            Model shown only within 3–8 Rᴇ · kR · ×4π. Fixed reference illumination;
             adjust to the observation’s daily irradiance.
           </p>
           <details>
@@ -79,6 +79,11 @@ export function ModelOverlayControls({
               image view. They include only hydrogen between 3 and 8 Earth
               radii; sightlines passing inside 3 Rᴇ or outside 8 Rᴇ are omitted.
               The outer WFI image remains visible without model contours.
+            </p>
+            <p>
+              Model brightness is multiplied by 4π (approximately 12.57).
+              This is an additional scaling adjustment; the observation values
+              retain their original calibration.
             </p>
             <p>
               Solar maximum uses TWINS 2012 densities; minimum uses 2008/2010.

@@ -139,6 +139,7 @@ class LocalServiceTests(unittest.TestCase):
         self.assertEqual(result['model'], 'Z15MIN')
         self.assertFalse(result['exclude_interpolated'])
         self.assertEqual(result['units'], 'kR')
+        self.assertAlmostEqual(result['brightness_scale'], 12.566370614359172)
         self.assertTrue(result['contours'])
         for query in ('id=missing', 'id='+fid+'&model=bad', 'id='+fid+'&irradiance=nan'):
             with self.assertRaises(urllib.error.HTTPError) as error:

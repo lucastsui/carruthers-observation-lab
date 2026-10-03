@@ -6,6 +6,9 @@ solar minimum or Off, set opacity, and set reference solar Lyman-alpha irradianc
 (1–15 mW/m², default 6). Number edits apply on blur or Enter. The density presets
 are empirical reference states, not fits to Carruthers data. Irradiance is a fixed
 user input, not automatically taken from the observation date's LISIRD series.
+WFI defaults to Off; NFI defaults to solar maximum. Each camera's choice is
+remembered independently until page reload. A fixed-height caption above the
+color scale prevents image resizing when the overlay is toggled or loads.
 
 ## Scientific definition
 
@@ -16,8 +19,9 @@ Solar minimum represents TWINS 2008/2010; solar maximum represents near-maximum
 the paper's sqrt(4π) factor. Density is in atoms/cm³. The 2024 density revision
 is not part of this initial overlay.
 
-The displayed quantity is **only the single-scattering brightness contributed
-by hydrogen at geocentric distances 3–8 Rᴇ**. Rays passing within 3 Rᴇ are masked;
+The displayed quantity is **4π times the single-scattering brightness contributed
+by hydrogen at geocentric distances 3–8 Rᴇ**, per the user's October 3 request.
+Rays passing within 3 Rᴇ are masked;
 the outer integration boundary is exactly 8 Rᴇ, without extrapolation. In
 particular, a small value near the outer edge is a consequence of this truncation,
 not an assertion that the real exosphere ends there. No full-image model residual
@@ -25,13 +29,17 @@ is calculated. This approximation must not be described as the full brightness
 prediction or the paper's multiple-scattering-corrected radiance calculation.
 
 For normalized observer-to-scene direction d in GSE, the phase factor is
-`P = 11/12 + d_x²/4`. Brightness in kR is
+`P = 11/12 + d_x²/4`. Unscaled brightness in kR is
 `B = 10^-9 g ∫ P n_H ds`, where ds is in cm. The conversion to g follows
 [EXOSpy's single-scattering method](https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2023.1082150/full):
 convert band-integrated irradiance to photon flux F in photons/cm²/s at 121.6 nm,
 then `g = 3.47e-4 (F/1e11)^1.21 s^-1`.
-The 4π in the Rayleigh definition cancels the isotropic emissivity denominator;
-no additional 4π is applied to model brightness or observed stored Rayleighs.
+The 4π in the Rayleigh definition cancels the isotropic emissivity denominator.
+The requested display adjustment is then applied: `B_display = 4π B`.
+This multiplier changes all model brightness values and contour locations, not
+hydrogen density or the observation calibration. The caption identifies ×4π;
+API metadata records `brightness_scale = 12.566370614359172` and its reason.
+The response identity check rejects an unscaled response from an older service.
 
 Direct illumination is zero inside Earth's nightside cylindrical geometric
 shadow. Integration intervals split analytically at shadow boundaries, preventing
@@ -121,8 +129,9 @@ density fixture and angular-mean tests.
 
 For spectral-line radiance `L = g ∫ P n ds / (4π)` in photons/cm²/s/sr,
 one kR is `10^9 / (4π)` in those units, so `B_kR = g ∫ P n ds / 10^9`.
-There is no missing 4π factor in either display conversion. No empirical
-multiplier has been applied. This audits the supplied data definitions and our
+The audit found no missing 4π factor in either unit conversion. On October 3,
+the user explicitly requested an additional 4π multiplier; it is now applied
+after the conversion and labeled as a scaling adjustment. This audits the supplied data definitions and our
 forward calculation; it does not independently recalibrate the instrument.
 
 Equal units do not imply equal predictions: the reference uses historical

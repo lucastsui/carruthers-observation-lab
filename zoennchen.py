@@ -17,7 +17,9 @@ from netCDF4 import Dataset
 
 from science import GEOMETRY_NAMES, NETCDF_LOCK, RE_KM, read_array, rotation
 
-METHOD = 'zoennchen-2015-shell-2'
+METHOD = 'zoennchen-2015-shell-3'
+# User-requested brightness adjustment, separate from the Rayleigh conversion.
+BRIGHTNESS_SCALE = 4*np.pi
 MODELS = ('Z15MIN', 'Z15MAX')
 # a10,a11,a20,a21,a22; b; p11,p21,p22; q (all scaled by 1e-4).
 COEFFICIENTS = {
@@ -205,7 +207,7 @@ class ModelOverlays:
             valid &= ~interpolation
         mask = ~conservative_mask(valid, x, y) | ~np.isfinite(column)
         g = scattering_rate(irradiance_mw)
-        brightness = column*g/1e9  # Rayleigh -> kR, phase already included.
+        brightness = column*g/1e9 * BRIGHTNESS_SCALE
         # B approaches zero as sqrt(8-b) near a tangent to the truncated shell.
         # Interpolate B² there: identical level sets, much smaller edge error.
         generator = contourpy.contour_generator(x=x+.5, y=y+.5,
@@ -229,8 +231,10 @@ class ModelOverlays:
         return dict(frame_id=fid, model=model, method=METHOD, units='kR',
                     contours=contours, clip_paths=clip_paths, exclude_interpolated=exclude,
                     irradiance_mw=irradiance_mw, g_factor_s=g,
+                    brightness_scale=float(BRIGHTNESS_SCALE),
+                    brightness_scale_reason='User-requested 4pi brightness adjustment',
                     domain_re=[3, 8], outer_treatment='truncated',
-                    quantity='Single-scattering brightness contributed by the 3–8 Re shell',
+                    quantity='4pi-scaled single-scattering brightness contributed by the 3–8 Re shell',
                     valid_grid_points=int(values.size), grid_shape=list(column.shape),
                     brightness_range_kR=[float(values.min()), float(values.max())] if values.size else None,
                     integration_seconds=round(seconds, 4),

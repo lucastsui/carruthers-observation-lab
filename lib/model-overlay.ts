@@ -5,6 +5,7 @@ export type ModelContours = Contours & {
   model: Exclude<ModelChoice, 'off'>;
   method: string;
   irradiance_mw: number;
+  brightness_scale: number;
   exclude_interpolated: boolean;
   valid_grid_points: number;
   integration_seconds: number;
@@ -68,6 +69,7 @@ export function matchingModelOverlay(
   return (
     value.frame_id === fid &&
     value.model === model &&
+    Math.abs(value.brightness_scale - 4 * Math.PI) < 1e-12 &&
     Math.abs(value.irradiance_mw - irradiance) < 0.00051 &&
     value.exclude_interpolated === exclude
   );
