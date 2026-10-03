@@ -135,6 +135,27 @@ Pending problems:
 | 2026-10-02 | John recommended keeping the overlay within its intended range, checking whether the brightness difference came from a factor of 4π, and replacing the Sun in the 3D view with an Earth-to-Sun direction arrow. Lucas limited the overlay to 3–8 Rᴇ and added the arrow. |
 | 2026-10-03 | Lucas checked the Rayleigh conversion and removed the extra 4π multiplier. He made solar Lyman-alpha irradiance adjustable and asked whether COSSMo measurements could supply it. He changed the deviation angle to compare the camera boresight with the spacecraft-to-Earth direction, kept the value as four-decimal text, and removed the angle drawing and lower caption. He extended the Sun arrow beyond L1, moved its label to the tip, removed the Earth and Carruthers labels, and made the remaining scene labels white and the same size. |
 
+### 2026-10-03 — Zoennchen model comparison
+
+Under Prof. Walsh’s suggestion, Lucas added a numerical model called the Zoennchen model to compare against observational data. He found an approximately one-order-of-magnitude difference in brightness between the model and the observations. The shapes of the model and observed brightness contours also differ. Using AI to research the model’s formulas, Lucas found that the brightness calculation is:
+
+$$
+B_{\mathrm{kR}}=\frac{g}{10^{9}}\int_{\mathcal{L}}n_{\mathrm{H}}(\mathbf{r}(s))\left(\frac{11}{12}+\frac{1}{4}\cos^{2}\theta(s)\right)\,ds
+$$
+
+where $g$ is:
+
+$$
+g = 3.47 \times 10^{-4}
+\left(
+\frac{F_{\mathrm{Ly}\alpha}}
+{10^{11}\,\mathrm{photons}\,\mathrm{cm}^{-2}\,\mathrm{s}^{-1}}
+\right)^{1.21}
+\,\mathrm{s}^{-1}
+$$
+
+Lucas suggested using the Sun-facing camera, COSSMO, to obtain $F_{\mathrm{Ly}\alpha}$ values. However, Prof. Clarke reported that the instrument is not yet operational, so the next best option is to use data from LASP.
+
 ## Introduction For AIs
 
 ### Mission and first session
