@@ -83,10 +83,12 @@ Pending problems:
 
 ## AI Techniques used
 - Ask about hardware and software architecture, consider limitations of both first before setting goal for the AI to complete.
-- Be ready to answer clarification questions from AI, mange attention between monitoring AI progress and doing other work to maximize human productivity.
+- Ask AI to paraphrase and seek clarifications from humans for complex changes.
+- Optimize human attention workload by giving high volumne, low complexity task to AI, and fomrulate wordings for complex prompts in parallel.
 - Spawn multiple agents to tackle multiple problems simultaneously.
 - Use AI to understand code base and explore options.
 - Know enough science to progress coding work, e.g., what does quaternion (0,0,0,0) mean in orbital space.
+- Queuing prompts without waiting and let AI pop thme one by one, essentially forming a pipeline of inference.
 
 ## Project history:
 
