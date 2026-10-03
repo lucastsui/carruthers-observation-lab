@@ -4,6 +4,7 @@ from pathlib import Path
 import unittest
 
 import numpy as np
+from matplotlib.path import Path as Polygon
 from netCDF4 import Dataset
 
 from science import Catalogue, GEOMETRY_NAMES, RE_KM, read_array
@@ -37,7 +38,9 @@ class ZoennchenMathTests(unittest.TestCase):
         actual = shell_column(position, ray, 'Z15MAX', density_fn=lambda p: np.full(p.shape[:-1], 100.))[0]
         expected = 100*2*np.sqrt(8**2-4**2)*RE_KM*1e5*(11/12+.2**2/4)
         self.assertAlmostEqual(actual/expected, 1., places=13)
-        self.assertAlmostEqual(actual*.002/1e9, expected*.002/1e9, places=12)
+        radiance_per_sr = expected*.002/(4*np.pi)
+        photons_per_kr = 1e9/(4*np.pi)
+        self.assertAlmostEqual(actual*.002/1e9, radiance_per_sr/photons_per_kr, places=12)
 
     def test_inner_missed_and_backward_rays_are_missing(self):
         result = shell_column(np.array([0., 0., 20.]),
@@ -117,6 +120,18 @@ class ZoennchenFrameTests(unittest.TestCase):
             self.assertEqual(result['frame_id'], f['id'])
             self.assertEqual(result['domain_re'], [3, 8])
             self.assertTrue(result['contours'])
+            self.assertTrue(result['clip_paths'])
+            x, y, column, _ = self.overlays.columns(f['id'], 'Z15MAX')
+            raw, fov, interpolation = self.catalogue.read(f['id'])
+            supported = conservative_mask(fov & np.isfinite(raw) & ~interpolation, x, y) & np.isfinite(column)
+            xx, yy = np.meshgrid((x[:-1]+x[1:])/2+.5, (y[:-1]+y[1:])/2+.5)
+            points = np.column_stack([xx.ravel(), yy.ravel()])
+            visible = np.zeros(len(points), bool)
+            for ring in result['clip_paths']:
+                self.assertEqual(ring[0], ring[-1])
+                visible ^= Polygon(ring).contains_points(points)
+            cells = supported[:-1, :-1] & supported[1:, :-1] & supported[:-1, 1:] & supported[1:, 1:]
+            np.testing.assert_array_equal(visible.reshape(cells.shape), cells)
             self.assertIs(self.overlays.get(f['id']), result)
             columns = self.overlays.columns.cache_info().misses
             changed = self.overlays.get(f['id'], irradiance_mw=7)

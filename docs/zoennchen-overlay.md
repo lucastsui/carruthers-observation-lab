@@ -58,6 +58,11 @@ conservatively over each grid point's pixel footprint. Finite negatives remain
 valid. Contours use B² interpolation to resolve the square-root behavior near
 the outer tangent; this preserves the brightness level sets. SVG positions use
 the same +0.5 pixel-center offset as observed contours.
+The entire model SVG group, including text and stroke widths, is clipped to the
+union of supported grid cells. Even-odd polygon rings preserve the inner hole,
+outer limit and observation-mask holes. Observed imagery is not clipped.
+Labels are placed only where they fit completely; at a wide zoom some labels
+are omitted instead of displaying cut-off values.
 
 `GET /api/model-contours?id=…&model=Z15MAX&irradiance=6&exclude=1` returns contours
 and method/illumination/domain metadata. Inputs are bounded; the public endpoint
@@ -94,3 +99,36 @@ preload of the entire observation interval occurs.
 Development-machine measurements were approximately 0.2 s per uncached WFI/NFI
 image and under 1 ms for a cache hit, excluding network transfer. Hardware and
 the selected masks/geometry affect timings.
+
+## Brightness-unit audit (2026-10-02)
+
+The March v1.3 L1C `images` variable defines `UNITS`/`units` as
+`1e6 photons/s/cm2`. Its `VAR_NOTES` explicitly describes integration over the
+full 4π sr and calls the unit Rayleigh. The global `TEXT` agrees. Thus stored
+values are Rayleighs, not photons per steradian: `science.py` correctly uses
+`raw / 1000` for kR. The files have no image `scale_factor` or `add_offset`.
+These definitions and the absence of packing scales were checked in all 62
+March files (both WFI and NFI).
+
+The reviewed EXOSpy source, revision
+[`3cb1e6701aeb41b703f58fb95ecb3167387bc9db`](https://github.com/gcucho/EXOSpy/blob/3cb1e6701aeb41b703f58fb95ecb3167387bc9db/src/exospy/exospy.py),
+`generateIntensityOpticallyThin`, integrates `phase * g * n * ds / 10^6`
+in Rayleighs. CEDA's additional division by 1000 gives the same kR scale.
+Zoennchen 2015 Eq. (1) likewise uses `g / 10^6` for Rayleigh brightness (with
+an additional radiative-transfer correction). The separate sqrt(4π) factor
+in the density harmonics is already accounted for, as checked by the independent
+density fixture and angular-mean tests.
+
+For spectral-line radiance `L = g ∫ P n ds / (4π)` in photons/cm²/s/sr,
+one kR is `10^9 / (4π)` in those units, so `B_kR = g ∫ P n ds / 10^9`.
+There is no missing 4π factor in either display conversion. No empirical
+multiplier has been applied. This audits the supplied data definitions and our
+forward calculation; it does not independently recalibrate the instrument.
+
+Equal units do not imply equal predictions: the reference uses historical
+solar-minimum/maximum densities, manual illumination and only the 3–8 Rᴇ shell.
+The L1C definition describes background-subtracted exospheric emission along
+the full sightline, without a 3–8 Rᴇ radial restriction. Truncation reduces the
+model contribution particularly near 8 Rᴇ. Absorption and multiple scattering
+also remain outside this approximation. A residual should be investigated with
+date-matched illumination and an appropriate full-sightline forward model.

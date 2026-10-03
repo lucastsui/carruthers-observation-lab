@@ -17,7 +17,7 @@ from netCDF4 import Dataset
 
 from science import GEOMETRY_NAMES, NETCDF_LOCK, RE_KM, read_array, rotation
 
-METHOD = 'zoennchen-2015-shell-1'
+METHOD = 'zoennchen-2015-shell-2'
 MODELS = ('Z15MIN', 'Z15MAX')
 # a10,a11,a20,a21,a22; b; p11,p21,p22; q (all scaled by 1e-4).
 COEFFICIENTS = {
@@ -210,6 +210,16 @@ class ModelOverlays:
         # Interpolate B² there: identical level sets, much smaller edge error.
         generator = contourpy.contour_generator(x=x+.5, y=y+.5,
                     z=np.ma.array(brightness**2, mask=mask), corner_mask=False)
+        # Clip the whole SVG overlay, including label glyphs and stroke widths,
+        # to the same supported cells as the scientific contours. Filled rings
+        # preserve inner/outer boundaries and observation-mask holes exactly.
+        domain = contourpy.contour_generator(x=x+.5, y=y+.5,
+                    z=np.ma.array(np.ones(column.shape), mask=mask),
+                    corner_mask=False, fill_type='OuterOffset')
+        polygons, offsets = domain.filled(.5, 1.5)
+        clip_paths = [np.round(points[start:stop], 4).tolist()
+                      for points, rings in zip(polygons, offsets)
+                      for start, stop in zip(rings[:-1], rings[1:])]
         contours = []
         for level in [.1, .3, 1., 3., 10., 30.]:
             paths = [np.round(line, 4).tolist() for line in generator.lines(level**2) if len(line) >= 2]
@@ -217,7 +227,7 @@ class ModelOverlays:
                 contours.append(dict(level_kR=level, paths=paths))
         values = brightness[~mask]
         return dict(frame_id=fid, model=model, method=METHOD, units='kR',
-                    contours=contours, exclude_interpolated=exclude,
+                    contours=contours, clip_paths=clip_paths, exclude_interpolated=exclude,
                     irradiance_mw=irradiance_mw, g_factor_s=g,
                     domain_re=[3, 8], outer_treatment='truncated',
                     quantity='Single-scattering brightness contributed by the 3–8 Re shell',

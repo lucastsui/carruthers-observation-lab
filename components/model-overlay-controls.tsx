@@ -69,15 +69,16 @@ export function ModelOverlayControls({
             />
           </label>
           <p>
-            3–8 Rᴇ shell contribution · kR. Fixed reference illumination; adjust
-            to the observation’s daily irradiance.
+            Model shown only within 3–8 Rᴇ · kR. Fixed reference illumination;
+            adjust to the observation’s daily irradiance.
           </p>
           <details>
             <summary>Model scope &amp; sources</summary>
             <p>
               Dashed cyan contours are a single-scattering reference in the 2D
               image view. They include only hydrogen between 3 and 8 Earth
-              radii; sightlines passing inside 3 Rᴇ are omitted.
+              radii; sightlines passing inside 3 Rᴇ or outside 8 Rᴇ are omitted.
+              The outer WFI image remains visible without model contours.
             </p>
             <p>
               Solar maximum uses TWINS 2012 densities; minimum uses 2008/2010.

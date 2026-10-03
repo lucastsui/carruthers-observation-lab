@@ -1,5 +1,11 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Info } from 'lucide-react';
@@ -36,7 +42,9 @@ type Runtime = {
   deviationLabel?: THREE.Sprite;
 };
 function frameOverview(r: Runtime, mode: string) {
-  const solarX = mode === 'overview' ? 175 : 360;
+  const factor = mode === 'overview' ? 0.45 : 1;
+  const extent =
+    Math.max((1500000 / RE_KM) * factor, r.satellite.position.x) + 20;
   const bounds = r.renderer.domElement.parentElement?.getBoundingClientRect();
   if (bounds?.width && bounds.height) {
     r.camera.aspect = bounds.width / bounds.height;
@@ -46,8 +54,8 @@ function frameOverview(r: Runtime, mode: string) {
     Math.tan(THREE.MathUtils.degToRad(r.camera.fov / 2)) *
       Math.min(1, r.camera.aspect),
   );
-  const distance = (solarX / 2 + 35) / Math.sin(halfAngle);
-  r.controls.target.set(solarX / 2, 0, 0);
+  const distance = (extent / 2 + 35) / Math.sin(halfAngle);
+  r.controls.target.set(extent / 2, 0, 0);
   r.camera.position
     .copy(new THREE.Vector3(0.48, 0.44, 1).normalize().multiplyScalar(distance))
     .add(r.controls.target);
@@ -156,7 +164,7 @@ export function OrbitViewer({
     renderer.setClearColor('#050a14');
     renderer.domElement.setAttribute(
       'aria-label',
-      'Rotatable Earth, Carruthers trajectory, and projected observation. Drag to rotate; scroll to zoom.',
+      'Rotatable Earth, Earth-to-Sun direction arrow, Carruthers trajectory, and projected observation. Drag to rotate; scroll to zoom.',
     );
     renderer.domElement.tabIndex = 0;
     element.appendChild(renderer.domElement);
@@ -236,22 +244,19 @@ export function OrbitViewer({
       }),
     );
     r.group.add(earth);
-    const solarX = mode === 'overview' ? 175 : 360;
-    const sun = new THREE.Mesh(
-      new THREE.SphereGeometry(12, 32, 24),
-      new THREE.MeshBasicMaterial({ color: 0xffbd55 }),
-    );
-    sun.position.set(solarX, 0, 0);
-    r.group.add(sun);
+    // Sun-aligned coordinates put Earth → Sun along +X in both distance modes.
     r.group.add(
-      line(
-        [new THREE.Vector3(), new THREE.Vector3(solarX - 14, 0, 0)],
-        0x756641,
-        0.65,
+      new THREE.ArrowHelper(
+        convert(frame.sun_position_km).normalize(),
+        new THREE.Vector3(1.2, 0, 0),
+        18,
+        0xffbd55,
+        4,
+        2,
       ),
     );
     r.group.add(
-      label('Sun direction', '#ffd590', new THREE.Vector3(solarX, 19, 0), 48),
+      label('Sun direction', '#ffd590', new THREE.Vector3(18, 9, 0), 30),
     );
     const l1 = new THREE.Vector3((1500000 / RE_KM) * factor, 0, 0);
     const l1dot = new THREE.Mesh(
@@ -492,7 +497,9 @@ export function OrbitViewer({
       .add(r.satellite.position);
     const offset = new THREE.Vector3(2.3, 1.6, -2.8)
       .normalize()
-      .multiplyScalar(Math.max(r.controls.minDistance, 27 * r.satellite.scale.x / 8))
+      .multiplyScalar(
+        Math.max(r.controls.minDistance, (27 * r.satellite.scale.x) / 8),
+      )
       .applyQuaternion(r.satellite.quaternion);
     r.controls.target.copy(center);
     r.camera.position.copy(center).add(offset);
@@ -712,11 +719,7 @@ export function OrbitViewer({
             </Popover>
           </div>
         </div>
-        {fatalError && (
-          <output className="orbit-message">
-            {fatalError}
-          </output>
-        )}
+        {fatalError && <output className="orbit-message">{fatalError}</output>}
         <div className="orbit-legend">
           <span className="orbit-track">— March trajectory</span>
           <span className="wfi-fov">— WFI</span>
@@ -732,7 +735,8 @@ export function OrbitViewer({
           {mode === 'overview'
             ? 'Spacecraft distances ×0.45; Earth and image keep their relative scale.'
             : 'Earth, image and spacecraft distances share one scale.'}{' '}
-          Sun and spacecraft model sizes are schematic.
+          The small arrow points from Earth toward the Sun; its length and the
+          spacecraft model size are schematic.
         </p>
         <p>
           Image is a line-of-sight projection through Earth, not a 3D density

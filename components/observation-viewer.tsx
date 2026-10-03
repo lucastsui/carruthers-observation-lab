@@ -1,6 +1,7 @@
 'use client';
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -28,7 +29,7 @@ import {
 
 import { radianceTicks, radianceLabel } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
-import type { ModelContours } from '@/lib/model-overlay';
+import { modelLabelPosition, type ModelContours } from '@/lib/model-overlay';
 
 export function ObservationViewer({
   actions,
@@ -65,6 +66,7 @@ export function ObservationViewer({
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     stage = useRef<HTMLDivElement>(null);
+  const modelClipId = useId();
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const drag = useRef<{ origin: [number, number] } | null>(null),
     lastWheel = useRef(0);
@@ -374,23 +376,79 @@ export function ObservationViewer({
                   ))}
                 </g>
               )}
-              {modelContours?.frame_id === frame.id && (
-                <g data-model-frame={modelContours.frame_id} data-model={modelContours.model}
-                  fill="none" stroke="#67e8f9" opacity={modelOpacity}
-                  strokeWidth={1.5 * overlayScale} strokeDasharray={`${5 * overlayScale} ${3 * overlayScale}`}>
-                  {modelContours.contours.map((level, levelIndex) => (
-                    <g key={level.level_kR}>
-                      {level.paths.map((path, i) => <path key={i} d={`M ${path.map((xy) => xy.join(' ')).join(' L ')}`} />)}
-                      {level.paths.filter((path) => path.length > 20).slice(0, 1).map((path, i) => {
-                        const [x, y] = path[Math.floor(path.length*((.1+levelIndex*.23)%1))];
-                        return <text key={i} x={x} y={y} fill="#67e8f9" stroke="#080e15"
-                          strokeDasharray="none" strokeWidth={3*overlayScale} paintOrder="stroke"
-                          fontSize={12*overlayScale} fontWeight={600}>M {level.level_kR} kR</text>;
-                      })}
+              {modelContours?.frame_id === frame.id &&
+                modelContours.clip_paths && (
+                  <g>
+                    <defs>
+                      <clipPath id={modelClipId} clipPathUnits="userSpaceOnUse">
+                        <path
+                          clipRule="evenodd"
+                          d={modelContours.clip_paths
+                            .map(
+                              (path) =>
+                                `M ${path.map((xy) => xy.join(' ')).join(' L ')} Z`,
+                            )
+                            .join(' ')}
+                        />
+                      </clipPath>
+                    </defs>
+                    <g
+                      data-model-frame={modelContours.frame_id}
+                      data-model={modelContours.model}
+                      clipPath={`url(#${modelClipId})`}
+                      fill="none"
+                      stroke="#67e8f9"
+                      opacity={modelOpacity}
+                      strokeWidth={1.5 * overlayScale}
+                      strokeDasharray={`${5 * overlayScale} ${3 * overlayScale}`}
+                    >
+                      {modelContours.contours.map((level, levelIndex) => (
+                        <g key={level.level_kR}>
+                          {level.paths.map((path, i) => (
+                            <path
+                              key={i}
+                              d={`M ${path.map((xy) => xy.join(' ')).join(' L ')}`}
+                            />
+                          ))}
+                          {level.paths
+                            .filter((path) => path.length > 20)
+                            .slice(0, 1)
+                            .map((path, i) => {
+                              const text = `M ${level.level_kR} kR`,
+                                fontSize = 12 * overlayScale;
+                              const position = modelLabelPosition(
+                                path,
+                                modelContours.clip_paths,
+                                text.length * fontSize * 0.7 + 6 * overlayScale,
+                                fontSize + 6 * overlayScale,
+                                (0.1 + levelIndex * 0.23) % 1,
+                              );
+                              if (!position) return null;
+                              const [x, y] = position;
+                              return (
+                                <text
+                                  key={i}
+                                  x={x}
+                                  y={y}
+                                  textAnchor="middle"
+                                  dominantBaseline="central"
+                                  fill="#67e8f9"
+                                  stroke="#080e15"
+                                  strokeDasharray="none"
+                                  strokeWidth={3 * overlayScale}
+                                  paintOrder="stroke"
+                                  fontSize={fontSize}
+                                  fontWeight={600}
+                                >
+                                  {text}
+                                </text>
+                              );
+                            })}
+                        </g>
+                      ))}
                     </g>
-                  ))}
-                </g>
-              )}
+                  </g>
+                )}
               <circle
                 cx={cx + 0.5}
                 cy={cy + 0.5}
@@ -573,11 +631,11 @@ export function ObservationViewer({
         <div className="colorbar-caption">
           Brightness · kR{' '}
           <span>
-            {(contours === 'radiance'
-                ? 'Contours · kR'
-                : contours === 're'
-                  ? 'Contours · Rᴇ'
-                  : '')}{' '}
+            {contours === 'radiance'
+              ? 'Contours · kR'
+              : contours === 're'
+                ? 'Contours · Rᴇ'
+                : ''}{' '}
             · <b>Blue: 1 Rᴇ</b>
           </span>
         </div>
