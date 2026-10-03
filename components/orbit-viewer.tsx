@@ -27,7 +27,6 @@ import {
 import type { Frame } from '@/lib/research';
 import {
   formatPointingAngle,
-  pointingDeviationGeometry,
   sunAligned,
   RE_KM,
 } from '@/lib/orbit';
@@ -44,7 +43,6 @@ type Runtime = {
   controls: OrbitControls;
   group: THREE.Group;
   satellite: THREE.Group;
-  deviationLabel?: THREE.Sprite;
 };
 function frameOverview(r: Runtime, mode: string) {
   r.camera.up.set(0, 1, 0);
@@ -150,7 +148,6 @@ export function OrbitViewer({
     [mounted, setMounted] = useState(false);
   const initial = useRef(true);
   const spacecraftFocused = useRef(false);
-  const distance = Math.hypot(...frame.spacecraft_position_km);
   const deviation = frame.earth_pointing_deviation_deg;
   useEffect(() => {
     const element = host.current;
@@ -207,13 +204,6 @@ export function OrbitViewer({
     function render() {
       animation = requestAnimationFrame(render);
       controls.update();
-      const deviationLabel = runtime.current?.deviationLabel;
-      if (deviationLabel && renderer.domElement.clientHeight) {
-        const pixelsPerUnit =
-          renderer.domElement.clientHeight /
-          (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-        deviationLabel.scale.set(190 / pixelsPerUnit, 23.75 / pixelsPerUnit, 1);
-      }
       renderer.render(scene, camera);
     }
     render();
@@ -233,7 +223,6 @@ export function OrbitViewer({
   useLayoutEffect(() => {
     const r = runtime.current;
     if (!r || !mounted || !image) return;
-    r.deviationLabel = undefined;
     disposeGroup(r.group);
     const factor = mode === 'overview' ? 0.45 : 1;
     const convert = (v: Vec3, sun = frame.sun_position_km) =>
@@ -305,55 +294,6 @@ export function OrbitViewer({
           frame.sun_position_km,
         ),
       );
-    if (frame.camera_boresight_gcrs) {
-      const pointing = pointingDeviationGeometry(
-        frame.camera_boresight_gcrs,
-        frame.spacecraft_position_km,
-      );
-      if (pointing) {
-        const reference = convert(pointing.reference).normalize();
-        // Both rays share the spacecraft origin. Lengths are schematic;
-        // the angular separation and the arc are never exaggerated.
-        r.group.add(
-          line(
-            [spacecraft, spacecraft.clone().addScaledVector(reference, 20)],
-            0xffd590,
-          ),
-        );
-        r.group.add(
-          new THREE.ArrowHelper(
-            convert(pointing.boresight).normalize(),
-            spacecraft,
-            20,
-            frame.channel === 'WFI' ? 0xef7780 : 0x4c9fff,
-            0.6,
-            0.25,
-          ),
-        );
-        if (pointing.arc.length) {
-          const arc = line(
-            pointing.arc.map((v) =>
-              convert(v).multiplyScalar(16).add(spacecraft),
-            ),
-            0x75eadb,
-          );
-          arc.renderOrder = 3;
-          arc.material.depthTest = false;
-          arc.material.depthWrite = false;
-          r.group.add(arc);
-        }
-        const middle = pointing.arc[16] ?? pointing.reference;
-        const caption = label(
-          `deviation · ${formatPointingAngle(pointing.angleDeg)}`,
-          '#9af8e9',
-          convert(middle).multiplyScalar(16).add(spacecraft),
-          40,
-        );
-        caption.center.set(0.5, -0.5);
-        r.deviationLabel = caption;
-        r.group.add(caption);
-      }
-    }
     r.group.add(
       label(
         'Carruthers',
@@ -497,31 +437,6 @@ export function OrbitViewer({
     r.camera.position.copy(center).add(offset);
     r.controls.update();
   }
-  function viewDeviation() {
-    const r = runtime.current;
-    if (!r || !frame.camera_boresight_gcrs) return;
-    const pointing = pointingDeviationGeometry(
-      frame.camera_boresight_gcrs,
-      frame.spacecraft_position_km,
-    );
-    if (!pointing) return;
-    spacecraftFocused.current = true;
-    const reference = new THREE.Vector3(
-      ...sunAligned(pointing.reference, frame.sun_position_km),
-    );
-    const tangent = new THREE.Vector3(
-      ...sunAligned(pointing.tangent, frame.sun_position_km),
-    );
-    const normal = reference.clone().cross(tangent).normalize();
-    const center = r.satellite.position.clone().addScaledVector(reference, 10);
-    const distance =
-      Math.max(6, 12 / r.camera.aspect) /
-      Math.tan(THREE.MathUtils.degToRad(r.camera.fov / 2));
-    r.camera.up.copy(tangent);
-    r.controls.target.copy(center);
-    r.camera.position.copy(center).addScaledVector(normal, distance);
-    r.controls.update();
-  }
   return (
     <div className="orbit-viewer">
       <div className="orbit-toolbar">
@@ -557,13 +472,6 @@ export function OrbitViewer({
           disabled={!frame.spacecraft_attitude}
         >
           View spacecraft
-        </button>
-        <button
-          className="button ghost"
-          onClick={viewDeviation}
-          disabled={!frame.camera_boresight_gcrs}
-        >
-          View deviation
         </button>
         <label className="switch-row" htmlFor="fov-cones">
           FOV
@@ -620,18 +528,9 @@ export function OrbitViewer({
                 <p>
                   The spacecraft model follows the recorded body attitude. Its
                   solar-cell face is spacecraft +Y; the telescope side is −Y.
-                  The colored arrow shows the selected camera’s calibrated
-                  boresight. Both pointing directions remain visible when FOV is
-                  off. Model details and size are schematic.
-                </p>
-                <p>
-                  The gold segment points toward Earth’s centre and the red
-                  (WFI) or blue (NFI) arrow follows the camera boresight. Both
-                  start at the spacecraft. The mint arc joins these directions
-                  and its label gives their actual angular separation. Ray
-                  lengths and arc radius are schematic; the angle is not
-                  magnified. Use View deviation for a close-up facing the arc’s
-                  plane. At exact alignment the arc collapses to zero.
+                  Model details and size are schematic. The angle is shown to
+                  four decimal places to make small changes between frames
+                  visible; this precision does not establish pointing accuracy.
                 </p>
                 <p>
                   This uses camera pointing, which can differ slightly from the
@@ -738,35 +637,9 @@ export function OrbitViewer({
         {fatalError && <output className="orbit-message">{fatalError}</output>}
         <div className="orbit-legend">
           <span className="orbit-track">— March trajectory</span>
-          <span className="earth-reference">— Toward Earth</span>
           <span className="wfi-fov">— WFI</span>
           <span className="nfi-fov">— NFI</span>
-          <span className="deviation-arc">— Deviation arc</span>
         </div>
-      </div>
-      <div className="orbit-caption">
-        <p>
-          <b>{(distance / 1000000).toFixed(3)} million km from Earth</b> ·{' '}
-          {(distance / RE_KM).toFixed(1)} Rᴇ
-        </p>
-        <p>
-          {mode === 'overview'
-            ? 'Spacecraft distances ×0.45; Earth and image keep their relative scale.'
-            : 'Earth, image and spacecraft distances share one scale.'}{' '}
-          The arrow passes through L1 toward the Sun; its length and the
-          spacecraft model size are schematic.
-        </p>
-        <p>
-          Image is a line-of-sight projection through Earth, not a 3D density
-          reconstruction. March track from L1C positions in a Sun-aligned view.{' '}
-          <a
-            href="https://svs.gsfc.nasa.gov/5419/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            NASA reference ↗
-          </a>
-        </p>
       </div>
     </div>
   );

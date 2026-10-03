@@ -1305,11 +1305,7 @@ h2 {
 .orbit-pointing-sources a { color:var(--primary); text-decoration:underline; text-underline-offset:3px; }
 .orbit-message { position:absolute; left:10%; right:10%; top:45%; color:#d8e4ef; background:#122238e8; padding:15px; border-radius:5px; text-align:center; }
 .orbit-legend { position:absolute; bottom:8px; left:10px; right:10px; display:flex; flex-wrap:wrap; gap:3px 12px; font-size:12px; pointer-events:none; }
-.earth-reference { color:#ffd590; }
-.deviation-arc { color:#75eadb; }
 .orbit-track { color:#d8b7ff; }.wfi-fov { color:#ef7780; }.nfi-fov { color:#4c9fff; }
-.orbit-caption { color:#9db0c4; font-size:12px; line-height:1.35; padding-top:5px; }
-.orbit-caption p { margin:3px 0; }.orbit-caption b { color:#c2d7e8; font-weight:500; }.orbit-caption a { color:#c3d8f3; text-decoration:underline; }
 @media (min-width:1060px) and (min-height:760px) { .workspace { grid-template-columns:230px minmax(300px,1.2fr) minmax(360px,1fr); } }
 .time-chart > .plot-root { flex:1 0 114px; }
 .time-chart > * { flex-shrink:0; }

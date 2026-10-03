@@ -408,13 +408,11 @@ not change the THEORY equations or constants.
   `acos(dot(b, e))`, evaluated as `atan2(|cross(e,b)|, dot(e,b))` for stability
   at small angles. It ranges from 0° (toward Earth) to 180° (away); do not take
   an absolute dot product. The catalogue field is `earth_pointing_deviation_deg`.
-  A gold Earth-direction segment and the red/blue camera boresight share the
-  spacecraft origin. A mint arc between them preserves the actual angle; ray
-  lengths and arc radius are schematic. These annotations remain visible with
-  FOV off. View deviation frames the rays facing their plane; View spacecraft
-  retains the detailed model inspection. Labels and geometry follow camera/frame
-  changes independently of spacecraft roll mapping and distance compression.
-  Exact alignment has a zero-length arc. Verification against the registered
+  Show the value as top-left text with four decimal places; small frame-to-frame
+  changes should remain visible. Display precision does not establish pointing
+  accuracy. There are no deviation rays, arc, or in-scene angle label. The value
+  follows camera/frame changes independently of spacecraft roll mapping and
+  distance compression. Verification against the registered
   Earth/principal-point offset establishes internal geometry consistency, not
   independent stellar astrometry.
 - The spacecraft exterior is adapted from the user-supplied Three.js artifact
