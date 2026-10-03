@@ -25,7 +25,12 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import type { Frame } from '@/lib/research';
-import { pointingDeviationGeometry, sunAligned, RE_KM } from '@/lib/orbit';
+import {
+  formatPointingAngle,
+  pointingDeviationGeometry,
+  sunAligned,
+  RE_KM,
+} from '@/lib/orbit';
 import type { Vec3 } from '@/lib/orbit';
 import {
   createSpacecraftModel,
@@ -42,6 +47,7 @@ type Runtime = {
   deviationLabel?: THREE.Sprite;
 };
 function frameOverview(r: Runtime, mode: string) {
+  r.camera.up.set(0, 1, 0);
   const factor = mode === 'overview' ? 0.45 : 1;
   const extent =
     Math.max((1500000 / RE_KM) * factor, r.satellite.position.x) + 20;
@@ -145,7 +151,7 @@ export function OrbitViewer({
   const initial = useRef(true);
   const spacecraftFocused = useRef(false);
   const distance = Math.hypot(...frame.spacecraft_position_km);
-  const deviation = frame.earth_sun_pointing_deviation_deg;
+  const deviation = frame.earth_pointing_deviation_deg;
   useEffect(() => {
     const element = host.current;
     if (!element) return;
@@ -299,71 +305,53 @@ export function OrbitViewer({
           frame.sun_position_km,
         ),
       );
-    if (cones && frame.camera_boresight_gcrs) {
-      const boresight = convert(frame.camera_boresight_gcrs).normalize();
-      r.group.add(
-        new THREE.ArrowHelper(
-          boresight,
-          spacecraft,
-          20,
-          frame.channel === 'WFI' ? 0xef7780 : 0x4c9fff,
-          2,
-          0.8,
-        ),
-      );
-    }
     if (frame.camera_boresight_gcrs) {
       const pointing = pointingDeviationGeometry(
         frame.camera_boresight_gcrs,
-        frame.sun_position_km,
+        frame.spacecraft_position_km,
       );
       if (pointing) {
         const reference = convert(pointing.reference).normalize();
-        const origin = spacecraft.clone().addScaledVector(reference, 9);
-        // A translated Earth-Sun reference makes the tilt direction clear at
-        // the spacecraft. Arrow length is schematic, independent of angle.
-        r.group.add(line([spacecraft, origin], 0xffd590, 0.8));
-        if (pointing.direction) {
-          const direction = convert(pointing.direction).normalize();
-          const arrow = new THREE.ArrowHelper(
-            direction,
-            origin,
-            12,
+        // Both rays share the spacecraft origin. Lengths are schematic;
+        // the angular separation and the arc are never exaggerated.
+        r.group.add(
+          line(
+            [spacecraft, spacecraft.clone().addScaledVector(reference, 20)],
+            0xffd590,
+          ),
+        );
+        r.group.add(
+          new THREE.ArrowHelper(
+            convert(pointing.boresight).normalize(),
+            spacecraft,
+            20,
+            frame.channel === 'WFI' ? 0xef7780 : 0x4c9fff,
+            0.6,
+            0.25,
+          ),
+        );
+        if (pointing.arc.length) {
+          const arc = line(
+            pointing.arc.map((v) =>
+              convert(v).multiplyScalar(16).add(spacecraft),
+            ),
             0x75eadb,
-            2.5,
-            1.3,
           );
-          // Like the text labels, keep this schematic annotation visible when
-          // the enlarged spacecraft crosses its position in the close-up view.
-          for (const part of [arrow.line, arrow.cone]) {
-            part.renderOrder = 3;
-            const materials = Array.isArray(part.material)
-              ? part.material
-              : [part.material];
-            for (const material of materials) {
-              material.depthTest = false;
-              material.depthWrite = false;
-            }
-          }
-          r.group.add(arrow);
-          const caption = label(
-            `deviation · ${pointing.angleDeg.toFixed(2)}°`,
-            '#9af8e9',
-            origin.clone().addScaledVector(direction, 15),
-            40,
-          );
-          caption.center.set(0.5, 1.1);
-          r.deviationLabel = caption;
-          r.group.add(caption);
-        } else {
-          r.deviationLabel = label(
-            'deviation · 0.00°',
-            '#9af8e9',
-            origin,
-            40,
-          );
-          r.group.add(r.deviationLabel);
+          arc.renderOrder = 3;
+          arc.material.depthTest = false;
+          arc.material.depthWrite = false;
+          r.group.add(arc);
         }
+        const middle = pointing.arc[16] ?? pointing.reference;
+        const caption = label(
+          `deviation · ${formatPointingAngle(pointing.angleDeg)}`,
+          '#9af8e9',
+          convert(middle).multiplyScalar(16).add(spacecraft),
+          40,
+        );
+        caption.center.set(0.5, -0.5);
+        r.deviationLabel = caption;
+        r.group.add(caption);
       }
     }
     r.group.add(
@@ -476,6 +464,7 @@ export function OrbitViewer({
     const r = runtime.current;
     if (!r) return;
     spacecraftFocused.current = false;
+    r.camera.up.set(0, 1, 0);
     if (close) {
       r.controls.target.set(0, 0, 0);
       const direction = new THREE.Vector3(
@@ -493,6 +482,7 @@ export function OrbitViewer({
     const r = runtime.current;
     if (!r || !r.satellite.visible) return;
     spacecraftFocused.current = true;
+    r.camera.up.set(0, 1, 0);
     const center = new THREE.Vector3(0, 0.18, 0)
       .multiply(r.satellite.scale)
       .applyQuaternion(r.satellite.quaternion)
@@ -505,6 +495,31 @@ export function OrbitViewer({
       .applyQuaternion(r.satellite.quaternion);
     r.controls.target.copy(center);
     r.camera.position.copy(center).add(offset);
+    r.controls.update();
+  }
+  function viewDeviation() {
+    const r = runtime.current;
+    if (!r || !frame.camera_boresight_gcrs) return;
+    const pointing = pointingDeviationGeometry(
+      frame.camera_boresight_gcrs,
+      frame.spacecraft_position_km,
+    );
+    if (!pointing) return;
+    spacecraftFocused.current = true;
+    const reference = new THREE.Vector3(
+      ...sunAligned(pointing.reference, frame.sun_position_km),
+    );
+    const tangent = new THREE.Vector3(
+      ...sunAligned(pointing.tangent, frame.sun_position_km),
+    );
+    const normal = reference.clone().cross(tangent).normalize();
+    const center = r.satellite.position.clone().addScaledVector(reference, 10);
+    const distance =
+      Math.max(6, 12 / r.camera.aspect) /
+      Math.tan(THREE.MathUtils.degToRad(r.camera.fov / 2));
+    r.camera.up.copy(tangent);
+    r.controls.target.copy(center);
+    r.camera.position.copy(center).addScaledVector(normal, distance);
     r.controls.update();
   }
   return (
@@ -543,6 +558,13 @@ export function OrbitViewer({
         >
           View spacecraft
         </button>
+        <button
+          className="button ghost"
+          onClick={viewDeviation}
+          disabled={!frame.camera_boresight_gcrs}
+        >
+          View deviation
+        </button>
         <label className="switch-row" htmlFor="fov-cones">
           FOV
           <Switch id="fov-cones" checked={cones} onCheckedChange={setCones} />
@@ -554,15 +576,15 @@ export function OrbitViewer({
           <div>Drag to rotate · scroll to zoom · right-drag to pan</div>
           <div className="orbit-pointing">
             <span>
-              Earth–Sun pointing deviation ({frame.channel}):{' '}
+              Earth-pointing deviation ({frame.channel}):{' '}
               {typeof deviation === 'number' && Number.isFinite(deviation)
-                ? `${deviation.toFixed(2)}°`
+                ? formatPointingAngle(deviation)
                 : 'Unavailable'}
             </span>
             <Popover>
               <PopoverTrigger
                 className="orbit-pointing-info"
-                aria-label="How is the Earth–Sun pointing deviation calculated?"
+                aria-label="How is the Earth-pointing deviation calculated?"
               >
                 <Info aria-hidden="true" />
               </PopoverTrigger>
@@ -572,13 +594,13 @@ export function OrbitViewer({
                 className="orbit-pointing-explanation"
                 align="start"
               >
-                <PopoverTitle>Earth–Sun pointing deviation</PopoverTitle>
+                <PopoverTitle>Earth-pointing deviation</PopoverTitle>
                 <PopoverDescription>
-                  The smaller angle between the selected {frame.channel}{' '}
-                  camera’s optical axis and the Earth–Sun line at this
-                  observation’s UTC timestamp. 0° means parallel to the line;
-                  90° means perpendicular. The value is independent of how you
-                  rotate or scale the 3D view.
+                  The angle between the selected {frame.channel} camera’s
+                  boresight and the direction from the spacecraft to Earth’s
+                  centre at this observation’s UTC timestamp. 0° means pointing
+                  at Earth’s centre; 180° means pointing directly away. The
+                  value is independent of how you rotate or scale the 3D view.
                 </PopoverDescription>
                 <p>
                   The NetCDF spacecraft_attitude and cam_attitude fields use
@@ -589,28 +611,27 @@ export function OrbitViewer({
                   −Y, the documented nominal boresight.
                 </p>
                 <p>
-                  Astropy/ERFA calculates the Earth → Sun direction in GCRS from
-                  the observation time. After normalizing both vectors, the
-                  angle is θ = arccos(|b · s|), where b is the camera direction
-                  and s is the Sun direction. The absolute value treats the
-                  Earth–Sun reference as a line, giving a result from 0° to 90°.
+                  The spacecraft position r is measured from Earth’s centre. The
+                  Earth direction is e = −r / |r|. With unit boresight b, the
+                  angle is θ = arccos(b · e), from 0° to 180°. The calculation
+                  uses atan2(|e × b|, e · b), an equivalent form that is stable
+                  for very small angles.
                 </p>
                 <p>
                   The spacecraft model follows the recorded body attitude. Its
                   solar-cell face is spacecraft +Y; the telescope side is −Y.
                   The colored arrow shows the selected camera’s calibrated
-                  boresight when FOV is enabled. Model details and size are
-                  schematic.
+                  boresight. Both pointing directions remain visible when FOV is
+                  off. Model details and size are schematic.
                 </p>
                 <p>
-                  The mint arrow shows which way the boresight tilts away from
-                  the Earth–Sun line. It points along the boresight component
-                  perpendicular to that line: d = b − (b · s)s. A short gold
-                  segment places a parallel Earth–Sun reference at the
-                  spacecraft. The arrow has a fixed schematic length; its label
-                  gives the angle in degrees. Its direction and label update
-                  with the selected camera and observation. At exact alignment,
-                  no tilt direction exists, so the arrow is omitted.
+                  The gold segment points toward Earth’s centre and the red
+                  (WFI) or blue (NFI) arrow follows the camera boresight. Both
+                  start at the spacecraft. The mint arc joins these directions
+                  and its label gives their actual angular separation. Ray
+                  lengths and arc radius are schematic; the angle is not
+                  magnified. Use View deviation for a close-up facing the arc’s
+                  plane. At exact alignment the arc collapses to zero.
                 </p>
                 <p>
                   This uses camera pointing, which can differ slightly from the
@@ -641,13 +662,6 @@ export function OrbitViewer({
                     rel="noopener noreferrer"
                   >
                     Carruthers: viewing geometry and spacecraft −Y boresight
-                  </a>
-                  <a
-                    href="https://docs.astropy.org/en/stable/api/astropy.coordinates.get_sun.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Astropy: Sun position in GCRS
                   </a>
                 </div>
               </PopoverContent>
@@ -691,7 +705,7 @@ export function OrbitViewer({
                 </p>
                 <p>
                   This uncertainty concerns how the model fits the spacecraft
-                  axes. The Earth–Sun pointing deviation is calculated from the
+                  axes. The Earth-pointing deviation is calculated from the
                   camera geometry and does not depend on this model assumption.
                 </p>
                 <div className="orbit-pointing-sources">
@@ -724,8 +738,10 @@ export function OrbitViewer({
         {fatalError && <output className="orbit-message">{fatalError}</output>}
         <div className="orbit-legend">
           <span className="orbit-track">— March trajectory</span>
+          <span className="earth-reference">— Toward Earth</span>
           <span className="wfi-fov">— WFI</span>
           <span className="nfi-fov">— NFI</span>
+          <span className="deviation-arc">— Deviation arc</span>
         </div>
       </div>
       <div className="orbit-caption">

@@ -80,14 +80,14 @@ def image_plane_geometry(g, shape):
                 camera_boresight_gcrs=(boresight / np.linalg.norm(boresight)).tolist())
 
 
-def pointing_deviation_deg(boresight, sun):
-    """Smaller angle (0–90 degrees) between camera pointing and the Earth–Sun line."""
-    b, s = np.asarray(boresight, dtype=float), np.asarray(sun, dtype=float)
-    if (b.shape != (3,) or s.shape != (3,) or not np.all(np.isfinite(np.r_[b, s]))
-            or np.linalg.norm(b) == 0 or np.linalg.norm(s) == 0):
-        raise ValueError('Expected finite nonzero pointing and Sun vectors')
-    cosine = abs(np.dot(b / np.linalg.norm(b), s / np.linalg.norm(s)))
-    return float(np.degrees(np.arccos(np.clip(cosine, 0., 1.))))
+def pointing_deviation_deg(boresight, spacecraft_position):
+    """Directed angle (0–180 degrees) from spacecraft-to-Earth to camera boresight."""
+    b, p = np.asarray(boresight, dtype=float), np.asarray(spacecraft_position, dtype=float)
+    if (b.shape != (3,) or p.shape != (3,) or not np.all(np.isfinite(np.r_[b, p]))
+            or np.linalg.norm(b) == 0 or np.linalg.norm(p) == 0):
+        raise ValueError('Expected finite nonzero pointing and spacecraft position vectors')
+    b, earth = b / np.linalg.norm(b), -p / np.linalg.norm(p)
+    return float(np.degrees(np.arctan2(np.linalg.norm(np.cross(earth, b)), np.dot(earth, b))))
 
 
 def read_array(var, index=slice(None)):
@@ -152,8 +152,8 @@ class Catalogue:
             positions = get_sun(times).cartesian.xyz.to_value('km').T
             for frame, sun in zip(self.frames, positions):
                 frame['sun_position_km'] = sun.tolist()
-                frame['earth_sun_pointing_deviation_deg'] = pointing_deviation_deg(
-                    frame['camera_boresight_gcrs'], sun)
+                frame['earth_pointing_deviation_deg'] = pointing_deviation_deg(
+                    frame['camera_boresight_gcrs'], frame['spacecraft_position_km'])
         self.total_bytes = total_bytes
         self.file_count = len(set(self.paths.values()))
         self.preview_cache = OrderedDict()

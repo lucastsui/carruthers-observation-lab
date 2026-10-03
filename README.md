@@ -400,19 +400,23 @@ not change the THEORY equations or constants.
   trajectory into a complete halo orbit. Overview compresses spacecraft distance
   by 0.45; True spacecraft distance uses a shared scale. Sun distance and object
   glyph sizes remain schematic.
-- Below the 3D navigation hint, display the selected camera's Earth–Sun pointing
-  deviation with a source-linked explanation. For the verified March v1.3 geometry,
-  stored quaternions are scalar-last JPL/passive; using `science.rotation`, the
-  outward boresight is `R(spacecraft_attitude) @ R(cam_attitude) @ [0, 0, -1]`.
-  Normalize this GCRS vector and the observation-time Earth-to-Sun vector, then
-  compute `acos(abs(dot(b, s)))` in degrees (0–90°). Use actual camera pointing,
-  not the registered raster center or spacecraft position alone. Verification
-  establishes internal geometry consistency, not independent stellar astrometry.
-  A mint 3D arrow shows the normalized transverse direction
-  `b - dot(b, s) * s` beside a short, translated Earth–Sun reference. Its length
-  is fixed; its label reports the selected camera and deviation angle. Direction
-  and label follow the observation, independently of the model's roll mapping or
-  FOV visibility. Exact alignment has no tilt direction and omits the arrow.
+- Below the 3D navigation hint, display the selected camera's Earth-pointing
+  deviation (off-nadir angle) with a source-linked explanation. For March v1.3,
+  stored quaternions are scalar-last JPL/passive; the outward boresight is
+  `R(spacecraft_attitude) @ R(cam_attitude) @ [0, 0, -1]`. With Earth-centered
+  spacecraft position r, use `e = -r / |r|` and unit boresight b. The angle is
+  `acos(dot(b, e))`, evaluated as `atan2(|cross(e,b)|, dot(e,b))` for stability
+  at small angles. It ranges from 0° (toward Earth) to 180° (away); do not take
+  an absolute dot product. The catalogue field is `earth_pointing_deviation_deg`.
+  A gold Earth-direction segment and the red/blue camera boresight share the
+  spacecraft origin. A mint arc between them preserves the actual angle; ray
+  lengths and arc radius are schematic. These annotations remain visible with
+  FOV off. View deviation frames the rays facing their plane; View spacecraft
+  retains the detailed model inspection. Labels and geometry follow camera/frame
+  changes independently of spacecraft roll mapping and distance compression.
+  Exact alignment has a zero-length arc. Verification against the registered
+  Earth/principal-point offset establishes internal geometry consistency, not
+  independent stellar astrometry.
 - The spacecraft exterior is adapted from the user-supplied Three.js artifact
   https://claude.ai/artifact/XCxFBEFvxrktwbWHW4doxT in `lib/spacecraft-model.ts`.
   It is schematic and enlarged, with no runtime dependency on Claude. Register
@@ -426,7 +430,6 @@ not change the THEORY equations or constants.
   launch-adapter wording is interpreted as the same +Z direction, pending mission
   clarification. This uncertainty concerns the model's fixed roll alignment,
   not missing quaternion information or the calculated pointing deviation.
-  The FOV toggle also controls the selected camera's calibrated boresight arrow.
   View spacecraft gives a close inspection; model geometry is reused across frames.
 - Results are exploratory line-of-sight brightness measurements, not local
   hydrogen-density retrievals or evidence of a particular physical cause.

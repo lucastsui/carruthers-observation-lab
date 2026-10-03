@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 import numpy as np
 from PIL import Image
+from netCDF4 import Dataset
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
@@ -134,9 +135,9 @@ class ArrayScienceTests(unittest.TestCase):
             with self.subTest(roi=roi), self.assertRaises(ValueError):
                 validate_roi(roi)
 
-    def test_pointing_deviation_uses_a_line_and_rejects_invalid_vectors(self):
-        for direction, expected in [([3, 0, 0], 0), ([-3, 0, 0], 0),
-                                    ([0, 2, 0], 90), ([1, 1, 0], 45)]:
+    def test_pointing_deviation_uses_spacecraft_to_earth_direction(self):
+        for direction, expected in [([3, 0, 0], 180), ([-3, 0, 0], 0),
+                                    ([0, 2, 0], 90), ([-1, 1, 0], 45)]:
             self.assertAlmostEqual(pointing_deviation_deg(direction, [10, 0, 0]), expected)
         for bad in ([0, 0, 0], [float('nan'), 0, 1], [1, 0]):
             with self.assertRaises(ValueError):
@@ -186,16 +187,33 @@ class RealDataRegressionTests(unittest.TestCase):
             to_sun = np.array(frame['sun_position_km']) - np.array(frame['spacecraft_position_km'])
             self.assertGreater(np.dot(panel, to_sun / np.linalg.norm(to_sun)), .9)
             self.assertLess(np.dot(-panel, frame['spacecraft_position_km']), 0)
-            self.assertTrue(np.isfinite(frame['earth_sun_pointing_deviation_deg']))
-            self.assertGreaterEqual(frame['earth_sun_pointing_deviation_deg'], 0)
-            self.assertLessEqual(frame['earth_sun_pointing_deviation_deg'], 90)
+            self.assertTrue(np.isfinite(frame['earth_pointing_deviation_deg']))
+            self.assertGreaterEqual(frame['earth_pointing_deviation_deg'], 0)
+            self.assertLessEqual(frame['earth_pointing_deviation_deg'], 180)
             self.assertAlmostEqual(np.linalg.norm(frame['camera_boresight_gcrs']), 1)
             # Forward camera rays must point toward Earth, not away from it.
             self.assertLess(np.dot(frame['camera_boresight_gcrs'], frame['spacecraft_position_km']), 0)
-        for channel, expected in [('WFI', 17.35834441), ('NFI', 17.65656877)]:
-            frame = next(f for f in self.catalogue.frames
-                         if f['channel'] == channel and f['timestamp'].startswith('2026-03-15'))
-            self.assertAlmostEqual(frame['earth_sun_pointing_deviation_deg'], expected, places=5)
+        # Independent check in the camera image plane: the registered Earth
+        # center's offset from the calibrated principal point gives tan(theta),
+        # without reusing the world-space boresight or attitude transforms.
+        calibration = {}
+        for frame in self.catalogue.frames:
+            path = self.catalogue.paths[frame['id']]
+            if path not in calibration:
+                with Dataset(path) as ds:
+                    calibration[path] = {n: np.array(ds[n][:]) for n in
+                                         ('cam_ctr', 'cam_focal_length', 'cam_skew')}
+            g, i = calibration[path], frame['frame_index']
+            cx, cy = g['cam_ctr'][i]
+            fx, fy = g['cam_focal_length'][i]
+            ex, ey = frame['earth_xy']
+            yn = (ey-cy)/fy
+            xn = (ex-cx-g['cam_skew'][i]*yn)/fx
+            expected = np.degrees(np.arctan(np.hypot(xn, yn)))
+            self.assertAlmostEqual(frame['earth_pointing_deviation_deg'], expected, places=10)
+        inspected = next(f for f in self.catalogue.frames if f['channel'] == 'WFI'
+                         and f['timestamp'] == '2026-03-16T23:40:35Z')
+        self.assertAlmostEqual(inspected['earth_pointing_deviation_deg'], 0.3502259493, places=9)
 
     def test_paired_real_data_matches_each_individual_sector_and_csv(self):
         from server import export_csv, METHOD
