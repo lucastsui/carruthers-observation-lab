@@ -193,13 +193,20 @@ proof that a scientific behavior is correct.
 
 ### Last verified baseline
 
-This handoff was reviewed against source through `4eedc3d` on 2026-09-18. The deployment evidence below was recorded on that date; it is not a
-fresh uptime check every time this README is read.
+This section was reviewed against source through `8688d60` on 2026-10-03.
+A read-only Nightglow check matched 21 selected source/documentation/UI-entry
+files with the checkout and found a healthy 1,794-frame catalogue. The earlier
+functional checks below were recorded during their respective changes; this
+documentation review did not rerun the application test suites or resilience
+tests. These records are not a fresh uptime check whenever the README is read.
 
 | Item | Last recorded state | Evidence / where to check |
 | --- | --- | --- |
 | Product | CEDA title; visible brightness terminology; hourly Kyoto Dst replacing the displayed SYM-H series. | Commits `09cc54a`, `4ec23dc`, `ec184ae`; current interface and reference tests. |
-| Orientation and playback | Ecliptic-north indicator, attitude-driven schematic model, pointing-deviation line and arrow, explicit orientation assumption, uppercase DST title, and decoded-image swaps in both viewers. | Commit `4eedc3d`; 33 TypeScript tests and 15 scientific tests passed, alongside browser and public functional checks. Local evidence includes `.local/frame-preview-browser-validation.json` and `.local/frame-preview-public-validation.json`; these reports are not part of a fresh clone. |
+| 3D view and playback | Four-decimal Earth-pointing deviation text; no deviation drawing or lower caption. Extended Earth–Sun arrow with its label at the tip; remaining scene labels are white and the same size. Ecliptic-north indicator, attitude-driven spacecraft, orientation explanation and complete-frame swaps remain. | Commits `733fe3a`, `bd15fa8`, `8688d60`; latest UI release `20261003T131927Z-orbit-labels`. Type/build, focused lint, three display tests and both-camera browser checks passed during that UI change. Release evidence is in the owner's `.local/` directory, outside Git. |
+| Access | One configured account gates the public UI/assets and data APIs; separate browser-visitor cookies retain job ownership. | `auth.py`, `login.html`, `public_server.py`, `tests/test_auth.py`; [sign-in operations](deploy/nightglow/README.md#application-sign-in). |
+| Zoennchen overlay | 2015 solar-minimum/maximum density models provide 3–8 Rᴇ single-scattering brightness contours in the 2D viewer. Irradiance is adjustable from 1 to 30 mW/m²; no extra 4π brightness multiplier. | `zoennchen.py`, `components/model-overlay-controls.tsx`, [method and recorded validation](docs/zoennchen-overlay.md). |
+| THEORY | Browser-computed spherical density, 3D atom projection with 120 moving trails, and randomly located example launches. Bound dots remain tracked until their exobase return. | `lib/theory.ts`, `lib/theory-particles.ts`, their tests and the theory section below. |
 | Public site | `https://nightglow.tail2214e5.ts.net`, served entirely by Nightglow. | [Nightglow operations](deploy/nightglow/README.md); current `/health` and public functional validation. |
 | Collection | March 2026 L1C v1.3 only: 62 files / 1,794 frames, split into 633 WFI and 1,161 NFI. | [Dataset manifest](deploy/dataset-manifest.json), catalogue and scientific regression fixtures. |
 | Persistence | Observations/state/cache on Nightglow's external volume; saved user analyses in browser IndexedDB. | Storage architecture below, `lib/saved.ts`, Nightglow supervisors. |
@@ -208,7 +215,7 @@ fresh uptime check every time this README is read.
 
 Detailed tests must be rerun as appropriate for the change. Do not report old
 results as new validation. See [known gaps](#known-gaps-and-future-work) before
-assuming that later datasets, shared saves or researcher accounts are supported.
+assuming that later datasets, shared saves or multiple researcher accounts are supported.
 
 ### Expected features
 
@@ -221,7 +228,7 @@ is listed separately under known gaps.
 | Image navigation | Provide previous/next controls, a frame slider, playback with adjustable frames per second, keyboard/wheel navigation when the viewer is focused, and 1×/2×/4× zoom. Retain the complete displayed frame until its replacement image is decoded and its selected brightness contours are available, then swap pixels, contours, image geometry, time label and brightness scale together. This shared frame state feeds both 2D and 3D. Radius contours are synchronous geometry; disabling brightness contours requires no contour request. For both WFI and NFI, preload up to 100 earlier and 100 upcoming frames around the selected frame, nearest first, within the selected interval (up to 201 including the current frame). Move this window during playback and scrubbing; prioritize the selected frame, limit background loading to two frame bundles at a time with at least 300 ms between starts (each may request one image and one contour set), discard obsolete queued work, and protect the current window from late responses. Keep the decoded-image cache bounded and ignore stale display loads during scrubbing. Light sections on the frame slider and its loaded count show complete frames in the current camera/interval at the current brightness scale and contour mask. Markers update only after image decoding and required contours finish, and after eviction from the 201-frame working set; pending/failed loads and other scales or masks are excluded. Failed foreground loads retain the previous complete frame and provide Retry. Browser HTTP cache entries outside this working set are not counted. Show observation time, exposure and frame flags. |
 | Brightness display | Use the visible term brightness, in kR. Render logarithmic `gist_heat` images with adjustable minimum/maximum handles, labeled ticks and camera-specific reset: WFI 0.001–270 kR; NFI 0.1–270 kR. The slider permits a minimum of 0.0001 kR for faint outer emission. Display changes must not change numeric measurements. |
 | Overlays | Offer brightness contours, projected-radius contours, or no contours; retain the blue 1 Earth-radius reference boundary. Brightness contours use the original numeric arrays and the selected validity mask. |
-| Zoennchen reference | Independently toggle dashed cyan 2015 solar-minimum/maximum model contours, opacity and fixed solar Lyα irradiance. These show the single-scattering **3–8 Rᴇ shell contribution**, not total brightness; inner sightlines are masked and the outer density is truncated. See [method and limits](docs/zoennchen-overlay.md). |
+| Zoennchen reference | In the 2D image view, independently select Off, 2015 solar minimum or solar maximum alongside the observation contours. WFI defaults Off; NFI defaults solar maximum. Each camera remembers its model choice until reload. Opacity (default 85%) and solar Lyα irradiance (1–30 mW/m², default 6, step 0.1) are shared controls. Illumination is manually set, not date-matched. Dashed cyan contours show the single-scattering **3–8 Rᴇ shell contribution**, not total brightness; inner sightlines are masked and the outer density is truncated. The caption/loading/error state occupies a permanent slot above the color scale so the image does not resize. See [method and limits](docs/zoennchen-overlay.md). |
 | Region selection | Support annulus, annular sector, rectangle, single pixel, Dawn + Dusk and Paired annular sectors. Allow image dragging and numeric controls. Use projected Earth radii, x right and y up; angles begin at image right and increase toward image top. |
 | Paired dawn/dusk regions | Select two filled pies extending from Earth to the raster edges, centered at 180°/0°. A shared 1–180° opening angle controls both, including through edge dragging. Calculate and label separate Dawn/Dusk curves; CSV has two labeled rows per frame, and JSON retains both regions and the shared recipe. |
 | Paired annular sectors | Drag two diagonal corners on either image side to set inner/outer radii and angular bounds. Mirror the other sector by a 180° rotation about Earth; corner handles resize both. Numeric angles describe the right sector (−90° to 90°). Keep separate Dawn/Dusk measurements, curves and CSV rows; save/export all four bounds. |
@@ -230,11 +237,11 @@ is listed separately under known gaps.
 | Baseline | Show a constant first-frame valid-FOV mean for the chosen camera, interval and interpolation mask. It is independent of the selected region and does not change while scrubbing. Include its value and source frame in exports. |
 | Contour circularity | Plot 1 kR and 3 kR contour departure through time, independently of the region of interest. Preserve missing/open/ambiguous contours as gaps. Show threshold-sensitivity bands, support frame selection, and provide dedicated CSV plus complete JSON metadata. |
 | Reference series | Align hourly Kyoto Dst (nT, provisional) and daily LASP LISIRD Composite Solar Lyman-alpha (mW/m² at 1 AU) with the brightness time axis. Show source/status information, native cadence, missing values and stale-cache status. Never synthesize unavailable reference observations. |
-| 3D orbit view | Allow rotation, zoom and pan of Earth, the measured trajectory, current image plane and WFI/NFI view frusta. Offer Overview and True spacecraft distance modes. Display a line-of-sight image plane, not a reconstructed hydrogen volume. The schematic spacecraft has one-eighth its original linear size; View spacecraft frames the smaller model for inspection. |
+| 3D orbit view | Allow rotation, zoom and pan of Earth, the measured trajectory, current image plane and WFI/NFI view frusta. Offer Overview and True spacecraft distance modes, FOV visibility, Reset view, Face Earth and View spacecraft. Show the selected camera's Earth-pointing deviation only as top-left text with four decimals and an explanation. The Sun-direction arrow passes through L1 and ends at 1.4 times the displayed Earth–L1 distance; its label is at the tip. Sun/L1/image-plane labels share one white text style; there are no Earth or spacecraft labels, deviation rays/arc, or lower caption. The image is a line-of-sight projection, not a reconstructed hydrogen volume. The spacecraft remains schematic and enlarged relative to physical scale. |
 | Save and export | Save completed results and their recipes in the visitor's browser IndexedDB. Restore them without recalculation. Download analysis CSV/JSON, radial-profile CSV and circularity CSV. Export provenance, masks, units, method versions and exact frame identities. |
 | Responsive workspace | Keep the image, controls and results usable within the viewport. Plots share an independently scrolling results card. Use compact tabs when needed; open references and the paginated saved-analysis list in separate dialogs. |
-| Public operation | Allow anonymous browsing and bounded analysis, with visitor-owned jobs/downloads. Preserve source observations and expose no arbitrary source-file download, upload or administration interface. Keep the public service running independently of a desktop login. |
-| Theory explorer | THEORY beside WFI/NFI opens `/#theory`. Vary source altitude, upward flux, cold/hot energy scales, hot flux fraction and launch directions; inspect local H density, a spherical slice and example trajectories. Pin a comparison and export CSV/JSON with parameters and units. Keep assumed populations and omitted physics explicit; this is not observed density or an observational fit. Fit the controls, metrics, density profile, spatial view and method summary into the desktop viewport; use panel buttons on narrow/short screens, paginated dialogs for assumptions and density samples, and one continuous scrollable dialog for equations and scientific context. |
+| Public operation | Require the configured account to sign in through the black CEDA login page before browsing or analysis. Sign out revokes the login session; health routes remain accessible without signing in. Jobs/downloads still belong to each browser visitor, not a shared account workspace. Preserve source observations and expose no arbitrary source-file download, upload or administration interface. Keep the service running independently of a macOS desktop login. |
+| Theory explorer | THEORY beside WFI/NFI opens `/#theory`. Vary source altitude, upward flux, cold/hot energy scales, hot flux fraction and launch directions; inspect local H density, the default 3D Atoms projection, a Density slice or Example trajectories. Pin a comparison and export CSV/JSON with parameters and units. Keep assumed populations and omitted physics explicit; this is not observed density or an observational fit. Fit the controls, metrics, density profile, spatial view and method summary into the desktop viewport; use panel buttons on narrow/short screens, paginated dialogs for assumptions and density samples, and one continuous scrollable dialog for equations and scientific context. |
 
 ### Theory explorer: scope and method
 
@@ -265,8 +272,9 @@ Kepler conics, not the numerical samples used to calculate density.
 
 The default **Atoms** view shows a clearly labeled **3D projection** of one-pixel
 representative particles in the spherical source population. Its particle budget ranges
-from 1,000 to 500,000. Automatic quality starts with up to 25,000 and adjusts toward a
-30 FPS target within the selected budget; manual mode uses the selected count.
+from 1,000 to 500,000, with a default ceiling of 100,000. Automatic quality starts
+with up to 25,000 and adjusts toward a 30 FPS target within the selected budget;
+manual mode uses the selected count.
 Changing the budget applies the new count immediately, including while paused;
 Auto can then tune the count during playback after measuring frame rate.
 Playback speed (simulated seconds/minutes per real second), pause, opacity,
@@ -278,7 +286,7 @@ The four sliders occupy two rows: particle budget/extent, then speed/opacity.
 Scrolling over the atom view zooms in/out and updates the same extent slider;
 dragging rotates the 3D projection. 120 existing dots have fading trails,
 computed from the same time samples as their moving heads. Trails follow up to
-half a complete flight (at most four simulated hours), twice the previous length.
+half a complete flight (at most four simulated hours).
 They continue through bound apogees and clear only when the atom is recycled.
 The trail checkbox hides them without changing the cloud or simulation.
 
@@ -315,10 +323,9 @@ The example-trajectory count slider ranges from 1 to 100. Until adjusted, it
 keeps the original count for the selected source: 18 for two cosine-law
 components, 9 for one, or 6/3 in radial mode. Those original speed/angle examples
 are retained, with deterministic random launch sites across the source sphere.
-Increasing the count adds examples without moving existing paths. In 3D mode,
+Increasing the count adds examples without moving existing paths. In this 3D projection,
 foreground paths can project over Earth's disk; far-side paths are occluded.
-This display
-setting does not change the density calculation, plotted curves, or exports.
+This display setting does not change the density calculation, plotted curves, or exports.
 
 There is no independently trapped satellite population, finite source age,
 ionization/lifetime, charge exchange, collisions or solar radiation pressure.
@@ -397,6 +404,19 @@ not change the THEORY equations or constants.
   separate from the legacy SYM-H series.
 - Convert LISIRD irradiance from W/m² to mW/m² by multiplying by 1,000. Daily
   values occupy their UTC day without inventing subdaily changes.
+- Keep the Zoennchen overlay separate from THEORY and from observed brightness.
+  `zoennchen.py` implements the 2015 density coefficients directly; EXOSpy is a
+  method/validation reference, not an installed runtime dependency. Compute kR as
+  `g * phase-weighted column / 1e9`, with `brightness_scale=1` and method
+  `zoennchen-2015-shell-4`. The phase factor is `11/12 + cos²(theta)/4`.
+  Use calibrated forward camera rays, a GSE basis with the ecliptic pole of date,
+  and Earth's geometric shadow. Omit sightlines with impact parameter below
+  3 Rᴇ or at/above 8 Rᴇ; integrate only the illuminated 3–8 Rᴇ shell and retain
+  the observation masks. Clip contour strokes and labels to that supported area.
+  The selected solar irradiance is one model input, not an observed pixel's
+  brightness. It is not connected to the LISIRD plot or COSSMo automatically.
+  Absorption, multiple scattering, albedo, interplanetary background and camera
+  blur are omitted. See [the overlay method](docs/zoennchen-overlay.md).
 - The 3D view uses per-frame spacecraft vectors and Astropy/ERFA Sun vectors,
   rotated to a Sun-aligned frame using the J2000 ecliptic normal. The image plane
   passes through Earth, perpendicular to the Earth–spacecraft direction, with
@@ -439,8 +459,8 @@ not change the THEORY equations or constants.
 - Results are exploratory line-of-sight brightness measurements, not local
   hydrogen-density retrievals or evidence of a particular physical cause.
 
-Scientific implementation: [science.py](science.py), [circularity.py](circularity.py)
-and [space_weather.py](space_weather.py). Earlier geometry findings are in
+Scientific implementation: [science.py](science.py), [circularity.py](circularity.py),
+[zoennchen.py](zoennchen.py) and [space_weather.py](space_weather.py). Earlier geometry findings are in
 `../code and data/diagnostics/centering/Diagnosis.md`.
 
 ### Software architecture
@@ -454,14 +474,18 @@ flowchart LR
     Funnel --> Gateway["Nightglow nginx: 127.0.0.1:8765"]
     Gateway --> API["Python public API: 127.0.0.1:8766"]
     API --> Static["Built UI: dist/client"]
+    API --> Auth["Private account and in-memory login sessions"]
     API --> Science["Catalogue, previews and measurements"]
+    API --> Model["Zoennchen shell contours and caches"]
     API --> Queue["Bounded analysis queue"]
     Queue --> Worker["Spawned Python calculation process"]
     Science --> Data["External drive: L1C NetCDF files"]
+    Model --> Data
     Worker --> Data
     API --> Weather["Reference-series fetcher and cache"]
     Weather --> Sources["Kyoto Dst / LASP LISIRD"]
     Browser --> Saves["Browser IndexedDB and downloaded CSV/JSON"]
+    Browser --> Theory["THEORY: browser math, worker and WebGL"]
 ```
 
 | Layer | Implementation and responsibility |
@@ -471,9 +495,11 @@ flowchart LR
 | Browser analysis coordination | `hooks/use-analysis.ts` handles current-frame requests and saved results. `lib/auto-analysis.ts` coordinates explicitly submitted jobs, polling, cancellation and stale-response protection despite its historical name. `lib/research.ts` defines shared types and region/recipe helpers. |
 | Browser persistence/export | `lib/saved.ts` uses IndexedDB and creates downloads. `lib/analysis-export.ts` and `lib/circularity-export.ts` format scientific exports. No application database or cloud synchronization backs the browser's saved collection. |
 | Shared Python service | `server.py` serves the static UI and JSON/PNG endpoints using the Python standard-library HTTP server. It also provides the loopback-only local development/runtime mode. |
-| Public service | `public_server.py` adds approved Host/Origin checks, signed anonymous-session cookies, visitor isolation, request admission limits and public health checks. It uses the shared handlers while disabling server-side saved-analysis endpoints. |
+| Public service and sign-in | `public_server.py` adds the login gate, approved Host/Origin checks, signed visitor cookies, job isolation, request admission limits and public health checks. `auth.py` verifies the single private Argon2id credential and holds revocable eight-hour login sessions in memory. `login.html` is the separate sign-in page; `components/session-controls.tsx` checks session status and signs out. The public adapter disables server-side saved-analysis endpoints. |
 | Public analysis jobs | `public_jobs.py` owns the bounded queue, progress, cancellation and in-memory result cache. Each active heavy calculation runs in a spawned, terminable Python process. Jobs are polled over HTTP. |
 | Scientific computation | `science.py` indexes validated NetCDF metadata, calculates geometry and masks, renders previews, and extracts values/profiles/contours. `circularity.py` fits contour circles. Python dependencies include NumPy, netCDF4, Pillow, Matplotlib and Astropy, pinned in `requirements-local.txt`. |
+| Zoennchen reference | `zoennchen.py` evaluates density and integrates shell columns using NumPy/Astropy/ERFA, then uses ContourPy for contours and clipping boundaries. Its per-service caches hold 24 column grids and 64 contour responses, with a lock serializing model work. `hooks/use-model-overlay.ts` debounces requests by 180 ms, cancels stale requests and holds 64 responses; `lib/model-overlay.ts` checks frame/model/irradiance/mask/scale identity. Models load for the displayed 2D frame separately from the observation preview window and never block its complete-frame swap. |
+| THEORY | `lib/theory.ts` calculates steady density and example Kepler trajectories in the browser. `lib/theory-particles.worker.ts` prepares the finite particle orbit catalogue from `lib/theory-particles.ts`; `components/theory-particles.tsx` renders the dot cloud and trails with Three.js/WebGL. This path does not use the Zoennchen endpoint or observed brightness. |
 | Reference data | `space_weather.py` fetches Kyoto Dst and LASP LISIRD data on demand; monthly JSON caches refresh after 24 hours when requested. An unavailable source falls back to a labeled stale cache, or no values. The legacy NASA CDAWeb SYM-H adapter remains for compatibility with already-open clients. |
 | 3D geometry | `lib/orbit.ts` and `components/orbit-viewer.tsx` build the orbit/image scene from the catalogue and calibrated geometry. |
 | Supervision and monitoring | `deploy/nightglow/` contains macOS LaunchDaemons, volume guards, nginx configuration and the watchdog. Better Stack receives public uptime and heartbeat checks. Operational details are in its README. |
@@ -487,9 +513,11 @@ Principal API contracts:
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /login` | Dedicated public sign-in page; an already authenticated browser is redirected to `/`. |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session` | Verify credentials, revoke a login session, or read the signed-in username. These routes are supplied by the public adapter, not the local-only `server.py`. |
 | `GET /api/catalogue` | Validated frame metadata, geometry and collection information. |
 | `GET /api/preview`, `/api/colorbar`, `/api/contours` | Image rendering and display overlays. |
-| `GET /api/model-contours` | Cached Zoennchen 2015 shell brightness contours with model, illumination and validity metadata. |
+| `GET /api/model-contours` | Cached Zoennchen 2015 shell brightness contours. Inputs: frame `id`, `model=Z15MIN` or `Z15MAX`, `irradiance` in 1–30 mW/m² and `exclude=0/1`; returns model, illumination, units, supported domain and validity metadata. |
 | `POST /api/measure` | Current-frame region statistics and radial profile. |
 | `GET /api/baseline` | First-frame full-FOV baseline. |
 | `POST /api/jobs`, `GET /api/jobs`, `POST /api/cancel` | Submit, poll/retrieve and cancel time-series work. |
@@ -497,27 +525,33 @@ Principal API contracts:
 | `GET /api/export` | Export an owned completed job; the current UI also generates downloads in the browser. |
 | `GET /health`, `/api/health` | Public deployment readiness and worker/queue health; local mode exposes `/api/health`. |
 
-The local `server.py` retains legacy disk-save routes, but the current UI saves
+On Nightglow, application assets and data routes require a valid login session.
+`/` and `/index.html` redirect unauthenticated browsers to `/login`; protected
+asset/API requests return 401. `/health` and `/api/health` are exempt from the
+login gate but retain Host/Origin checks. The shared local `server.py` has no
+login gate. It retains legacy disk-save routes, but the current UI saves
 through IndexedDB. The public adapter rejects `/api/save`, `/api/saved` and
 saved-file exports. Do not treat server state directories as shared user storage.
 
 ### Hardware, network and storage architecture
 
-This is the recorded 2026-09-18 deployment, not an automatically updated
-inventory. Confirm paths, mounts, permissions and service state on the actual
-host before operational changes.
+The host layout comes from the 2026-09-18 deployment; authentication and state
+descriptions reflect the 2026-10-03 code review. This is not an automatically
+updated inventory. Confirm paths, mounts, permissions and service state on the
+actual host before operational changes.
 
 Nightglow is the sole production application host: an Apple-silicon/ARM64 Mac
-running macOS, using an isolated Python 3.12 runtime and nginx. Scientific work
-runs on its CPU; the browser renders the interactive 3D scene. The development
+running macOS, using an isolated Python 3.12 runtime and nginx. Observation
+analysis and model-overlay integration run on its CPU; the browser runs THEORY
+calculations and renders the interactive 3D scenes. The development
 Mac and retired DGX Spark are not required for the running website.
 
 | Component | Location and role |
 | --- | --- |
-| Nightglow internal SSD | Application root: `/Users/lucastsui/Applications/ObservationLab`; deployed code and built UI under `app/`; isolated runtimes under `runtime/`; private monitoring configuration under `private/`. |
+| Nightglow internal SSD | Application root: `/Users/lucastsui/Applications/ObservationLab`; deployed code and built UI under `app/`; isolated runtimes under `runtime/`; private authentication and monitoring configuration under `private/`. |
 | External observation volume | APFS volume `/Volumes/Observation Data`, UUID `279D3C74-134E-4772-A3C3-EE64D76B70F7`. Quota: 1,000,000,000,000 bytes (1 TB, about 931 GiB). The quota caps usage within the shared APFS container; it does not reserve that capacity. |
 | Observation files | `/Volumes/Observation Data/carruthers/L1C`: 62 SHA-256-verified NetCDF files, about 45.7 GB, containing 1,794 frames. The app must not modify source observations. |
-| Service state and logs | External `carruthers/state`: session/service state, gateway state, rotating logs and monitoring reports. |
+| Service state and logs | External `carruthers/state`: visitor-cookie signing key, service/gateway state, rotating logs and monitoring reports. Login sessions and queued/completed public jobs are in process memory and are lost on backend restart. |
 | Caches and temporary files | External `carruthers/cache`: reference data, Matplotlib cache, Python temporary files and nginx temporary files. Spawned workers inherit external temporary storage. |
 | Visitor's computer | Browser IndexedDB holds saved analyses; exports go to the visitor's download location. Saves are scoped to the browser and website origin and do not migrate automatically when the URL changes. |
 | Public network path | Internet HTTPS → Tailscale Funnel → Nightglow nginx on `127.0.0.1:8765` → Python on `127.0.0.1:8766`. Visitors do not need Tailscale installed. Administrative SSH uses the Tailscale network. |
@@ -553,9 +587,17 @@ claim that this new data volume has a configured backup policy.
   bounded to 64 MiB each; completed public jobs expire after one hour, with up to
   100 recent jobs retained. Public analysis results are transient, not durable
   server saves. Logs rotate at 10 MiB with five backups.
-- Signed anonymous cookies associate visitors with their jobs; they are not
-  researcher authentication. Host/Origin checks and visitor ownership must remain
-  enforced. Credentials belong in private runtime files, never in Git or logs.
+- The single account is configured by `--auth-file`, supplied by Nightglow as
+  `private/auth.json` under the application root. It must be a service-owned
+  0600 regular file with `username` and an Argon2id `password_hash`. Login sessions
+  last eight hours and use an HttpOnly, Secure, SameSite=Lax cookie on HTTPS.
+  Sign out revokes the session; backend restart revokes all login sessions.
+  Login verification allows two concurrent hashes and a global ten-attempt-per-
+  minute token bucket. Never put credentials or session tokens in Git or logs.
+- Separate signed `carruthers_session` cookies associate browser visitors with
+  their jobs. They are distinct from the login cookie and do not provide shared
+  account saves. Host/Origin checks and visitor ownership remain enforced after
+  sign-in; browser IndexedDB remains scoped to the browser and website origin.
 - The former Spark Linux CPU/RAM cgroups and temporary-filesystem quotas do not
   describe the macOS deployment. Refer to the current Nightglow configuration
   when changing limits.
@@ -564,15 +606,17 @@ claim that this new data volume has a configured backup policy.
 
 | Task | Start with | Relevant existing checks |
 | --- | --- | --- |
-| Selection, playback, layout, image overlays | `app/page.tsx`, `components/observation-viewer.tsx`, `components/display-controls.tsx`, `components/analysis-controls.tsx`, `app/globals.css` | TypeScript check/build, `tests/research.test.ts`, `tests/display.test.ts`, browser interaction checks. |
+| Selection, playback, layout, image overlays | `app/page.tsx`, `components/observation-viewer.tsx`, `components/display-controls.tsx`, `components/analysis-controls.tsx`, `hooks/use-frame-preview.ts`, `lib/frame-previews.ts`, `lib/preview-images.ts`, `lib/loaded-frame-ranges.ts`, `app/globals.css` | TypeScript check/build, `tests/research.test.ts`, `tests/display.test.ts`, `tests/frame-previews.test.ts`, `tests/preview-images.test.ts`, browser interaction checks. |
 | Theory source populations, density, atoms and trajectories | `lib/theory.ts`, `lib/theory-particles.ts`, `lib/theory-particles.worker.ts`, `components/theory-particles.tsx`, `components/theory-explorer.tsx`, `app/theory.css` | `tests/theory.test.ts`, `tests/theory-particles.test.ts`, TypeScript check/build, browser particle controls, worker loading, knob/comparison/export and WFI/NFI navigation checks. |
 | Job submission, cancellation, stale results, saved results | `hooks/use-analysis.ts`, `lib/auto-analysis.ts`, `lib/saved.ts` | `tests/manual-analysis.test.ts`, `tests/auto-analysis.test.ts`, restore/save/cancel checks in the browser. |
 | Geometry, units, masking, profiles, paired regions | `science.py`, `lib/research.ts`, `server.py` | `tests/test_science.py`, `tests/test_service.py`, independent WFI fixture and both-camera checks. |
-| Zoennchen model overlay | `zoennchen.py`, `hooks/use-model-overlay.ts`, `components/model-overlay-controls.tsx`, [method](docs/zoennchen-overlay.md) | `tests/test_zoennchen.py`, `tests/model-overlay.test.ts`, service/auth checks, types/build and both-camera browser checks. |
+| Zoennchen model overlay | `zoennchen.py`, `hooks/use-model-overlay.ts`, `lib/model-overlay.ts`, `components/model-overlay-controls.tsx`, `components/observation-viewer.tsx`, [method](docs/zoennchen-overlay.md) | `tests/test_zoennchen.py`, `tests/model-overlay.test.ts`, service/auth checks, types/build and both-camera browser checks. |
 | Contour circularity or exports | `circularity.py`, `components/circularity-chart.tsx`, `lib/circularity-export.ts`, `lib/analysis-export.ts` | `tests/test_circularity.py`, `tests/circularity-export.test.ts`, `tests/analysis-export.test.ts`, `tests/plot-bands.test.ts`; compare exported rows with calculated results. |
-| Dst, Lyman-alpha, baseline or 3D scene | `space_weather.py`, `hooks/use-reference-data.ts`, `components/context-chart.tsx`, `lib/orbit.ts`, `components/orbit-viewer.tsx` | `tests/test_references.py`, `tests/display.test.ts`, source/missing-value checks and browser verification of the affected view. |
+| Dst, Lyman-alpha and baseline | `space_weather.py`, `hooks/use-reference-data.ts`, `components/context-chart.tsx`, `science.py` | `tests/test_references.py`, `tests/test_science.py`, source/missing-value checks and browser verification. |
+| Orbit, spacecraft and pointing | `science.py`, `lib/orbit.ts`, `lib/spacecraft-model.ts`, `components/orbit-viewer.tsx` | `tests/test_science.py`, `tests/spacecraft-model.test.ts`, `tests/display.test.ts`; both cameras, frame changes, distance modes, FOV and camera controls in the browser. |
+| Login, session expiry and sign-out | `auth.py`, `public_server.py`, `login.html`, `components/session-controls.tsx`, `lib/research.ts` | `tests/test_auth.py`; unauthenticated asset/data rejection, valid/invalid login, expiry/restart and sign-out checks. Local `server.py` does not exercise the login gate. |
 | Public API, queue, visitor ownership | `public_server.py`, `public_jobs.py`, shared handlers in `server.py` | `tests/test_public.py`, `tests/test_public_origins.py`, appropriate public functional checks. |
-| Nightglow startup, external storage, gateway, monitoring | `deploy/nightglow/run_server.py`, `run_gateway.py`, `monitor.py`, `nginx.conf`, LaunchDaemon plists and [operations guide](deploy/nightglow/README.md) | `tests/test_nightglow_storage.py`, service/storage inspection and `deploy/nightglow/validate_public.py`. |
+| Nightglow startup, external storage, gateway, monitoring | `deploy/nightglow/run_server.py`, `deploy/nightglow/run_gateway.py`, `deploy/nightglow/monitor.py`, `deploy/nightglow/nginx.conf`, LaunchDaemon plists and [operations guide](deploy/nightglow/README.md) | `tests/test_nightglow_storage.py`, service/storage inspection and authenticated public checks. The legacy public validator lacks login support; see deployment notes below. |
 
 Read the actual test contents before choosing coverage. A listed test is a useful
 starting point, not proof that every change in that area is covered. Preserve
@@ -631,6 +675,10 @@ For a live interface development server, run `server.py` with the selected
 scientific interpreter and `npm run dev` in separate terminals. The Vite preview
 is `http://127.0.0.1:5173` and proxies `/api` to the local Python service on 8765.
 These local ports are separate from the same-numbered loopback ports on Nightglow.
+The local launcher does not require sign-in. To exercise the production login
+flow locally, use `public_server.py` with its required `--data` and `--auth-file`
+arguments, an isolated `--state` directory and an appropriate `--origin-file`;
+see [sign-in operations](deploy/nightglow/README.md#application-sign-in).
 
 #### Automated checks
 
@@ -672,6 +720,12 @@ its dependencies:
   Verify source failure/stale-cache behavior when changing fetching or caching.
 - UI: inspect the changed controls/plots at ordinary and narrow sizes; verify
   camera switching, readable labels and access to scrolling content.
+- Model overlay: check WFI/NFI defaults, model selection, domain/mask clipping,
+  irradiance changes, loading/retry behavior and rejection of stale responses.
+  Changing opacity must not recompute the model or resize the observation image.
+- Sign-in: verify the unauthenticated login redirect and protected asset/API
+  rejection, successful and failed login, sign-out and expired sessions. Use
+  two separately authenticated browser visitors when checking job ownership.
 - Public changes: verify both cameras, visitor isolation, origin rejection
   and applicable request limits in addition to health. A green `/health` alone
   does not prove that analyses, exports or reference data work.
@@ -679,9 +733,11 @@ its dependencies:
 #### When the task includes deployment
 
 The local checkout, GitHub and Nightglow are separate copies. `dist/` is ignored
-by Git, so production needs the newly built `dist/client` as well as the relevant
-Python/source files. Preserve the deployed runtime, private configuration,
-external observation files and persistent state during an update.
+by Git, so a frontend change needs the newly built `dist/client` as well as its
+source files; backend changes need the relevant Python files and a service
+restart. A README-only change requires copying only the README and verifying
+its hash, with no rebuild or restart. Preserve the deployed runtime, private
+configuration, external observation files and persistent state during an update.
 
 Read [Nightglow operations](deploy/nightglow/README.md), inspect the running
 services and establish a rollback copy before replacing deployed files. The
@@ -696,22 +752,24 @@ curl --fail --max-time 20 https://nightglow.tail2214e5.ts.net/health
 ```
 
 The response should report a healthy catalogue. From a Tailscale-connected
-machine, that alone does not prove public routing.
-The existing functional validator resolves public DNS and forces requests
-through the public Funnel relay:
+machine, that alone does not prove public routing. Public-route validation must
+resolve public DNS and use the global Funnel relay, rather than the tailnet route.
 
-```sh
-mkdir -p .local
-python3 deploy/nightglow/validate_public.py .local/public-validation.json
-```
+`deploy/nightglow/validate_public.py` is the legacy pre-login validator. It
+creates empty cookie jars and requests `/api/catalogue` without signing in, so
+it currently stops at 401 against the protected service. Do not treat it as a
+working end-to-end check or disable authentication to make it pass. Its old
+visitor-isolation checks also expect 404 for an unauthenticated second visitor;
+the current login gate correctly returns 401 first.
 
-This validator submits small analysis jobs and checks previews, contours,
-exports, reference data and visitor boundaries; it is not a read-only health
-probe. Run it when public functional validation is relevant. It can wait up to
-15 minutes for DNS/readiness, so retain its output and keep progress visible.
-Its frame counts and reference assertions target the current March collection;
-review them when intentionally expanding the dataset. The script retains some
-migration-era wording; it does not switch hosts or retire services.
+For relevant public changes, use an authenticated browser/API check covering
+login, previews, model contours, analyses, exports, ownership and sign-out.
+API login requires `POST /api/auth/login`, matching `Origin`, JSON content type
+and `X-Carruthers-Local: 1`; retain its cookies for subsequent requests. Each
+visitor in an ownership check must first sign in with its own cookie jar.
+Obtain credentials privately and keep passwords/tokens out of source and reports.
+Small test analyses create transient jobs; they are not read-only health probes.
+Updating the checked-in validator for this flow remains future work.
 
 After deployment, record what revision/artifact was installed and validate the
 public result. A logout or reboot resilience test is a separate exercise that
@@ -728,8 +786,11 @@ request to choose the next task; verify status before repeating completed work.
 | Automated Carruthers ingestion | Requested future work. Discovery/download is not implemented. Define approved sources, version/geometry validation, integrity checks and catalogue refresh behavior before enabling additional data. |
 | Actual reboot resilience | Untested. Logout plus fresh-service-start validation passed; reboot validation must separately establish networking, mounting, service startup and public analysis after restart. |
 | Updated L1C metadata and uncertainty | Scientific questions remain. Validate corrected `earth_loc` metadata before changing registration, and establish the meaning of `image_uncertainty` before plotting uncertainty bars. |
-| Researcher accounts, BU SSO, shared saves | Possible future extensions, not current features or an approved implementation plan. The current app is anonymous, and saves are per browser/origin. |
-| Browser WebMCP integration | Optional read-only workspace tool; live registration was not verified in the original browser. Normal application use does not depend on it. |
+| Multiple researcher accounts, BU SSO, shared saves | The current public app supports one privately configured account. Multiple accounts, roles, SSO and synchronized saves are not implemented; saves remain per browser/origin. |
+| Public functional validator | `deploy/nightglow/validate_public.py` predates authentication. It needs login for each test visitor and revised unauthenticated/ownership expectations before it can validate the current public service. |
+| Date-matched model irradiance | Zoennchen uses the manually selected irradiance. The LISIRD context plot is separate; no automatic LISIRD/COSSMo input is connected to the overlay. Calibrated COSSMo product availability remains unverified. |
+| Extended exosphere physics | THEORY has Earth gravity only, with no Moon perturbation or loss processes. The Zoennchen overlay remains a 3–8 Rᴇ shell reference; extrapolation and full radiative transfer are not implemented. |
+| Browser WebMCP integration | `hooks/use-workspace-tools.ts` registers the read-only `get_observation_workspace` tool only when `document.modelContext.registerTool` is available. Live registration remains unverified; normal application use does not depend on it. |
 
 Compatibility details:
 
@@ -756,8 +817,9 @@ Compatibility details:
   logged-out validation and recovery context; earlier Spark routes are historical.
 - [Retired Spark deployment](deploy/README.md): original deployment and scientific
   verification history, not instructions for the current production host.
-- [Nightglow public validator](deploy/nightglow/validate_public.py) and
-  [dataset manifest](deploy/dataset-manifest.json): functional and integrity checks.
+- [Legacy Nightglow public validator](deploy/nightglow/validate_public.py):
+  pre-login functional checks; needs the authentication update described above.
+- [Dataset manifest](deploy/dataset-manifest.json): source-file integrity record.
 
 The one-time migration/install scripts describe completed activation work. Inspect
 current state and the operation notes before using them again on the live host.
