@@ -244,21 +244,23 @@ export function OrbitViewer({
       }),
     );
     r.group.add(earth);
+    const l1 = new THREE.Vector3((1500000 / RE_KM) * factor, 0, 0);
+    const sunArrowOrigin = new THREE.Vector3(1.2, 0, 0);
     // Sun-aligned coordinates put Earth → Sun along +X in both distance modes.
+    // Keep the arrowhead beyond L1 so the shaft passes through its marker.
     r.group.add(
       new THREE.ArrowHelper(
         convert(frame.sun_position_km).normalize(),
-        new THREE.Vector3(1.2, 0, 0),
-        18,
+        sunArrowOrigin,
+        l1.x + 12 - sunArrowOrigin.x,
         0xffbd55,
         4,
         2,
       ),
     );
     r.group.add(
-      label('Sun direction', '#ffd590', new THREE.Vector3(18, 9, 0), 30),
+      label('Sun direction', '#ffd590', new THREE.Vector3(l1.x / 2, 9, 0), 30),
     );
-    const l1 = new THREE.Vector3((1500000 / RE_KM) * factor, 0, 0);
     const l1dot = new THREE.Mesh(
       new THREE.SphereGeometry(0.75, 12, 8),
       new THREE.MeshBasicMaterial({ color: 0xaec6df }),
@@ -267,7 +269,7 @@ export function OrbitViewer({
     r.group.add(l1dot);
     r.group.add(
       label(
-        'L1 ≈ 1.5 million km',
+        'L1 Lagrangian Point',
         '#b5c6db',
         l1.clone().add(new THREE.Vector3(0, -8, 0)),
         49,
@@ -345,7 +347,7 @@ export function OrbitViewer({
           }
           r.group.add(arrow);
           const caption = label(
-            `${frame.channel} deviation · ${pointing.angleDeg.toFixed(2)}°`,
+            `deviation · ${pointing.angleDeg.toFixed(2)}°`,
             '#9af8e9',
             origin.clone().addScaledVector(direction, 15),
             40,
@@ -355,7 +357,7 @@ export function OrbitViewer({
           r.group.add(caption);
         } else {
           r.deviationLabel = label(
-            `${frame.channel} deviation · 0.00°`,
+            'deviation · 0.00°',
             '#9af8e9',
             origin,
             40,
@@ -735,7 +737,7 @@ export function OrbitViewer({
           {mode === 'overview'
             ? 'Spacecraft distances ×0.45; Earth and image keep their relative scale.'
             : 'Earth, image and spacecraft distances share one scale.'}{' '}
-          The small arrow points from Earth toward the Sun; its length and the
+          The arrow passes through L1 toward the Sun; its length and the
           spacecraft model size are schematic.
         </p>
         <p>
