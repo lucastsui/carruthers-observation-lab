@@ -42,6 +42,7 @@ export function ObservationViewer({
   isolines,
   modelContours,
   modelOpacity,
+  modelLegend,
   zoom,
   onROI,
   onStep,
@@ -58,6 +59,7 @@ export function ObservationViewer({
   isolines: Contours | null;
   modelContours: ModelContours | null;
   modelOpacity: number;
+  modelLegend?: ReactNode;
   zoom: number;
   onROI: (r: ROI) => void;
   onStep: (n: number) => void;
@@ -617,6 +619,7 @@ export function ObservationViewer({
         {actions && <div className="image-actions">{actions}</div>}
       </div>
       <div className="colorbar">
+        <div className="model-legend-slot">{modelLegend}</div>
         <img
           src="/api/colorbar"
           alt="Logarithmic heat color scale from black through red to white"

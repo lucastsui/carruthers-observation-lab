@@ -1248,7 +1248,9 @@ h2 {
 .model-controls summary { cursor:pointer; color:#bdeaf0; }
 .model-controls a { color:#67e8f9; text-decoration:underline; }
 .model-swatch { display:inline-block; width:18px; flex-shrink:0; border-top:2px dashed #67e8f9; vertical-align:middle; }
-.model-legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:7px 12px; font-size:11px; color:#bdeaf0; background:#0b1720; }
+/* Reserve the caption's space even while the model is off or loading. */
+.model-legend-slot { height:36px; margin-bottom:6px; overflow-y:auto; }
+.model-legend { display:flex; flex-wrap:wrap; align-items:center; align-content:center; gap:0 6px; min-height:100%; padding:4px 8px; font-size:11px; line-height:14px; overflow-wrap:anywhere; color:#bdeaf0; background:#0b1720; }
 .slider-scale-ticks, .radiance-ticks { position:relative; height:24px; margin:0 6px; color:#afbecc; font:12px var(--font-mono); }
 .slider-scale-ticks span, .radiance-ticks span { position:absolute; transform:translateX(-50%); padding-top:7px; white-space:nowrap; }
 .slider-scale-ticks span::before, .radiance-ticks span::before { content:''; position:absolute; left:50%; top:0; height:5px; border-left:1px solid #a5b7c9; }

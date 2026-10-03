@@ -52,7 +52,9 @@ export default function Home() {
   const [scale, setScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]),
     [draftScale, setDraftScale] = useState<[number, number]>([DEFAULT_WFI_LOG_R, MAX_LOG_R]);
   const [exclude, setExclude] = useState(true);
-  const [model, setModel] = useState<ModelChoice>('Z15MAX');
+  const [models, setModels] = useState<Record<Channel, ModelChoice>>({ WFI: 'off', NFI: 'Z15MAX' });
+  const model = models[channel];
+  const setModel = (value: ModelChoice) => setModels((previous) => ({ ...previous, [channel]: value }));
   const [modelOpacity, setModelOpacity] = useState(.85);
   const [modelIrradiance, setModelIrradiance] = useState(6);
   const [compactPanel, setCompactPanel] = useState('viewer');
@@ -95,7 +97,8 @@ export default function Home() {
   const { preview, pending: previewPending, message: previewMessage, error: previewError, retry: retryPreview } =
     useFramePreview(frame, scale, contours, exclude);
   const displayedFrame = preview?.frame || frame;
-  const modelOverlay = useModelOverlay(displayedFrame?.id, model, modelIrradiance, preview?.exclude ?? exclude,
+  const displayedModel = models[displayedFrame?.channel ?? channel];
+  const modelOverlay = useModelOverlay(displayedFrame?.id, displayedModel, modelIrradiance, preview?.exclude ?? exclude,
     !!frame && !!preview && viewerMode === 'image' && !theory);
   const measurementFrame = frame ? displayedFrame : undefined;
   useEffect(() => {
@@ -413,6 +416,14 @@ export default function Home() {
                           isolines={preview?.isolines ?? null}
                           modelContours={modelOverlay.value}
                           modelOpacity={modelOpacity}
+                          modelLegend={displayedModel !== 'off' ? (
+                            <div className="model-legend" role="status">
+                              <span className="model-swatch" />Zoennchen 2015 · {displayedModel === 'Z15MAX' ? 'solar maximum' : 'solar minimum'} · 3–8 Rᴇ contribution
+                              {modelOverlay.pending ? ' · Calculating…' : modelOverlay.error ? <>
+                                <span>{modelOverlay.error}</span><button className="button ghost" onClick={modelOverlay.retry}>Retry model</button>
+                              </> : modelOverlay.value && !modelOverlay.value.contours.length ? ' · No contour levels in the valid image area' : ' · kR'}
+                            </div>
+                          ) : null}
                           zoom={Number(zoom)}
                           onROI={changeROI}
                           onStep={step}
@@ -426,14 +437,6 @@ export default function Home() {
                           {preview && ' Current frame retained.'}
                           {previewError && <button className="button ghost" onClick={retryPreview}>Retry</button>}
                         </output>
-                      )}
-                      {viewerMode === 'image' && model !== 'off' && (
-                        <div className="model-legend" role="status">
-                          <span className="model-swatch" />Zoennchen 2015 · {model === 'Z15MAX' ? 'solar maximum' : 'solar minimum'} · 3–8 Rᴇ contribution
-                          {modelOverlay.pending ? ' · Calculating…' : modelOverlay.error ? <>
-                            <span>{modelOverlay.error}</span><button className="button ghost" onClick={modelOverlay.retry}>Retry model</button>
-                          </> : modelOverlay.value && !modelOverlay.value.contours.length ? ' · No contour levels in the valid image area' : ' · kR'}
-                        </div>
                       )}
                     </div>
                   </div>
