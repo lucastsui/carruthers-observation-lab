@@ -418,7 +418,7 @@ export default function Home() {
                           modelOpacity={modelOpacity}
                           modelLegend={displayedModel !== 'off' ? (
                             <div className="model-legend" role="status">
-                              <span className="model-swatch" />Zoennchen 2015 · {displayedModel === 'Z15MAX' ? 'solar maximum' : 'solar minimum'} · 3–8 Rᴇ contribution · ×4π
+                              <span className="model-swatch" />Zoennchen 2015 · {displayedModel === 'Z15MAX' ? 'solar maximum' : 'solar minimum'} · 3–8 Rᴇ contribution
                               {modelOverlay.pending ? ' · Calculating…' : modelOverlay.error ? <>
                                 <span>{modelOverlay.error}</span><button className="button ghost" onClick={modelOverlay.retry}>Retry model</button>
                               </> : modelOverlay.value && !modelOverlay.value.contours.length ? ' · No contour levels in the valid image area' : ' · kR'}

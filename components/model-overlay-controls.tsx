@@ -49,27 +49,19 @@ export function ModelOverlayControls({
             />
           </label>
           <label>
-            Solar Lyα · mW/m²
+            Solar Lyα · mW/m² <output>{irradiance.toFixed(1)}</output>
             <input
               aria-label="Model solar Lyman-alpha irradiance"
-              type="number"
+              type="range"
               min="1"
               max="15"
               step="0.1"
-              defaultValue={irradiance}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-              }}
-              onBlur={(e) => {
-                const value = Number(e.currentTarget.value);
-                if (Number.isFinite(value) && value >= 1 && value <= 15)
-                  setIrradiance(Math.round(value * 1000) / 1000);
-                else e.currentTarget.value = String(irradiance);
-              }}
+              value={irradiance}
+              onChange={(e) => setIrradiance(Number(e.target.value))}
             />
           </label>
           <p>
-            Model shown only within 3–8 Rᴇ · kR · ×4π. Fixed reference illumination;
+            Model shown only within 3–8 Rᴇ · kR. Fixed reference illumination;
             adjust to the observation’s daily irradiance.
           </p>
           <details>
@@ -79,11 +71,6 @@ export function ModelOverlayControls({
               image view. They include only hydrogen between 3 and 8 Earth
               radii; sightlines passing inside 3 Rᴇ or outside 8 Rᴇ are omitted.
               The outer WFI image remains visible without model contours.
-            </p>
-            <p>
-              Model brightness is multiplied by 4π (approximately 12.57).
-              This is an additional scaling adjustment; the observation values
-              retain their original calibration.
             </p>
             <p>
               Solar maximum uses TWINS 2012 densities; minimum uses 2008/2010.

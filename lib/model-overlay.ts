@@ -69,7 +69,7 @@ export function matchingModelOverlay(
   return (
     value.frame_id === fid &&
     value.model === model &&
-    Math.abs(value.brightness_scale - 4 * Math.PI) < 1e-12 &&
+    value.brightness_scale === 1 &&
     Math.abs(value.irradiance_mw - irradiance) < 0.00051 &&
     value.exclude_interpolated === exclude
   );

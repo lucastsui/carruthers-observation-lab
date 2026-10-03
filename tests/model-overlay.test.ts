@@ -59,7 +59,7 @@ void test('late contours from another frame, model, illumination or mask are rej
     frame_id: 'a',
     model: 'Z15MAX',
     irradiance_mw: 6,
-    brightness_scale: 4 * Math.PI,
+    brightness_scale: 1,
     exclude_interpolated: true,
   } as ModelContours;
   assert.equal(matchingModelOverlay(value, 'a', 'Z15MAX', 6, true), true);
@@ -67,5 +67,5 @@ void test('late contours from another frame, model, illumination or mask are rej
   assert.equal(matchingModelOverlay(value, 'a', 'Z15MIN', 6, true), false);
   assert.equal(matchingModelOverlay(value, 'a', 'Z15MAX', 7, true), false);
   assert.equal(matchingModelOverlay(value, 'a', 'Z15MAX', 6, false), false);
-  assert.equal(matchingModelOverlay({ ...value, brightness_scale: 1 }, 'a', 'Z15MAX', 6, true), false);
+  assert.equal(matchingModelOverlay({ ...value, brightness_scale: 4 * Math.PI }, 'a', 'Z15MAX', 6, true), false);
 });

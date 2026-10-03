@@ -119,7 +119,7 @@ class ZoennchenFrameTests(unittest.TestCase):
             result = self.overlays.get(f['id'])
             self.assertEqual(result['frame_id'], f['id'])
             self.assertEqual(result['domain_re'], [3, 8])
-            self.assertAlmostEqual(result['brightness_scale'], 4*np.pi)
+            self.assertEqual(result['brightness_scale'], 1.)
             self.assertTrue(result['contours'])
             self.assertTrue(result['clip_paths'])
             x, y, column, _ = self.overlays.columns(f['id'], 'Z15MAX')
@@ -127,7 +127,7 @@ class ZoennchenFrameTests(unittest.TestCase):
             supported = conservative_mask(fov & np.isfinite(raw) & ~interpolation, x, y) & np.isfinite(column)
             unscaled = column[supported]*scattering_rate(6)/1e9
             np.testing.assert_allclose(result['brightness_range_kR'],
-                np.array([unscaled.min(), unscaled.max()])*4*np.pi, rtol=1e-14)
+                np.array([unscaled.min(), unscaled.max()]), rtol=1e-14)
             xx, yy = np.meshgrid((x[:-1]+x[1:])/2+.5, (y[:-1]+y[1:])/2+.5)
             points = np.column_stack([xx.ravel(), yy.ravel()])
             visible = np.zeros(len(points), bool)
@@ -160,7 +160,7 @@ class ZoennchenFrameTests(unittest.TestCase):
                 for level in contour_result['contours']:
                     xy = np.concatenate([np.array(p) for p in level['paths']])[::4]-.5
                     rays = pixel_rays(geometry, xy[:, 0], xy[:, 1]) @ basis.T
-                    exact = shell_column(position, rays, 'Z15MAX', samples=128)*scattering_rate(irradiance)/1e9*4*np.pi
+                    exact = shell_column(position, rays, 'Z15MAX', samples=128)*scattering_rate(irradiance)/1e9
                     np.testing.assert_allclose(exact, level['level_kR'], rtol=.02)
         for model, irradiance in [('bad', 6), ('Z15MIN', float('nan')), ('Z15MIN', 0), ('Z15MIN', 100)]:
             with self.assertRaises(ValueError):
