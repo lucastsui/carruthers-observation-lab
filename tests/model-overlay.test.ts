@@ -4,8 +4,38 @@ import {
   modelOverlayKey,
   matchingModelOverlay,
   modelLabelPosition,
+  dailyModelIrradiance,
   type ModelContours,
 } from '../lib/model-overlay.ts';
+import type { ContextSeries } from '../lib/research.ts';
+
+void test('solar irradiance uses the displayed UTC day, including frames before the daily noon timestamp', () => {
+  const series = {
+    kind: 'lyman', units: 'mW/m²',
+    data: [
+      { x: Date.parse('2026-03-01T12:00:00Z'), y: 8.325571194291115 },
+      { x: Date.parse('2026-03-02T12:00:00Z'), y: 7.380708586424589 },
+    ],
+  } as ContextSeries;
+  for (const time of ['2026-03-01T00:00:00Z', '2026-03-01T23:59:59Z']) {
+    assert.equal(dailyModelIrradiance(series, time.slice(0, 10)), 8.326);
+  }
+  assert.equal(dailyModelIrradiance(series, '2026-03-02'), 7.381);
+  assert.equal(dailyModelIrradiance(series, '2026-03-03'), null);
+  assert.equal(dailyModelIrradiance(undefined, '2026-03-01'), null);
+});
+
+void test('missing, wrong-unit and out-of-range solar observations are not substituted or clamped', () => {
+  const series = {
+    kind: 'lyman', units: 'mW/m²',
+    data: [{ x: Date.parse('2026-03-01T12:00:00Z'), y: 8 }],
+  } as ContextSeries;
+  for (const y of [null, NaN, Infinity, -9999, 0, 0.9, 30.1]) {
+    assert.equal(dailyModelIrradiance({ ...series, data: [{ ...series.data[0], y }] }, '2026-03-01'), null);
+  }
+  assert.equal(dailyModelIrradiance({ ...series, units: 'W/m^2' }, '2026-03-01'), null);
+  assert.equal(dailyModelIrradiance({ ...series, kind: 'dst' }, '2026-03-01'), null);
+});
 
 void test('model labels fit completely inside the supported region and avoid holes', () => {
   const rings: [number, number][][] = [

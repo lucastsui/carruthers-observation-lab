@@ -16,6 +16,7 @@ import { ObservationViewer } from '@/components/observation-viewer';
 import { DisplayControls } from '@/components/display-controls';
 import { ModelOverlayControls } from '@/components/model-overlay-controls';
 import { useModelOverlay } from '@/hooks/use-model-overlay';
+import { dailyModelIrradiance } from '@/lib/model-overlay';
 import type { ModelChoice } from '@/lib/model-overlay';
 import {
   AnalysisControls,
@@ -25,7 +26,7 @@ import { OrbitViewer } from '@/components/orbit-viewer';
 import { TheoryExplorer } from '@/components/theory-explorer';
 import { DEFAULT_WFI_LOG_R, MAX_LOG_R } from '@/lib/display';
 import type { ContourMode } from '@/lib/display';
-import { useBaseline } from '@/hooks/use-reference-data';
+import { useBaseline, useContextSeries } from '@/hooks/use-reference-data';
 import { useAnalysis } from '@/hooks/use-analysis';
 import { useWorkspaceTools } from '@/hooks/use-workspace-tools';
 import { useFramePreview } from '@/hooks/use-frame-preview';
@@ -56,7 +57,7 @@ export default function Home() {
   const model = models[channel];
   const setModel = (value: ModelChoice) => setModels((previous) => ({ ...previous, [channel]: value }));
   const [modelOpacity, setModelOpacity] = useState(.85);
-  const [modelIrradiance, setModelIrradiance] = useState(6);
+  const [manualIrradiance, setManualIrradiance] = useState<{ day: string | undefined; value: number | null }>({ day: undefined, value: null });
   const [compactPanel, setCompactPanel] = useState('viewer');
   const preferredTime = useRef<number | null>(null);
   useEffect(() => {
@@ -98,8 +99,22 @@ export default function Home() {
     useFramePreview(frame, scale, contours, exclude);
   const displayedFrame = preview?.frame || frame;
   const displayedModel = models[displayedFrame?.channel ?? channel];
-  const modelOverlay = useModelOverlay(displayedFrame?.id, displayedModel, modelIrradiance, preview?.exclude ?? exclude,
-    !!frame && !!preview && viewerMode === 'image' && !theory);
+  const irradianceDay = frame ? displayedFrame?.timestamp.slice(0, 10) : undefined;
+  const solar = useContextSeries('lyman', irradianceDay, irradianceDay);
+  const laspIrradiance = dailyModelIrradiance(solar.state?.value, irradianceDay);
+  const manual = manualIrradiance.day === irradianceDay ? manualIrradiance.value : null;
+  const modelIrradiance = manual ?? laspIrradiance;
+  // Reset a manual adjustment when the displayed UTC day changes.
+  if (manualIrradiance.day !== irradianceDay) setManualIrradiance({ day: irradianceDay, value: null });
+  const irradianceMessage = !irradianceDay
+    ? 'Select an observation for LASP irradiance.'
+    : !solar.state
+      ? 'Loading LASP daily irradiance…'
+      : laspIrradiance === null
+        ? `LASP irradiance unavailable for ${irradianceDay} UTC. Model contours paused.`
+        : `${manual ? 'Manual override · ' : ''}LASP ${laspIrradiance.toFixed(3)} mW/m² · ${irradianceDay} UTC daily mean${solar.state.value?.stale ? ' · cached' : ''}`;
+  const modelOverlay = useModelOverlay(displayedFrame?.id, displayedModel, modelIrradiance ?? 6, preview?.exclude ?? exclude,
+    !!frame && !!preview && modelIrradiance !== null && viewerMode === 'image' && !theory);
   const measurementFrame = frame ? displayedFrame : undefined;
   useEffect(() => {
     setPlaying(false);
@@ -356,7 +371,11 @@ export default function Home() {
                     }}
                   />
                   <ModelOverlayControls model={model} setModel={setModel} opacity={modelOpacity}
-                    setOpacity={setModelOpacity} irradiance={modelIrradiance} setIrradiance={setModelIrradiance} />
+                    setOpacity={setModelOpacity} irradiance={modelIrradiance}
+                    irradianceMessage={irradianceMessage}
+                    setIrradiance={(value) => {
+                      if (irradianceDay) setManualIrradiance({ day: irradianceDay, value });
+                    }} />
                   </>
                 }
               />

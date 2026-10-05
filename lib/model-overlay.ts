@@ -1,4 +1,4 @@
-import type { Contours } from './research.ts';
+import type { ContextSeries, Contours } from './research.ts';
 
 export type ModelChoice = 'off' | 'Z15MIN' | 'Z15MAX';
 export type ModelContours = Contours & {
@@ -11,6 +11,20 @@ export type ModelContours = Contours & {
   integration_seconds: number;
   clip_paths: [number, number][][];
 };
+
+export function dailyModelIrradiance(
+  series: ContextSeries | undefined,
+  utcDay: string | undefined,
+): number | null {
+  if (!utcDay || series?.kind !== 'lyman' || series.units !== 'mW/m²') return null;
+  const value = series.data.find(
+    (point) => Number.isFinite(point.x) && new Date(point.x).toISOString().slice(0, 10) === utcDay,
+  )?.y;
+  // Match the UTC day of the daily mean, not the nearest noon timestamp.
+  // Keep missing/out-of-range observations explicit; never clamp to the slider.
+  if (value == null || !Number.isFinite(value) || value < 1 || value > 30) return null;
+  return Math.round(value * 1000) / 1000; // Existing contour API precision.
+}
 
 // Fit whole labels inside the supported domain, including holes. Rejecting
 // intersecting segment bounding boxes is conservative for any polygon and exact

@@ -7,13 +7,15 @@ export function ModelOverlayControls({
   opacity,
   setOpacity,
   irradiance,
+  irradianceMessage,
   setIrradiance,
 }: {
   model: ModelChoice;
   setModel: (value: ModelChoice) => void;
   opacity: number;
   setOpacity: (value: number) => void;
-  irradiance: number;
+  irradiance: number | null;
+  irradianceMessage: string;
   setIrradiance: (value: number) => void;
 }) {
   return (
@@ -49,21 +51,21 @@ export function ModelOverlayControls({
             />
           </label>
           <label>
-            Solar Lyα · mW/m² <output>{irradiance.toFixed(1)}</output>
+            Solar Lyα · mW/m² <output>{irradiance?.toFixed(3) ?? '—'}</output>
             <input
               aria-label="Model solar Lyman-alpha irradiance"
+              aria-describedby="model-irradiance-source"
               type="range"
               min="1"
               max="30"
-              step="0.1"
-              value={irradiance}
+              step="0.001"
+              value={irradiance ?? 6}
+              disabled={irradiance === null}
               onChange={(e) => setIrradiance(Number(e.target.value))}
             />
           </label>
-          <p>
-            Model shown only within 3–8 Rᴇ · kR. Fixed reference illumination;
-            adjust to the observation’s daily irradiance.
-          </p>
+          <p><output id="model-irradiance-source">{irradianceMessage}</output></p>
+          <p>Model shown only within 3–8 Rᴇ · kR.</p>
           <details>
             <summary>Model scope &amp; sources</summary>
             <p>
