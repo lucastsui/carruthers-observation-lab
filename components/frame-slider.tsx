@@ -55,7 +55,7 @@ export function FrameSlider({ frames, scale, contours, exclude, index, onChange 
       <span
         id={descriptionId}
         className="frame-loaded-label"
-        title="Light sections show images and their selected contours ready to view at the current brightness scale."
+        title="Light sections show images and their selected contours loaded at the current brightness scale. Frames nearest the slider load first, followed by the rest of the selected interval."
       >
         <span className="frame-loaded-swatch" aria-hidden="true" />
         {count}/{frames.length} loaded

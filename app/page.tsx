@@ -153,9 +153,9 @@ export default function Home() {
     }, 75);
     return () => {
       clearTimeout(timer);
-      framePreviews.setPreloadWindow([]);
     };
   }, [previewWindow, previewPending]);
+  useEffect(() => () => framePreviews.setPreloadWindow([]), []);
   const step = useCallback(
     (n: number) => {
       setPlaying(false);

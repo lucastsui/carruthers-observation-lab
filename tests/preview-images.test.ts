@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PreviewImageCache, previewWindowIndices } from '../lib/preview-images.ts';
+import { PreviewCache, PreviewImageCache, previewWindowIndices } from '../lib/preview-images.ts';
 import { loadedFrameRanges } from '../lib/loaded-frame-ranges.ts';
 
 const image = (src: string) => ({ src }) as HTMLImageElement;
@@ -23,14 +23,14 @@ function controlledCache(capacity = 12) {
   };
 }
 
-void test('the preload window includes 100 frames on each side, nearest first, without wrapping', () => {
+void test('the preload order covers the entire interval, nearest first, without wrapping', () => {
   const middle = previewWindowIndices(633, 300);
-  assert.equal(middle.length, 201);
+  assert.equal(middle.length, 633);
   assert.deepEqual(middle.slice(0, 7), [300, 301, 299, 302, 298, 303, 297]);
-  assert.deepEqual(middle.slice(-4), [399, 201, 400, 200]);
-  assert.deepEqual([...middle].sort((a, b) => a - b), Array.from({ length: 201 }, (_, i) => 200 + i));
-  assert.deepEqual(previewWindowIndices(633, 0), Array.from({ length: 101 }, (_, i) => i));
-  assert.deepEqual(previewWindowIndices(633, 632), Array.from({ length: 101 }, (_, i) => 632 - i));
+  assert.ok(middle.every((value, i) => i === 0 || Math.abs(value - 300) >= Math.abs(middle[i - 1] - 300)));
+  assert.deepEqual([...middle].sort((a, b) => a - b), Array.from({ length: 633 }, (_, i) => i));
+  assert.deepEqual(previewWindowIndices(633, 0), Array.from({ length: 633 }, (_, i) => i));
+  assert.deepEqual(previewWindowIndices(633, 632), Array.from({ length: 633 }, (_, i) => 632 - i));
   assert.deepEqual(previewWindowIndices(3, 1), [1, 2, 0]);
   assert.deepEqual(previewWindowIndices(3, 20), [2, 1, 0]);
   assert.deepEqual(previewWindowIndices(3, -1), [0, 1, 2]);
@@ -96,12 +96,12 @@ void test('jumping replaces queued work, keeps at most two background requests, 
   await settle();
 });
 
-void test('the decoded buffer moves forward and backward and rebuilds for a different camera or scale', async () => {
+void test('the full-sequence cache retains all frames across jumps and replaces old cameras or scales', async () => {
   const calls: string[] = [];
-  const cache = new PreviewImageCache(async (url) => {
+  const cache = new PreviewCache(async (url: string) => {
     calls.push(url);
     return image(url);
-  }, undefined, 0);
+  }, 0, 0, true);
   const move = async (index: number, camera = 'WFI', low = 1) => {
     const count = camera === 'WFI' ? 633 : 1161;
     const allUrls = Array.from({ length: count }, (_, i) => `${camera}/${i}?low=${low}`);
@@ -111,24 +111,25 @@ void test('the decoded buffer moves forward and backward and rebuilds for a diff
     cache.setPreloadWindow(urls);
     await settle();
     assert.ok(urls.every((url) => cache.getSnapshot().has(url)));
-    assert.ok(cache.getSnapshot().size <= 201);
+    assert.equal(cache.getSnapshot().size, count);
     const ranges = loadedFrameRanges(allUrls, cache.getSnapshot());
-    const first = Math.max(0, index - 100), last = Math.min(count - 1, index + 100);
-    assert.ok(ranges.some((range) => range.start <= first && range.end >= last));
-    assert.ok(ranges.reduce((sum, range) => sum + range.end - range.start + 1, 0) <= 201);
+    assert.deepEqual(ranges, [{ start: 0, end: count - 1, left: 0, width: 100 }]);
     return urls;
   };
   await move(300);
-  assert.equal(calls.length, 201);
+  assert.equal(calls.length, 633);
   await move(301);
-  assert.equal(calls.length, 202); // Only the newly exposed forward edge is requested.
+  assert.equal(calls.length, 633);
   await move(300);
-  assert.equal(calls.length, 203); // Only the newly exposed backward edge is requested.
+  assert.equal(calls.length, 633);
   await move(525);
   await move(525, 'NFI');
   await move(525, 'NFI', 2);
   const urls = await move(0, 'NFI', 2);
-  assert.equal(urls.length, 101);
+  assert.equal(urls.length, 1161);
+  assert.equal(calls.length, 633 + 1161 * 2);
+  cache.setPreloadWindow([]);
+  assert.equal(cache.getSnapshot().size, 0);
 });
 
 void test('late loads from an old window cannot evict decoded frames in the current window', async () => {
