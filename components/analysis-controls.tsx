@@ -434,14 +434,15 @@ export function AnalysisControls({
                 </dl>
                 <p>
                   Earth is projected with the registered camera parameters. No
-                  second translation is applied to the image. The March v1.3
-                  earth_loc and plate_scale fields are inconsistent with this
-                  geometry.
+                  second translation is applied to the image. Pixel scale is
+                  calculated from camera calibration and spacecraft distance.
                 </p>
+                {frame.source_release && <p>{frame.source_release} · {frame.mask_basis}.</p>}
                 <p>
                   Reported timestamp: {frame.timestamp}. It is not assumed to be
                   the exposure midpoint.
                 </p>
+                {frame.time_basis && <p>Time conversion: {frame.time_basis}.</p>}
                 <p>
                   Quality flags:{' '}
                   {Object.entries(frame.flags)

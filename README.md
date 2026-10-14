@@ -203,15 +203,20 @@ functional checks below were recorded during their respective changes; this
 documentation review did not rerun the application test suites or resilience
 tests. These records are not a fresh uptime check whenever the README is read.
 
+The October 14 update adds linked THEORY density/flux controls and the Illinois
+Data Bank V2 collection. All 124 files passed metadata checks; first/last frames
+in each file passed direct-array measurement checks, and each file supplied a
+preview and contours. See [V2 ingestion and time interpretation](docs/l1c-v2-ingestion.md).
+
 | Item | Last recorded state | Evidence / where to check |
 | --- | --- | --- |
 | Product | CEDA title; visible brightness terminology; hourly Kyoto Dst replacing the displayed SYM-H series. | Commits `09cc54a`, `4ec23dc`, `ec184ae`; current interface and reference tests. |
 | 3D view and playback | Four-decimal Earth-pointing deviation text; no deviation drawing or lower caption. Extended Earth–Sun arrow with its label at the tip; remaining scene labels are white and the same size. Ecliptic-north indicator, attitude-driven spacecraft, orientation explanation and complete-frame swaps remain. | Commits `733fe3a`, `bd15fa8`, `8688d60`; latest UI release `20261003T131927Z-orbit-labels`. Type/build, focused lint, three display tests and both-camera browser checks passed during that UI change. Release evidence is in the owner's `.local/` directory, outside Git. |
 | Access | One configured account gates the public UI/assets and data APIs; separate browser-visitor cookies retain job ownership. | `auth.py`, `login.html`, `public_server.py`, `tests/test_auth.py`; [sign-in operations](deploy/nightglow/README.md#application-sign-in). |
 | Zoennchen overlay | 2015 solar-minimum/maximum density models provide 3–8 Rᴇ single-scattering brightness contours in the 2D viewer. Irradiance is adjustable from 1 to 30 mW/m²; no extra 4π brightness multiplier. | `zoennchen.py`, `components/model-overlay-controls.tsx`, [method and recorded validation](docs/zoennchen-overlay.md). |
-| THEORY | Browser-computed spherical density, 3D atom projection with 120 moving trails, and randomly located example launches. Bound dots remain tracked until their exobase return. | `lib/theory.ts`, `lib/theory-particles.ts`, their tests and the theory section below. |
+| THEORY | Browser-computed spherical density with linked exobase density/upward-flux controls, 3D atom projection with 120 moving trails, and randomly located example launches. Bound dots remain tracked until their exobase return. | `lib/theory.ts`, `lib/theory-particles.ts`, their tests and the theory section below. |
 | Public site | `https://nightglow.tail2214e5.ts.net`, served entirely by Nightglow. | [Nightglow operations](deploy/nightglow/README.md); current `/health` and public functional validation. |
-| Collection | March 2026 L1C v1.3 only: 62 files / 1,794 frames, split into 633 WFI and 1,161 NFI. | [Dataset manifest](deploy/dataset-manifest.json), catalogue and scientific regression fixtures. |
+| Collection | Illinois Data Bank V2, L1C v1.3: 124 files / 3,639 frames (1,284 WFI, 2,355 NFI), 2026-03-01 through 2026-05-02 UTC. | [Dataset manifest](deploy/dataset-manifest.json), catalogue and scientific regression fixtures. |
 | Persistence | Observations/state/cache on Nightglow's external volume; saved user analyses in browser IndexedDB. | Storage architecture below, `lib/saved.ts`, Nightglow supervisors. |
 | Host independence | Spark and the development Mac are outside the production request path. | Commit `e7f667b`; [migration evidence](deploy/MIGRATION-NIGHTGLOW.md). |
 | Logout behavior | Fresh background service starts and public analyses/exports passed while Nightglow stayed at its login screen. Actual reboot testing is still outstanding. | `logout-fresh-start.json`, `logged-out-public-validation.json` and `logout-final-health.json` under the Nightglow application root; operations guide. |
@@ -227,11 +232,11 @@ is listed separately under known gaps.
 
 | Area | Expected behavior |
 | --- | --- |
-| Collection and time selection | Browse March 2026 L1C v1.3 data: 62 NetCDF files, 633 WFI frames and 1,161 NFI frames. Select a camera and UTC interval. Switching cameras selects the nearest available observation time. Start on WFI, 2026-03-15, with a 4.5–5.5 Earth-radius annulus. |
+| Collection and time selection | Browse the V2 L1C v1.3 collection: 124 NetCDF files, 1,284 WFI frames and 2,355 NFI frames, 2026-03-01 through 2026-05-02 UTC. All available dates uses the loaded catalogue range. Select a camera and UTC interval. Switching cameras selects the nearest available observation time. Start on WFI, 2026-03-15, with a 4.5–5.5 Earth-radius annulus. |
 | Image navigation | Provide previous/next controls, a frame slider, playback with adjustable frames per second, keyboard/wheel navigation when the viewer is focused, and 1×/2×/4× zoom. Retain the complete displayed frame until its replacement image is decoded and its selected brightness contours are available, then swap pixels, contours, image geometry, time label and brightness scale together. This shared frame state feeds both 2D and 3D. Radius contours are synchronous geometry; disabling brightness contours requires no contour request. For both WFI and NFI, preload the entire selected interval, starting with frames nearest the slider and alternating forward/backward. Reprioritize queued work when the selection moves; the selected frame bypasses the background queue. Limit background downloads to two frame bundles at a time with at least 300 ms between starts (each may request one image and one contour set). Retain the full sequence as compressed image blobs and matching contours, with at most 33 decoded images prepared near the slider to limit memory use. Replace obsolete camera/interval/scale/mask entries as the new sequence fills, and ignore stale display loads during scrubbing. Light sections on the frame slider and its loaded count show downloaded image/contour bundles for the current selection settings; pending/failed downloads and other scales or masks are excluded. Downloaded distant images decode locally when selected. Failed foreground loads retain the previous complete frame and provide Retry. Browser HTTP cache entries outside this sequence are not counted. Show observation time, exposure and frame flags. |
 | Brightness display | Use the visible term brightness, in kR. Render logarithmic `gist_heat` images with adjustable minimum/maximum handles, labeled ticks and camera-specific reset: WFI 0.001–270 kR; NFI 0.1–270 kR. The slider permits a minimum of 0.0001 kR for faint outer emission. Display changes must not change numeric measurements. |
 | Overlays | Offer brightness contours, projected-radius contours, or no contours; retain the blue 1 Earth-radius reference boundary. Brightness contours use the original numeric arrays and the selected validity mask. |
-| Zoennchen reference | In the 2D image view, independently select Off, 2015 solar minimum or solar maximum alongside the observation contours. WFI defaults Off; NFI defaults solar maximum. Each camera remembers its model choice until reload. Opacity (default 85%) and solar Lyα irradiance (1–30 mW/m², default 6, step 0.1) are shared controls. Illumination is manually set, not date-matched. Dashed cyan contours show the single-scattering **3–8 Rᴇ shell contribution**, not total brightness; inner sightlines are masked and the outer density is truncated. The caption/loading/error state occupies a permanent slot above the color scale so the image does not resize. See [method and limits](docs/zoennchen-overlay.md). |
+| Zoennchen reference | In the 2D image view, independently select Off, 2015 solar minimum or solar maximum alongside the observation contours. WFI defaults Off; NFI defaults solar maximum. Each camera remembers its model choice until reload. Opacity (default 85%) and solar Lyα irradiance (1–30 mW/m², step 0.001) are shared controls. Irradiance starts from the LASP daily value for the displayed UTC date; manual overrides last for that date. Missing LASP values pause model contours. Dashed cyan contours show the single-scattering **3–8 Rᴇ shell contribution**, not total brightness; inner sightlines are masked and the outer density is truncated. The caption/loading/error state occupies a permanent slot above the color scale so the image does not resize. See [method and limits](docs/zoennchen-overlay.md). |
 | Region selection | Support annulus, annular sector, rectangle, single pixel, Dawn + Dusk and Paired annular sectors. Allow image dragging and numeric controls. Use projected Earth radii, x right and y up; angles begin at image right and increase toward image top. |
 | Paired dawn/dusk regions | Select two filled pies extending from Earth to the raster edges, centered at 180°/0°. A shared 1–180° opening angle controls both, including through edge dragging. Calculate and label separate Dawn/Dusk curves; CSV has two labeled rows per frame, and JSON retains both regions and the shared recipe. |
 | Paired annular sectors | Drag two diagonal corners on either image side to set inner/outer radii and angular bounds. Mirror the other sector by a 180° rotation about Earth; corner handles resize both. Numeric angles describe the right sector (−90° to 90°). Keep separate Dawn/Dusk measurements, curves and CSV rows; save/export all four bounds. |
@@ -253,6 +258,14 @@ symmetric, source-fed neutral-H model in Earth's inverse-square gravity.
 Launch radius is 6,370 km plus the selected altitude. Source flux is in
 atoms/cm²/s; the hot fraction partitions that outward flux, not reservoir density
 or the population already aloft. Default values are illustrative, not fitted.
+
+The exobase hydrogen-density control sits below upward flux and sets the same
+source normalization. It reports total outgoing plus returning H just above the
+source shell, not an assumed reservoir density below it. Moving either control
+updates the other. Its range corresponds to the existing flux limits at the
+selected temperatures, hot flux fraction, altitude and launch law. Changing
+those settings holds upward flux fixed and recalculates density. CSV and JSON
+exports include the derived exobase density in atoms/cm³.
 
 The density slice and its legend use the same 256-color `gist_heat` palette as
 the WFI/NFI images (black through red and yellow to white). The browser builds
@@ -366,7 +379,9 @@ not change the THEORY equations or constants.
 - Project Earth using spacecraft position, spacecraft/camera attitudes and camera
   intrinsics. Do not translate already-registered arrays again. The validated
   centers are WFI (256, 256) and NFI (512, 512), in zero-based array coordinates.
-  Do not use the March `earth_loc` field to recenter these images.
+  Do not use the original V1 March `earth_loc` field to recenter these images.
+  V2 corrects that field; require it to agree with projected geometry and the
+  registered raster center, without translating the image.
 - Use 6,370 km per Earth radius. The near-nadir image-plane scale is
   `abs(focal_length_pixels) * 6370 / spacecraft_distance_km`; it is an approximate
   projected distance, not a 3D location. The collection's stored `plate_scale`
@@ -378,14 +393,17 @@ not change the THEORY equations or constants.
   convention (GSE +Z), not Earth's geographic or magnetic pole. Its info popup
   cites the calibration paper, Section 8, and distinguishes that convention from
   exact alignment: the current geometry interpretation differs from vertical by
-  up to 2.2° across the 1,794 March frames. The NetCDF headers do not explicitly
+  up to 2.2° across the original 1,794 March frames. The NetCDF headers do not explicitly
   declare north-up. This indicator does not rotate images or change measurements.
-- Exclude nonfinite values and pixels outside `mask_fov`. Exclude interpolated
-  pixels by default, and record the user's choice. Coverage is valid / selected
+- Exclude nonfinite values and pixels outside `mask_fov` when supplied. V2
+  omits that variable and uses the finite radiance footprint. Exclude
+  interpolated pixels by default, and record the user's choice. Coverage is valid / selected
   pixel centers inside the raster; it does not count off-raster region area.
-- Preserve frame flags rather than silently dropping flagged frames. Build UTC
-  timestamps from the filename date plus milliseconds of day; do not relabel
-  the reported time as an exposure midpoint.
+- Preserve frame flags rather than silently dropping flagged frames. V1 uses
+  filename UTC date plus milliseconds of day; V2 declares TT2000 nanoseconds,
+  converted to UTC with Astropy. Record each frame's time basis; see the
+  [producer clock ambiguity](docs/l1c-v2-ingestion.md#reader-changes). Do not
+  relabel the reported time as an exposure midpoint.
 - `spatial_std_kR` is spatial pixel dispersion, not uncertainty on the mean.
   `image_uncertainty` needs scientific validation before use as error bars.
 - Dawn/dusk labels follow image left/right, not an attitude-derived magnetic
@@ -553,7 +571,7 @@ Mac and retired DGX Spark are not required for the running website.
 | --- | --- |
 | Nightglow internal SSD | Application root: `/Users/lucastsui/Applications/ObservationLab`; deployed code and built UI under `app/`; isolated runtimes under `runtime/`; private authentication and monitoring configuration under `private/`. |
 | External observation volume | APFS volume `/Volumes/Observation Data`, UUID `279D3C74-134E-4772-A3C3-EE64D76B70F7`. Quota: 1,000,000,000,000 bytes (1 TB, about 931 GiB). The quota caps usage within the shared APFS container; it does not reserve that capacity. |
-| Observation files | `/Volumes/Observation Data/carruthers/L1C`: 62 SHA-256-verified NetCDF files, about 45.7 GB, containing 1,794 frames. The app must not modify source observations. |
+| Observation files | `/Volumes/Observation Data/carruthers/L1C`: 124 SHA-256-verified V2 NetCDF files, about 92.6 GB, containing 3,639 frames. Original V1 files remain under `carruthers/releases/IDB-1805186/files`. The app must not modify source observations. |
 | Service state and logs | External `carruthers/state`: visitor-cookie signing key, service/gateway state, rotating logs and monitoring reports. Login sessions and queued/completed public jobs are in process memory and are lost on backend restart. |
 | Caches and temporary files | External `carruthers/cache`: reference data, Matplotlib cache, Python temporary files and nginx temporary files. Spawned workers inherit external temporary storage. |
 | Visitor's computer | Browser IndexedDB holds saved analyses; exports go to the visitor's download location. Saves are scoped to the browser and website origin and do not migrate automatically when the URL changes. |
@@ -612,7 +630,7 @@ claim that this new data volume has a configured backup policy.
 | Selection, playback, layout, image overlays | `app/page.tsx`, `components/observation-viewer.tsx`, `components/display-controls.tsx`, `components/analysis-controls.tsx`, `hooks/use-frame-preview.ts`, `lib/frame-previews.ts`, `lib/preview-images.ts`, `lib/loaded-frame-ranges.ts`, `app/globals.css` | TypeScript check/build, `tests/research.test.ts`, `tests/display.test.ts`, `tests/frame-previews.test.ts`, `tests/preview-images.test.ts`, browser interaction checks. |
 | Theory source populations, density, atoms and trajectories | `lib/theory.ts`, `lib/theory-particles.ts`, `lib/theory-particles.worker.ts`, `components/theory-particles.tsx`, `components/theory-explorer.tsx`, `app/theory.css` | `tests/theory.test.ts`, `tests/theory-particles.test.ts`, TypeScript check/build, browser particle controls, worker loading, knob/comparison/export and WFI/NFI navigation checks. |
 | Job submission, cancellation, stale results, saved results | `hooks/use-analysis.ts`, `lib/auto-analysis.ts`, `lib/saved.ts` | `tests/manual-analysis.test.ts`, `tests/auto-analysis.test.ts`, restore/save/cancel checks in the browser. |
-| Geometry, units, masking, profiles, paired regions | `science.py`, `lib/research.ts`, `server.py` | `tests/test_science.py`, `tests/test_service.py`, independent WFI fixture and both-camera checks. |
+| Geometry, units, masking, profiles, paired regions and L1C release handling | `science.py`, `l1c_time.py`, `lib/research.ts`, `server.py`, [V2 ingestion](docs/l1c-v2-ingestion.md) | `tests/test_science.py`, `tests/test_l1c_release.py`, `tests/test_service.py`, independent WFI fixture and both-camera checks. |
 | Zoennchen model overlay | `zoennchen.py`, `hooks/use-model-overlay.ts`, `lib/model-overlay.ts`, `components/model-overlay-controls.tsx`, `components/observation-viewer.tsx`, [method](docs/zoennchen-overlay.md) | `tests/test_zoennchen.py`, `tests/model-overlay.test.ts`, service/auth checks, types/build and both-camera browser checks. |
 | Contour circularity or exports | `circularity.py`, `components/circularity-chart.tsx`, `lib/circularity-export.ts`, `lib/analysis-export.ts` | `tests/test_circularity.py`, `tests/circularity-export.test.ts`, `tests/analysis-export.test.ts`, `tests/plot-bands.test.ts`; compare exported rows with calculated results. |
 | Dst, Lyman-alpha and baseline | `space_weather.py`, `hooks/use-reference-data.ts`, `components/context-chart.tsx`, `science.py` | `tests/test_references.py`, `tests/test_science.py`, source/missing-value checks and browser verification. |
@@ -660,9 +678,10 @@ npm ci
 ```
 
 Source observations are intentionally absent from Git. Use the existing approved
-March L1C collection at `../code and data/L1C`, or point `CARRUTHERS_DATA_DIR` to
-an approved collection. The manifest identifies the source data; automated
-redownload is not established by this handoff. Synthetic test arrays do not
+V1 March collection at `../code and data/L1C`, or point `CARRUTHERS_DATA_DIR` to
+the separately validated V2 collection. The current manifest records V2 files
+and archive hashes; `deploy/dataset-manifest-v1.json` preserves the original
+regression collection. There is no scheduled ingestion service. Synthetic test arrays do not
 replace a missing real-data validation run.
 
 ```sh
@@ -786,19 +805,20 @@ request to choose the next task; verify status before repeating completed work.
 
 | Item | Status and what completion would require |
 | --- | --- |
-| Automated Carruthers ingestion | Requested future work. Discovery/download is not implemented. Define approved sources, version/geometry validation, integrity checks and catalogue refresh behavior before enabling additional data. |
+| Automated Carruthers ingestion | The October 14 V2 release was downloaded and validated once. Scheduled discovery/download is not implemented. Future releases still require format, geometry, time, masking and integrity checks before activation. |
 | Actual reboot resilience | Untested. Logout plus fresh-service-start validation passed; reboot validation must separately establish networking, mounting, service startup and public analysis after restart. |
-| Updated L1C metadata and uncertainty | Scientific questions remain. Validate corrected `earth_loc` metadata before changing registration, and establish the meaning of `image_uncertainty` before plotting uncertainty bars. |
+| Updated L1C metadata and uncertainty | V2 Earth headers agree with registered camera geometry. Its explicit TT declaration is followed, but acquisition-clock confirmation remains outstanding. Establish the meaning of `image_uncertainty` before plotting uncertainty bars. |
 | Multiple researcher accounts, BU SSO, shared saves | The current public app supports one privately configured account. Multiple accounts, roles, SSO and synchronized saves are not implemented; saves remain per browser/origin. |
 | Public functional validator | `deploy/nightglow/validate_public.py` predates authentication. It needs login for each test visitor and revised unauthenticated/ownership expectations before it can validate the current public service. |
-| Date-matched model irradiance | Zoennchen uses the manually selected irradiance. The LISIRD context plot is separate; no automatic LISIRD/COSSMo input is connected to the overlay. Calibrated COSSMo product availability remains unverified. |
+| Model irradiance | The slider and contours use date-matched LASP daily irradiance, with a manual override for the current UTC date. COSSMo availability remains unverified; LASP supplies daily integrated flux, not a measured spectral line profile. |
 | Extended exosphere physics | THEORY has Earth gravity only, with no Moon perturbation or loss processes. The Zoennchen overlay remains a 3–8 Rᴇ shell reference; extrapolation and full radiative transfer are not implemented. |
 | Browser WebMCP integration | `hooks/use-workspace-tools.ts` registers the read-only `get_observation_workspace` tool only when `document.modelContext.registerTool` is available. Live registration remains unverified; normal application use does not depend on it. |
 
 Compatibility details:
 
-- Only March 2026 v1.3 observations are indexed. Later months/versions require
-  explicit scientific validation; widening a filename filter is insufficient.
+- Supported inputs are legacy V1 March and the separately loaded V2 release
+  through May 2, 2026. Never combine overlapping releases. Later releases
+  require scientific validation; widening a filename filter is insufficient.
 - Existing `radiance` identifiers, Observation Lab runtime/service names and the
   SYM-H compatibility adapter coexist with the current CEDA/brightness/Dst user
   interface. Renaming these internals can affect saved recipes, open clients or

@@ -54,7 +54,21 @@ periodically while running. They use a working directory pinned to the mounted
 volume, reject symlinked/cross-filesystem storage paths, and stop their child
 process groups if the volume disappears. They never create a replacement mount
 point on the internal SSD. Python workers inherit the external temporary path.
-The catalogue contains 1,794 frames from 62 SHA-256-verified NetCDF files.
+The current V2 catalogue contains 3,639 frames from 124 SHA-256-verified
+NetCDF files, covering 2026-03-01 through 2026-05-02 UTC. See
+[ingestion details](../../docs/l1c-v2-ingestion.md) for time, masking and metadata
+interpretation. The active manifest is `deploy/dataset-manifest.json`; its
+SHA-256 must match `carruthers/dataset-verified.json` before service startup.
+The watchdog reads the expected frame count from this manifest.
+
+The October 14 update preserves V1 observations in
+`carruthers/releases/IDB-1805186/files`, outside the active catalogue. V2 archives
+and download evidence are under `carruthers/releases/IDB-6347878`. Do not index
+both releases together. Source/static-file and marker backups for this update
+are under the application root
+`change-backups/20261014-density-l1c`. Rollback requires restoring the V1 data
+directory, app files/manifest and matching marker together, then restarting the
+backend; changing only the marker bypasses no guard and is not a data rollback.
 
 ## Login-independent disk access
 

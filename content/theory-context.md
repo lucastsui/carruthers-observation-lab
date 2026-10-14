@@ -2,6 +2,8 @@
 
 Hydrogen atoms are supplied continuously and uniformly across a spherical source shell representing the exobase. The upward flux $F$ specifies how many atoms are launched per unit area per second. Each atom has a total launch speed and a launch direction.
 
+The linked exobase hydrogen-density control specifies the total outgoing and returning density immediately above this shell. It changes the same source normalization as the upward-flux control; the two are not independent parameters. This is the model's local density, not a Maxwellian reservoir density below the shell. Changing temperature, mixture, altitude or launch directions holds upward flux fixed and recalculates the exobase density.
+
 At a given radius $r$, the model determines which launch conditions produce trajectories that reach that spherical shell and how quickly those atoms move through it. Escaping atoms contribute one outward passage. Ballistic atoms that reach the shell contribute an outward and a returning passage. Atoms that turn around before reaching the shell contribute zero there.
 
 The number density follows from the supply of atoms multiplied by the time they spend in the shell, divided by the shell volume. The model averages over a continuous distribution of launch conditions. It combines analytic reduction with numerical integration, rather than launching and tracking individual atoms through time.

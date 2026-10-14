@@ -3,7 +3,8 @@ import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'rea
 import { Download, RotateCcw, Pin, X, FlaskConical } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
-  calculateTheory, DEFAULT_THEORY, EARTH_RADIUS_KM, launchSpeed,
+  calculateTheory, DEFAULT_THEORY, EARTH_RADIUS_KM, exobaseDensity, fluxForExobaseDensity, launchSpeed,
+  THEORY_FLUX_MIN, THEORY_FLUX_MAX,
   THEORY_ASSUMPTIONS, THEORY_VERSION, theoryCSV, theoryJSON, trajectory,
 } from '@/lib/theory';
 import type { TheoryParameters, TheoryResult, Trajectory } from '@/lib/theory';
@@ -37,9 +38,10 @@ function Knob({ label, value, onChange, min, max, step, unit, hint, logarithmic 
     <label htmlFor={id}>{label} <span>{unit}</span></label>
     <div className="theory-knob-inputs">
       <input type="range" aria-label={`${label} slider`}
-        min={logarithmic ? Math.log10(min) : min} max={logarithmic ? Math.log10(max) : max}
-        step={step} value={logarithmic ? Math.log10(value) : value}
-        onChange={e => onChange(logarithmic ? 10 ** Number(e.target.value) : Number(e.target.value))} />
+        min={logarithmic ? 0 : min} max={logarithmic ? Number(Math.log10(max / min).toPrecision(12)) : max}
+        step={step} value={logarithmic ? Math.log10(value / min) : value}
+        onChange={e => onChange(Math.max(min, Math.min(max,
+          logarithmic ? min * 10 ** Number(e.target.value) : Number(e.target.value))))} />
       <input id={id} type="number" min={min} max={max} step="any" value={text}
         onChange={e => setDraft(e.target.value)} onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') { commit(); e.currentTarget.blur(); } }} />
@@ -287,6 +289,7 @@ export function TheoryExplorer() {
   const [details, setDetails] = useState<TheoryDetail | null>(null);
   const [compactPanel, setCompactPanel] = useState('profile');
   const result = useMemo(() => calculateTheory(parameters), [parameters]);
+  const densityPerFlux = exobaseDensity({ ...parameters, flux: 1 });
   const logRange = useMemo<[number, number]>(() => [logMin, logMax], [logMin, logMax]);
   const change = <K extends keyof TheoryParameters>(key: K, value: TheoryParameters[K]) =>
     setParameters(p => ({ ...p, [key]: value }));
@@ -314,8 +317,13 @@ export function TheoryExplorer() {
         <p className="theory-explainer">Uniform spherical source; returning atoms are absorbed at the shell.</p>
         <Knob label="Launch altitude" unit="km" min={200} max={1500} step={25}
           value={parameters.altitudeKm} onChange={v => change('altitudeKm', v)} hint="Height above Earth’s surface." />
-        <Knob label="Upward hydrogen flux" unit="atoms/cm²/s" min={1e7} max={1e12} step={0.05} logarithmic
+        <Knob label="Upward hydrogen flux" unit="atoms/cm²/s" min={THEORY_FLUX_MIN} max={THEORY_FLUX_MAX} step={0.05} logarithmic
           value={parameters.flux} onChange={v => change('flux', v)} hint="Atoms crossing each cm² per second; logarithmic slider." />
+        <Knob label="Exobase hydrogen density" unit="atoms/cm³"
+          min={THEORY_FLUX_MIN * densityPerFlux} max={THEORY_FLUX_MAX * densityPerFlux} step={0.05} logarithmic
+          value={result.exobaseDensity} onChange={v => setParameters(p => ({ ...p,
+            flux: Math.max(THEORY_FLUX_MIN, Math.min(THEORY_FLUX_MAX, fluxForExobaseDensity(p, v))),
+          }))} hint="Outgoing + returning H just above the exobase. Linked to upward flux; temperature and launch settings also change this density." />
         <div className="theory-divider" />
         <Knob label="Cold temperature" unit="K" min={200} max={3000} step={25}
           value={parameters.coldK} onChange={v => change('coldK', v)} />

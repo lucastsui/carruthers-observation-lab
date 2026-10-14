@@ -305,11 +305,13 @@ export default function Home() {
             <button
               className="button ghost"
               onClick={() => {
-                setStart('2026-03-01T00:00');
-                setEnd('2026-03-31T23:59');
+                if (catalogue?.frames.length) {
+                  setStart(catalogue.frames[0].timestamp.slice(0, 10) + 'T00:00');
+                  setEnd(catalogue.frames[catalogue.frames.length - 1].timestamp.slice(0, 10) + 'T23:59');
+                }
               }}
             >
-              All of March
+              All available dates
             </button>
             </>}
           </section>
@@ -525,7 +527,7 @@ export default function Home() {
                 </>
               ) : (
                 <div className="panel chart-empty">
-                  No observations in this interval. Choose dates in March 2026.
+                  No observations in this interval. Choose dates within the collection or select All available dates.
                 </div>
               )}
             </section>

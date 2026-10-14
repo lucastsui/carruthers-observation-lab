@@ -212,8 +212,11 @@ def public_handler(catalogue, jobs, static, origin_file, secret, extra_origins=(
                 return self.send_json({'error':'Too many requests. Please wait briefly and retry.'},429)
             if path=='/api/context':
                 q=parse_qs(urlparse(self.path).query)
-                if not all(re.fullmatch(r'2026-03-\d{2}',q.get(k,[''])[0]) for k in ('start','end')):
-                    return self.send_json({'error':'Reference series are enabled for March 2026.'},400)
+                if not catalogue.frames or not all(
+                    re.fullmatch(r'\d{4}-\d{2}-\d{2}', q.get(k, [''])[0])
+                    and catalogue.frames[0]['timestamp'][:10] <= q[k][0] <= catalogue.frames[-1]['timestamp'][:10]
+                    for k in ('start', 'end')):
+                    return self.send_json({'error':'Select reference dates within the observation collection.'},400)
                 if not context_slots.acquire(False):
                     self.limited=True
                     return self.send_json({'error':'Reference data are busy; retry shortly.'},429)

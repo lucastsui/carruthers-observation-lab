@@ -601,7 +601,7 @@ export function ObservationViewer({
                   The NetCDF headers provide camera and spacecraft attitudes,
                   but do not explicitly label the image “north up.” This arrow
                   marks the documented registration convention: our geometry
-                  check of all 1,794 March 2026 frames found differences of up
+                  check of the original 1,794 March 2026 frames found differences of up
                   to 2.2° from vertical, so exact alignment remains unverified.
                 </p>
                 <a

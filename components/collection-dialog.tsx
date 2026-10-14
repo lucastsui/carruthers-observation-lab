@@ -33,7 +33,7 @@ export function CollectionDialog({
       </DialogTrigger>
       <DialogContent className="reference-dialog">
         <DialogTitle>Observation collection</DialogTitle>
-        <DialogDescription>March 2026 · L1C v1.3</DialogDescription>
+        <DialogDescription>{catalogue.frames[0]?.timestamp.slice(0, 10)} – {catalogue.frames.at(-1)?.timestamp.slice(0, 10)} · L1C v1.3</DialogDescription>
         <Tabs defaultValue="saved">
           <TabsList>
             <TabsTrigger value="saved">
@@ -107,8 +107,7 @@ export function CollectionDialog({
             </p>
             {catalogue.skipped.length > 0 && (
               <p className="status">
-                {catalogue.skipped.length} files outside the validated March
-                v1.3 collection were skipped.
+                {catalogue.skipped.length} files outside the supported L1C releases were skipped.
               </p>
             )}
           </TabsContent>

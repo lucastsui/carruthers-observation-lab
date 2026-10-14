@@ -1,0 +1,321 @@
+{
+  "collection": "Carruthers GCI March 2026 L1C v1.3",
+  "source_information_url": "https://experts.illinois.edu/en/datasets/nasa-carruthers-geocorona-observatory-level-1c-data-product/",
+  "download_url_status": "Dataset landing page identified through the University of Illinois catalogue; automated archive access returns HTTP 403. Restore the listed filenames from the archive, then verify SHA-256. Original local files are the deployment source.",
+  "files": [
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260301_v1.3.nc",
+      "bytes": 1523781375,
+      "sha256": "b5a5d46215a8040c261a89f30a0452f2dad7a5be551fa0b27f4f34b9aa816053"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260302_v1.3.nc",
+      "bytes": 1489178367,
+      "sha256": "43069317297f088f7e5cc763ae2ad26f25d999ccb80ddc4806a3cdee95ca6005"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260303_v1.3.nc",
+      "bytes": 970129151,
+      "sha256": "0e665194b4457d72f7ae3d1bc963e9562931b81e45b2b535c2a5e48cc660a06c"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260304_v1.3.nc",
+      "bytes": 520285951,
+      "sha256": "adcc31b57d5beaf43c59452d13943a0e3f747b3854e5b25c530fdb21fc08974d"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260305_v1.3.nc",
+      "bytes": 1004732159,
+      "sha256": "794ad5082700a7cb80353bbca0c2e49435cc03a58d5fe46ab2b733340eb1c171"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260306_v1.3.nc",
+      "bytes": 1350764287,
+      "sha256": "5f8aa4c48c9474df0a0c733eeccf062d5e3d31054ced650a2005ab78dec4a112"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260307_v1.3.nc",
+      "bytes": 1489178367,
+      "sha256": "3adf4d0462d8713c494d2bd3b6619e7c1efd771812274a5e2aa1d268c176d2d5"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260308_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "f1222f11e91cff5b492bc1b5900b493e0d6b812b403561f92a5df11d11f9cc4b"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260309_v1.3.nc",
+      "bytes": 1039335167,
+      "sha256": "bd242e5a222903de354e2eb7cf55d84b81a8c5c010c2e955121c2b67b8437785"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260310_v1.3.nc",
+      "bytes": 1281558271,
+      "sha256": "3a4875919d956443c6d73e7362b0ff6e451b356604fc35520e9f1e6597409444"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260311_v1.3.nc",
+      "bytes": 1143144455,
+      "sha256": "b5b1be38f5c25a66fa5f0d83fb65d312ef2c517cf12dbe76c1d2bb252837d5f3"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260312_v1.3.nc",
+      "bytes": 1419972351,
+      "sha256": "38477ffddda2ad375076f3430c86fa4f2377fbe744408f7db6310904654281a5"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260313_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "441a1c0823a024d9ec32e6dc501bade118737bf60b224d28cbbc591f2c9d74eb"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260314_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "30f8db31a42aec7ca25d8da0f45d52bb03e1e7cda195a3ac62a0440ffc9f5c1f"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260315_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "8058e6f882073e4acbabb5978604d3edce99fd5f67eaff317afe0f97befd2a53"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260316_v1.3.nc",
+      "bytes": 1108541183,
+      "sha256": "b349cfb0533d5e30aab348051013725c27e8ac137830cc3aa64982c4e92201be"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260317_v1.3.nc",
+      "bytes": 1419972351,
+      "sha256": "64f8a18f2963912d273000fbb2bbb87c6a5eae326165d304639f35de47eb49db"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260318_v1.3.nc",
+      "bytes": 1004732159,
+      "sha256": "f64a9de8b5ea203d85eb5679f1dd419c509f21adab077767f2e902b118bf4dd5"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260319_v1.3.nc",
+      "bytes": 1419972351,
+      "sha256": "1dd10e3fde1649da9bedd731432d360d979820b2b0f0a13ac8da8058de8794c5"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260320_v1.3.nc",
+      "bytes": 1143144455,
+      "sha256": "6f5504d2bda2c836fc4ed651a3e5bf838938577970f3321926d1b3dc4fd6b1d5"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260321_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "45fc3a594784ccbf8195ece5ecc767fe32a79b7bb7f006f72bc09760fdae46ae"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260322_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "40fb188e39d3016f8c6fc3d41d32adf8609a1acc1c87fb435cb7aad7b620fb65"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260323_v1.3.nc",
+      "bytes": 1108541183,
+      "sha256": "cc2ba134ecbe844f181159da87d9730e89deea4f06720e295ea71baf60c5c9bb"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260324_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "5d0ea53e186c7043bfe44a82b0b3059e596bc7462df987d5db38070547ee9c4c"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260325_v1.3.nc",
+      "bytes": 1385367295,
+      "sha256": "aa53d89b57504cf41c36bbe6bc9e5df6afbb656ede30465443717b6780c72a90"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260326_v1.3.nc",
+      "bytes": 1419972351,
+      "sha256": "f3d0f68e3d0cb26c0c59a211461712a42b46fdfa4d134697023863e5292cbb7b"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260327_v1.3.nc",
+      "bytes": 1316161279,
+      "sha256": "d3254bab4855433413cd888821c53fcdaa002fa293a004debc66be9a33f5f710"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260328_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "0f9d6e055b202ad3bce852f7384700afa1387ee1aa4a5b23e4b8b35ca25ff544"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260329_v1.3.nc",
+      "bytes": 1454575359,
+      "sha256": "fcca1749e1c509a9f203e3c758bf64a9abbae65edcb9e7e2e43fe918d3167530"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260330_v1.3.nc",
+      "bytes": 1246955263,
+      "sha256": "cc03b986777758c2098a166d2ed1c53b617b8ebeb26542bc5282d479f1c8cc2e"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-NFI_L1C_20260331_v1.3.nc",
+      "bytes": 1316161279,
+      "sha256": "94488c95bedaacbd0204932793398a1c92b5928faeaf4838ac2e68a9dd4bc689"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260301_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "4d3df4996c58b66aa38c2e04e35364e681f26d09e33a913f52a9ecc4df904ed8"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260302_v1.3.nc",
+      "bytes": 199419647,
+      "sha256": "f1898b971ade45a00f567c3eb2618d0c62ebd57e2d039aced3d0b4cd2ff66bce"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260303_v1.3.nc",
+      "bytes": 251326207,
+      "sha256": "543aa8138358dd49031a173ba2466e4342eb442bdce6708071a02e808e38615f"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260304_v1.3.nc",
+      "bytes": 69654271,
+      "sha256": "0604e394c4eb69c1f626b19c5e6096f5f90a57b1f3668886a16b55d8330a5e83"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260305_v1.3.nc",
+      "bytes": 147513087,
+      "sha256": "c782e62911289a9c08afa6081c57329163231e1c6a3625342f9dca1a2ee3b700"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260306_v1.3.nc",
+      "bytes": 173465503,
+      "sha256": "2bfc916447fbfeed589abd354aefb26eac5bd73b983447799de6e52e46788fe0"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260307_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "f94aeed1c2c294182c30c0ab12680e802b3884af8cdcff00767800a3e228c8b9"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260308_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "9d2b0bf3e2b5c5dc291281318f6404c97887a25105bdeabbfa86507c995fd04a"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260309_v1.3.nc",
+      "bytes": 138862335,
+      "sha256": "fe9afacfe7e4e36e40203174a7dc8a955ce11e32eb8f7e3aab0c5e4cb7dbf1f6"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260310_v1.3.nc",
+      "bytes": 173465503,
+      "sha256": "06e604c21a2715b64f9c10dffff2549f2ddcf5d1b0769d6806084101b834efc6"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260311_v1.3.nc",
+      "bytes": 156163839,
+      "sha256": "2fef9d92a35d5cd11fc72b47129aea2d1521067a0430427046043988cc817302"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260312_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "ed67bd5155d3d6e955298525fdb3eb6c02f8411f1b5755ccadddbf973c1dd2d4"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260313_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "05cbfda3a09dadc6f451bc41db813016ad2709b1e873940dd76850f582021000"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260314_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "0314d946dc528088233d22adb88a967ff774afd0d141a4a9069c26bbe1a01495"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260315_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "75d4ced12c60c2562389d071970daa46b6f7bbede1612ba28c6148cb11a7f7eb"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260316_v1.3.nc",
+      "bytes": 147513087,
+      "sha256": "af03152febc4ce047c376649a11f0ddd20f4340e9e5bfe27d08a43bc3ed01fc1"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260317_v1.3.nc",
+      "bytes": 182118143,
+      "sha256": "216120c20e8fad80ec3109d62f2339f416b436465133487ff666e0cb8d0ebde8"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260318_v1.3.nc",
+      "bytes": 147513087,
+      "sha256": "bf4f7950d5bca87c0f5dea6c7e62f39bd85fba2cecb5926d8ec8ee2392ccee12"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260319_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "287d12630b2ae73de71e28e04f1fdf32d65701ce853eb39f7cc9d4de191e82da"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260320_v1.3.nc",
+      "bytes": 156163839,
+      "sha256": "99d5b3a5e6d3cecfe8161c890931fcd780bb1b3149f3669fb3020cddd2e39312"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260321_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "876531718b013b76378afea255fe1347469ad0edfc054755e2730863d8fa6029"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260322_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "a6f2f903f24ddb8d71bd05f1950be34e391651432e2adc312adbb8b5c931cc32"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260323_v1.3.nc",
+      "bytes": 147513087,
+      "sha256": "94bfe92ec6456fc25e8050df560eb1368f3666e9b16b8b69c0a642e834c9d1be"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260324_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "eaed3cd94f9e6312b1ccacc5d088197f561d50a7cddf7fe4e936d446765ea6d9"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260325_v1.3.nc",
+      "bytes": 182118143,
+      "sha256": "3f6ecc2515b53f67de8e545a9cdab642ccf2ba42c0307ecaed41f5eb9700bef8"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260326_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "5399ed232215b9dc1d4e0cdcdc4fed7b32700c8b40bb04ca06efc885daf2efe4"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260327_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "bc949e7c9b174273a56fab1bdc47c568ba16b716fa7a3c93f9dc575b9ce035a3"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260328_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "45a33e203b1f9478294d7ba6c6abca2fba9fd06808246e25292a6c7b23d1b47e"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260329_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "6297caf46b439e1d4c0764f171fab624a7006a8384ae4579745d8e12039337e3"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260330_v1.3.nc",
+      "bytes": 164814591,
+      "sha256": "e9c681832b04c7d353d085c041e9947dbd1ea37b092d5d4cfe1582979986acdd"
+    },
+    {
+      "path": "2603/CARRUTHERS_GCI-WFI_L1C_20260331_v1.3.nc",
+      "bytes": 190768895,
+      "sha256": "b96fc818795a0cd17f8ef3c62123580ce5675c045f3428a34ee7197d62cd85d5"
+    }
+  ],
+  "source_archive_url": "https://databank.illinois.edu/datasets/IDB-1805186",
+  "source_doi": "10.13012/B2IDB-1805186_V1",
+  "file_count": 62,
+  "total_bytes": 45702685970
+}

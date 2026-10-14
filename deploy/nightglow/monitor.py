@@ -61,7 +61,9 @@ def main():
     healthy = False
     try:
         health = request('http://127.0.0.1:8765/health')
-        healthy = health.get('status') == 'ok' and health.get('frames') == 1794
+        manifest = json.loads((storage.ROOT / 'app/deploy/dataset-manifest.json').read_text())
+        expected_frames = manifest.get('frame_count', 1794)  # Original V1 manifest predates this field.
+        healthy = health.get('status') == 'ok' and health.get('frames') == expected_frames
     except Exception:
         pass
     if not healthy:

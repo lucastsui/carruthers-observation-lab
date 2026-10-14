@@ -517,7 +517,7 @@ export function OrbitViewer({
                 </p>
                 <p>
                   This uses camera pointing, which can differ slightly from the
-                  direction to Earth’s center. Checks of all 1,794 March 2026
+                  direction to Earth’s center. Checks of the original 1,794 March 2026
                   frames reproduce the registered Earth centers and confirm the
                   boresight sign. This is consistency with the supplied
                   geometry, not independent star-based validation of pointing
@@ -619,7 +619,7 @@ export function OrbitViewer({
         </div>
         {fatalError && <output className="orbit-message">{fatalError}</output>}
         <div className="orbit-legend">
-          <span className="orbit-track">— March trajectory</span>
+          <span className="orbit-track">— Observation trajectory</span>
           <span className="wfi-fov">— WFI</span>
           <span className="nfi-fov">— NFI</span>
         </div>

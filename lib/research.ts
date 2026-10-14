@@ -5,6 +5,9 @@ export type Frame = {
   timestamp: string;
   epoch_ms: number;
   source: string;
+  source_release?: string;
+  time_basis?: string;
+  mask_basis?: string;
   version: string;
   frame_index: number;
   shape: [number, number];

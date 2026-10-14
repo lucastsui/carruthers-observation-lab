@@ -18,6 +18,8 @@ export const EARTH_RADIUS_KM = 6370;
 export const EARTH_GM = 398600.4418; // km³ s^-2
 export const K_OVER_H_MASS = 1.380649e-23 / 1.6735575e-27 / 1e6; // km² s^-2 K^-1
 export const THEORY_OUTER_RE = 30;
+export const THEORY_FLUX_MIN = 1e7;
+export const THEORY_FLUX_MAX = 1e12;
 
 export type LaunchLaw = 'cosine' | 'radial';
 export type TheoryParameters = {
@@ -49,11 +51,12 @@ export type TheoryResult = {
   totalLaunchRate: number;
   densityAt5: number;
   densityAt10: number;
+  exobaseDensity: number;
 };
 
 export function validateTheory(p: TheoryParameters) {
   const limits: [keyof TheoryParameters, number, number][] = [
-    ['altitudeKm', 200, 1500], ['flux', 1e7, 1e12], ['coldK', 200, 3000],
+    ['altitudeKm', 200, 1500], ['flux', THEORY_FLUX_MIN, THEORY_FLUX_MAX], ['coldK', 200, 3000],
     ['hotK', 3000, 30000], ['hotFraction', 0, 1],
   ];
   for (const [key, min, max] of limits) {
@@ -157,7 +160,21 @@ export function calculateTheory(p: TheoryParameters): TheoryResult {
   return { parameters: { ...p }, profile, escapeFraction: escape, returnFraction: 1 - escape,
     escapeSpeed: Math.sqrt(2 * EARTH_GM / r0),
     totalLaunchRate: 4 * Math.PI * (r0 * 1e5) ** 2 * p.flux,
-    densityAt5: densityAt(5, p).total, densityAt10: densityAt(10, p).total };
+    densityAt5: densityAt(5, p).total, densityAt10: densityAt(10, p).total,
+    exobaseDensity: profile[0].total };
+}
+
+/** Total steady-state density just above the source: outgoing + returning H.
+ * This is not the density of an unmodeled Maxwellian reservoir below the shell.
+ */
+export function exobaseDensity(p: TheoryParameters): number {
+  return densityAt((EARTH_RADIUS_KM + p.altitudeKm) / EARTH_RADIUS_KM, p).total;
+}
+
+/** Invert the same residence-time model; keep flux as the sole normalization. */
+export function fluxForExobaseDensity(p: TheoryParameters, density: number): number {
+  if (!Number.isFinite(density) || density <= 0) throw new Error('Exobase density must be finite and positive.');
+  return density / exobaseDensity({ ...p, flux: 1 });
 }
 
 export type Trajectory = {
@@ -213,10 +230,10 @@ export function theoryCSV(result: TheoryResult) {
   const p = result.parameters;
   const header = ['model_version', 'launch_altitude_km', 'outward_flux_cm-2_s-1', 'cold_K',
     'hot_K', 'hot_launch_flux_fraction', 'launch_law', 'radius_from_center_Re',
-    'cold_H_cm-3', 'hot_H_cm-3', 'total_H_cm-3', 'ballistic_H_cm-3', 'escaping_H_cm-3'];
+    'cold_H_cm-3', 'hot_H_cm-3', 'total_H_cm-3', 'ballistic_H_cm-3', 'escaping_H_cm-3', 'exobase_total_H_cm-3'];
   return [header.join(','), ...result.profile.map(row => [THEORY_VERSION, p.altitudeKm,
     p.flux, p.coldK, p.hotK, p.hotFraction, p.launchLaw, row.radiusRe,
-    row.cold, row.hot, row.total, row.ballistic, row.escaping].join(','))].join('\n') + '\n';
+    row.cold, row.hot, row.total, row.ballistic, row.escaping, result.exobaseDensity].join(','))].join('\n') + '\n';
 }
 
 export const THEORY_ASSUMPTIONS = [
@@ -225,6 +242,7 @@ export const THEORY_ASSUMPTIONS = [
   'Flux-weighted Maxwell speed law for each component: p(s)=s exp(-s), s=m_H v²/(2 k_B T).',
   'Cosine directions: p(mu)=2mu, mu=cos(angle from outward radial); radial mode uses mu=1.',
   'Hot fraction is the fraction of outgoing number flux, not gas density or mass currently aloft.',
+  'Exobase density is total outgoing plus returning density just above the source, linked to outward flux by the same residence-time model.',
   'Bound particles return and are absorbed at the source shell; unbound particles escape.',
   'Steady-state density includes returning bound orbits even when their apogee is beyond the plotted domain.',
   'No collisions, charge exchange, ionization, solar radiation pressure, or independently trapped satellite population.',
@@ -236,6 +254,6 @@ export function theoryJSON(result: TheoryResult) {
   return JSON.stringify({ model: THEORY_VERSION, assumptions: THEORY_ASSUMPTIONS,
     constants: { earth_radius_km: EARTH_RADIUS_KM, earth_GM_km3_s2: EARTH_GM,
       kB_over_hydrogen_mass_km2_s2_K: K_OVER_H_MASS },
-    units: { profile_density: 'atoms/cm³', radius: 'Earth radii from center',
+    units: { profile_density: 'atoms/cm³', exobase_density: 'atoms/cm³', radius: 'Earth radii from center',
       flux: 'atoms/cm²/s', fractions: 'outgoing number flux' }, ...result }, null, 2);
 }

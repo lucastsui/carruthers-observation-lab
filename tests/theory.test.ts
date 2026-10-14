@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateTheory, componentDensity, DEFAULT_THEORY, densityAt, EARTH_GM,
   EARTH_RADIUS_KM, escapeFraction, K_OVER_H_MASS, launchSpeed,
+  exobaseDensity, fluxForExobaseDensity, THEORY_FLUX_MIN, THEORY_FLUX_MAX,
   theoryCSV, theoryJSON, trajectory,
 } from '../lib/theory.ts';
 
@@ -87,6 +88,34 @@ void test('source density has the thermal half-space limit and excludes the unmo
   assert.equal(densityAt(1, p).total, 0);
 });
 
+void test('linked exobase density uses outgoing plus returning populations in both launch laws', () => {
+  // Independent surface velocity integral: one outward passage for every atom,
+  // plus one returning passage only below escape speed. Average 1/mu is 2 for
+  // cosine-weighted directions and 1 for radial directions.
+  for (const launchLaw of ['cosine', 'radial'] as const) {
+    for (const altitudeKm of [200, 1500]) for (const hotFraction of [0, 0.1, 1]) {
+      const p = { ...DEFAULT_THEORY, launchLaw, altitudeKm, hotFraction, coldK: 200, hotK: 30000 };
+      const r0 = (EARTH_RADIUS_KM + altitudeKm) * 1e5;
+      const escape = Math.sqrt(2 * EARTH_GM * 1e15 / r0);
+      const perFlux = (T: number) => {
+        const sigma = Math.sqrt(K_OVER_H_MASS * T) * 1e5;
+        const integrand = (u: number) => u * u * Math.exp(-u * u / 2) / (2 * sigma);
+        return (launchLaw === 'cosine' ? 2 : 1)
+          * (integrate(integrand, 0, 14) + integrate(integrand, 0, Math.min(14, escape / sigma)));
+      };
+      const coefficient = (1 - hotFraction) * perFlux(p.coldK) + hotFraction * perFlux(p.hotK);
+      for (const flux of [THEORY_FLUX_MIN, DEFAULT_THEORY.flux, THEORY_FLUX_MAX]) {
+        const model = { ...p, flux };
+        near(exobaseDensity(model), coefficient * flux, 2e-6);
+        near(fluxForExobaseDensity(model, coefficient * flux), flux, 2e-6);
+        near(calculateTheory(model).exobaseDensity, exobaseDensity(model));
+      }
+    }
+  }
+  for (const invalid of [0, -1, NaN, Infinity])
+    assert.throws(() => fluxForExobaseDensity(DEFAULT_THEORY, invalid));
+});
+
 void test('full trajectories include angular momentum, return to the source, and use total energy for escape', () => {
   const r0 = 6870, speed = 8, angle = 60;
   const t = trajectory(500, speed, angle);
@@ -109,6 +138,9 @@ void test('crossing speeds use flux weighting and exported recipes preserve unit
   assert.match(csv, /hot_launch_flux_fraction/);
   assert.deepEqual(exported.parameters, DEFAULT_THEORY);
   assert.equal(exported.units.profile_density, 'atoms/cm³');
+  assert.equal(exported.units.exobase_density, 'atoms/cm³');
+  near(exported.exobaseDensity, r.profile[0].total);
+  assert.match(csv, /exobase_total_H_cm-3/);
   assert.ok(exported.assumptions.some((s: string) => s.includes('No collisions')));
 });
 

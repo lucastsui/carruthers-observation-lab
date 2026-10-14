@@ -1,4 +1,4 @@
-"""Array measurements for the local Carruthers March 2026 v1.3 demo.
+"""Array measurements for published Carruthers L1C v1.3 observations.
 
 No recentering, smoothing, log transform or display clipping enters measurements.
 Coordinates are projected offsets in Earth radii; +x is right, +y is up.
@@ -10,15 +10,16 @@ import math
 import re
 import threading
 from collections import OrderedDict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
 from matplotlib import colormaps
 from netCDF4 import Dataset
 from PIL import Image
+from l1c_time import observation_times
 
 RE_KM = 6370.0
-METHOD_VERSION = 'carruthers-local-1.3'
+METHOD_VERSION = 'carruthers-local-1.4'
 PAIRED_KINDS = ('paired_sectors', 'paired_annular_sectors')
 SCALES = {'WFI': [0.0, math.log10(270000)], 'NFI': [2.0, math.log10(270000)]}  # log10(R); defaults 0.001/0.1 kR to 270 kR.
 NETCDF_LOCK = threading.RLock()  # netCDF/HDF5 libraries are not thread-safe.
@@ -107,32 +108,46 @@ class Catalogue:
         self.root = root.resolve()
         self.frames, self.by_id, self.paths, self.skipped = [], {}, {}, []
         total_bytes = 0
+        seen = set()
         for path in sorted(self.root.rglob('CARRUTHERS_GCI-*_L1C_*_v*.nc')):
             match = re.fullmatch(r'CARRUTHERS_GCI-(WFI|NFI)_L1C_(\d{8})_(v[^.]+\.[^.]+)\.nc', path.name)
             if not match:
                 continue
             channel, day, version = match.groups()
-            if version != 'v1.3' or not day.startswith('202603'):
-                self.skipped.append({'file': path.name, 'reason': 'Geometry validated for March 2026 v1.3 only'})
+            if version != 'v1.3' or not '20260301' <= day <= '20260502':
+                self.skipped.append({'file': path.name, 'reason': 'Outside the supported March–May 2, 2026 v1.3 releases'})
                 continue
+            if path.name in seen:
+                raise ValueError('Duplicate observation file; keep releases in separate collections: ' + path.name)
+            seen.add(path.name)
             stat = path.stat()
             source = str(path.relative_to(self.root))
             fingerprint = hashlib.sha256(f'{source}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()[:16]
             with NETCDF_LOCK, Dataset(path) as ds:
                 ds.set_auto_mask(False)
-                times = read_array(ds['time'])
+                times, time_basis, source_release = observation_times(ds, day)
                 geometry = {n: read_array(ds[n]) for n in GEOMETRY_NAMES}
                 headers = read_array(ds['earth_loc'])
                 flags = {n: read_array(v) for n, v in ds.variables.items() if n.startswith('flag_')}
                 exposure = read_array(ds['t_int'])
                 shape = list(ds['images'].shape[1:])
                 data_version = str(getattr(ds, 'Data_version', version))
-            base = datetime.strptime(day, '%Y%m%d').replace(tzinfo=timezone.utc)
+                mask_basis = 'mask_fov variable' if 'mask_fov' in ds.variables else 'finite radiance footprint (V2 has no mask_fov)'
+                if 'mask_fov' not in ds.variables and source_release != 'Illinois Data Bank V2':
+                    raise ValueError('Missing mask_fov in legacy L1C file')
+                if source_release == 'Illinois Data Bank V2':
+                    expected_shape = [512, 512] if channel == 'WFI' else [1024, 1024]
+                    if shape != expected_shape or not np.allclose(headers, np.array(shape[::-1]) / 2, atol=1e-5):
+                        raise ValueError('Unexpected V2 registered image geometry: ' + path.name)
             for i, ms in enumerate(times):
                 xy, ppre = earth_geometry({n: v[i] for n, v in geometry.items()})
-                timestamp = (base + timedelta(milliseconds=float(ms))).isoformat(timespec='seconds').replace('+00:00', 'Z')
+                if source_release == 'Illinois Data Bank V2' and not np.allclose(xy, headers[i], atol=1e-4):
+                    raise ValueError('V2 Earth center disagrees with camera geometry: ' + path.name)
+                timestamp = datetime.fromtimestamp(int(ms) / 1000, timezone.utc).isoformat(
+                    timespec='milliseconds' if ms % 1000 else 'seconds').replace('+00:00', 'Z')
                 fid = f'{fingerprint}-{i}'
-                frame = dict(id=fid, channel=channel, timestamp=timestamp, epoch_ms=int(base.timestamp()*1000+float(ms)),
+                frame = dict(id=fid, channel=channel, timestamp=timestamp, epoch_ms=int(ms),
+                             source_release=source_release, time_basis=time_basis, mask_basis=mask_basis,
                              source=source, source_size=stat.st_size, source_mtime_ns=stat.st_mtime_ns,
                              source_fingerprint=fingerprint, version=version, producer_data_version=data_version,
                              frame_index=i, shape=shape, earth_xy=xy, pixels_per_re=ppre,
@@ -178,7 +193,7 @@ class Catalogue:
         with NETCDF_LOCK, Dataset(path) as ds:
             ds.set_auto_mask(False)
             raw = read_array(ds['images'], frame['frame_index']).astype(float, copy=False)
-            fov = read_array(ds['mask_fov']) == 1
+            fov = read_array(ds['mask_fov']) == 1 if 'mask_fov' in ds.variables else np.isfinite(raw)
             interp = read_array(ds['mask_interpolation'], frame['frame_index']) != 0 if interpolation else None
         return raw, fov, interp
 
@@ -378,6 +393,7 @@ def measure_frame(catalogue, fid, roi, exclude_interpolated=True, profile=False,
                   earth_xy=frame['earth_xy'], pixels_per_re=frame['pixels_per_re'],
                   exposure_s=frame['exposure_s'], flags=frame['flags'],
                   method_version=METHOD_VERSION, exclude_interpolated=exclude_interpolated,
+                  source_release=frame['source_release'], time_basis=frame['time_basis'], mask_basis=frame['mask_basis'],
                   **measure_arrays(raw, fov, interp, frame, roi, exclude_interpolated))
     if include_circularity:
         from circularity import circularity_arrays
